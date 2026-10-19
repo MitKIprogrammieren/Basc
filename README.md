@@ -17,7 +17,7 @@ trägt ihn mit einem Tipp ins Lager ein. Aufbau nach dem Vorbild der
 | Ordner | `firmware/display-5inch`, `firmware/sensor-s3zero` | `pi/` | `pi/` + `pi/pad7/`, `firmware/sensor-s3zero` |
 
 Beide zeigen dieselben Bildschirme: **Wiegen**, **Lager** (Suche, Filter, angebrochene Rollen),
-**Sorte im Detail** und **Einstellungen** (Tara, Kalibrieren, Verbindung).
+**Sorte im Detail** und **Einstellungen** (Design, WLAN, Home Assistant, Bambu Lab mit AMS-Belegung, Waage, System).
 
 ## Teile
 

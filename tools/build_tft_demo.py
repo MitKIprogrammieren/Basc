@@ -29,6 +29,9 @@ def main():
     start = index.index('<div id="app"')
     ende = index.index('<script src="/static/app.js">')
     app_html = index[start:ende].rstrip()
+    # QR-Bibliothek einbetten, die Demo läuft ohne Server
+    qr = lesen("pi", "filamentwaage", "web", "qrcode.min.js").replace("</script", "<\\/script")
+    app_html = app_html.replace('<script src="/static/qrcode.min.js"></script>', f"<script>{qr}</script>")
 
     appjs = lesen("pi", "filamentwaage", "web", "app.js")
     alt = re.search(r"function skalieren\(\) \{.*?\n\}", appjs, re.S).group(0)

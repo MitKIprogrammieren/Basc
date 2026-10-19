@@ -213,7 +213,8 @@ const SIM = {
   ziel: 0, ist: 0, ruhigSeit: 0, tag: "", leser: "R", spule: -1,
 };
 function lagerZuruecksetzen() {
-  SIM.items = SIM_DATEN.service_response["todo.filament"].items.map((x) => ({ ...x }));
+  // Demo-Tags wie echte Bambu-Spulen: die ersten 4 Byte der AMS-tag_uid sind die UID, die der PN532 liest
+  SIM.items = SIM_DATEN.service_response["todo.filament"].items.map((x) => ({ ...x, description: (x.description || "").replace("04C0FFEE112233", "3E96DA70") }));
   SIM.version++;
 }
 lagerZuruecksetzen();
@@ -247,6 +248,78 @@ function aendern(uid, f) {
   return a.meldung || "";
 }
 
+
+// ---- Einstellungen, WLAN, Home Assistant und AMS (Simulation) ----
+const EINST = {
+  akzent: "#4caf50", helligkeit: 100, display_aus_min: 15, kompakt: false, leerspule_g: 250, nfc_stufe: 3,
+  drucker: ["x1c_rechts", "x1c_links", "h2c"], ams_suche: true, abbuchung_aktiv: true,
+  wlan: { ssid: "FRITZ!Box 7590 KL", ip: "192.168.178.57", signal: 78 },
+  ha: { url: "http://homeassistant.local:8123", todo: "todo.filament", token_gesetzt: true, token_ende: "x9Qw" },
+  einrichten_url: "http://192.168.178.57:8080/einrichten",
+};
+const NETZE = [
+  { ssid: "FRITZ!Box 7590 KL", signal: 78, gesichert: true },
+  { ssid: "Werkstatt", signal: 61, gesichert: true },
+  { ssid: "FRITZ!Box Gastzugang", signal: 52, gesichert: false },
+  { ssid: "Vodafone-8C21", signal: 34, gesichert: true },
+  { ssid: "DIRECT-HP-Drucker", signal: 18, gesichert: true },
+];
+const slot = (slot, name, hex, rest, tag, filament_id, aktiv) => ({ slot, name, hex, rest, tag, filament_id, aktiv: !!aktiv, leer: !name });
+const AMS = {
+  drucker: [
+    { id: "x1c_rechts", name: "X1C rechts", online: true, ams: [
+      { name: "AMS 1", kurz: "A", feuchte: 18, slots: [
+        slot(1, "PLA Basic", "#3F8E43FF", 71, "BDBCE2CD00000100", "GFA00"),
+        slot(2, "PLA Matte", "#9B9EA0FF", 100, "7A11C04B00000100", "GFA01"),
+        slot(3, "PLA Basic", "#545454FF", 34, "5C2E19A800000100", "GFA00", true),
+        slot(4, "", "", -1, "", "") ] },
+      { name: "AMS 2", kurz: "B", feuchte: 21, slots: [
+        slot(1, "PETG HF", "#F9DFB9FF", 88, "A1F0336200000100", "GFG02"),
+        slot(2, "PLA Basic", "#5B6579FF", 56, "3E96DA7000000100", "GFA00"),
+        slot(3, "PLA Silk+", "#F4A925FF", 12, "0D77E15900000100", "GFA06"),
+        slot(4, "Generic PLA", "#8A68B5FF", -1, "0000000000000000", "GFL99") ] } ] },
+    { id: "x1c_links", name: "X1C links", online: true, ams: [
+      { name: "AMS 1", kurz: "A", feuchte: 24, slots: [
+        slot(1, "ABS-GF", "#F48438FF", 63, "29C4A71E00000100", "GFB50", true),
+        slot(2, "ASA", "#00A6A0FF", 90, "E3505B0C00000100", "GFB01"),
+        slot(3, "PLA Tough+", "#000000FF", 45, "6B0E92D400000100", "GFA10"),
+        slot(4, "PLA Metal", "#39699EFF", 100, "91A2B3C400000100", "GFA02") ] } ] },
+    { id: "h2c", name: "H2C", online: true, ams: [
+      { name: "AMS 2 Pro", kurz: "A", feuchte: 12, slots: [
+        slot(1, "PETG-CF", "#000000FF", 77, "1F2E3D4C00000100", "GFG50"),
+        slot(2, "PA6-CF", "#000000FF", 40, "5A6B7C8D00000100", "GFN04"),
+        slot(3, "", "", -1, "", ""),
+        slot(4, "", "", -1, "", "") ] } ] },
+    { id: "h2s", name: "H2S", online: false, ams: [] },
+    { id: "a1mini_1", name: "A1 mini", online: false, ams: [] },
+  ],
+  abbuchungen: [
+    { zeit: "heute 19:42", text: "X1C rechts · PLA Dark Gray −38 g" },
+    { zeit: "heute 15:10", text: "X1C links · ABS Orange (GF) −112 g" },
+    { zeit: "gestern", text: "H2C · PETG Black (CF) −64 g" },
+  ],
+};
+const simApi = {
+  "/api/einstellungen": (d, opt) => {
+    if (opt.method === "POST") { Object.assign(EINST, d); }
+    return EINST;
+  },
+  "/api/wlan/netze": () => new Promise((r) => setTimeout(() => r(NETZE), 900)),
+  "/api/wlan": (d) => new Promise((r) => setTimeout(() => {
+    const n = NETZE.find((x) => x.ssid === d.ssid);
+    if (n && n.gesichert && (d.passwort || "").length < 8) return r({ ok: false, text: "Passwort zu kurz oder falsch" });
+    EINST.wlan = { ssid: d.ssid, ip: "192.168.178.57", signal: n ? n.signal : 50 };
+    r({ ok: true, text: `Verbunden mit ${d.ssid}` });
+  }, 1200)),
+  "/api/ha/test": (d) => new Promise((r) => setTimeout(() => r(/^https?:\/\/.+/.test(d.url)
+    ? { ok: true, text: `Verbindung ok · ${SIM.items.length - 1} Einträge in ${d.todo}` } : { ok: false, text: "Adresse muss mit http:// beginnen" }), 700)),
+  "/api/ha": (d) => { if (!/^https?:\/\/.+/.test(d.url)) return { ok: false, text: "Adresse muss mit http:// beginnen" };
+    Object.assign(EINST.ha, { url: d.url, todo: d.todo }); if (d.token) Object.assign(EINST.ha, { token_gesetzt: true, token_ende: d.token.slice(-4) });
+    return { ok: true, text: "Home Assistant gespeichert" }; },
+  "/api/ams": () => AMS,
+  "/api/system": (d) => { simMeldung({ neustart: "Startet neu … (Simulation)", update: "Version 1.0.0 ist aktuell", werk: "Auf Werkseinstellungen gesetzt (Simulation)" }[d.aktion] || "ok"); return { ok: true }; },
+};
+
 // ---- Ersatz für den Pi-Dienst: fetch() und EventSource ----
 const echtesFetch = window.fetch.bind(window);
 window.fetch = async (url, opt = {}) => {
@@ -255,6 +328,7 @@ window.fetch = async (url, opt = {}) => {
   const antwort = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { "Content-Type": "application/json" } });
   if (pfad === "/api/lager") return antwort({ version: SIM.version, sorten: sorten() });
   const d = opt.body ? JSON.parse(opt.body) : {};
+  if (simApi[pfad]) return antwort(JSON.parse(JSON.stringify(await simApi[pfad](d, opt))));
   const z = simZustand();
   if (pfad === "/api/tara") { SIM.ziel = 0; SIM.ist = 0; setzeRegler(0); simMeldung("Tara gesetzt"); }
   else if (pfad === "/api/kalibrieren") simMeldung(`Kalibriert mit ${d.g} g (Simulation)`);
@@ -304,11 +378,12 @@ setInterval(() => {
 
 // ---- Bedienfeld ----
 const SPULEN = [
-  { name: "PLA Blue Gray", info: "Tag bekannt · Rest 560 g", hex: "#5b6579", g: 812, tag: "04C0FFEE112233" },
+  { name: "PLA Blue Gray", info: "Tag bekannt · steckt im AMS", hex: "#5b6579", g: 812, tag: "3E96DA70" },
   { name: "PLA Ash Gray", info: "Tag bekannt · voll", hex: "#9b9ea0", g: 1252, tag: "04A1B2C3D4E5F6" },
+  { name: "Neue Bambu-Spule", info: "Tag aus AMS · Vorschlag", hex: "#3f8e43", g: 960, tag: "BDBCE2CD" },
   { name: "Neue Spule", info: "unbekannter Tag", hex: "#3a4048", g: 655, tag: "04DEADBEEF0001" },
   { name: "Spule ohne Tag", info: "Sorte selbst wählen", hex: "#2a2f36", g: 430, tag: "" },
-  { name: "Fast leer", info: "Blue Gray · 8 g Rest", hex: "#5b6579", g: 258, tag: "04C0FFEE112233" },
+  { name: "Fast leer", info: "Blue Gray · 8 g Rest", hex: "#5b6579", g: 258, tag: "3E96DA70" },
 ];
 function setzeRegler(g) {
   document.getElementById("sim-gewicht").value = g;

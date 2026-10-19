@@ -187,6 +187,73 @@ button { font-family: inherit; color: inherit; }
 .tastatur button:active { background: var(--rand); }
 .tastatur button.breit { flex: 2 1 0; font-size: 15px; } .tastatur button.ok { background: var(--gruen); color: var(--bg); }
 
+/* Einstellungen */
+.menue { width: 268px; flex: 0 0 auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.m-zeile { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px; border: 0;
+  background: transparent; text-align: left; cursor: pointer; color: var(--text); }
+.m-zeile:active { background: var(--linie); }
+.m-zeile.an { background: var(--nav-akt); }
+.m-zeile .m-icon { width: 32px; height: 32px; border-radius: 9px; background: var(--kachel); display: grid; place-items: center;
+  flex: 0 0 auto; color: var(--sub); }
+.m-zeile.an .m-icon { color: var(--gruen-t); }
+.m-zeile .m-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.m-zeile b { font-weight: 700; font-size: 14px; }
+.m-zeile small { font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-zeile .pfeil { color: var(--rand); font-size: 18px; }
+.e-inhalt { flex: 1 1 auto; min-width: 0; padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.e-inhalt > * { flex-shrink: 0; }
+.e-titel { font-weight: 700; font-size: 18px; }
+.e-block { display: flex; flex-direction: column; gap: 8px; }
+.e-zeile { display: flex; align-items: center; gap: 10px; }
+.e-zeile .e-name { flex: 1; min-width: 0; font-size: 14px; }
+.e-zeile .e-wert { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.farben { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; }
+.farbe { width: 33px; height: 33px; border-radius: 10px; border: 2px solid rgba(127,127,127,.35); cursor: pointer; padding: 0; }
+.farbe.an { outline: 3px solid var(--text); outline-offset: 2px; }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1 1 0; height: 40px; border-radius: 20px; border: 1px solid var(--rand); background: transparent;
+  color: var(--nav); font-weight: 600; font-size: 13px; cursor: pointer; }
+.seg button.an { background: var(--gruen); border-color: var(--gruen); color: var(--bg); font-weight: 700; }
+input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
+.feld { display: flex; flex-direction: column; gap: 4px; }
+.feld label { font-size: 12px; color: var(--sub); }
+.feld input { height: 42px; border-radius: 12px; border: 1px solid var(--rand2); background: var(--bg); color: var(--text);
+  padding: 0 12px; font: inherit; font-size: 14px; outline: none; }
+.feld input:focus { border-color: var(--gruen); }
+.netz { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--linie); cursor: pointer; }
+.netz:last-child { border-bottom: 0; }
+.netz .wachsen { font-weight: 600; font-size: 14px; }
+.balken-wlan { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.balken-wlan i { width: 3px; background: var(--rand); border-radius: 1px; }
+.balken-wlan i.an { background: var(--text); }
+.status-pill { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.status-pill.ok { background: var(--chip-g); color: var(--gruen-t); }
+.status-pill.aus { background: rgba(239,83,80,.18); color: var(--rot); }
+.status-pill.grau { background: var(--chip); color: var(--sub); }
+.schalter { width: 46px; height: 28px; border-radius: 14px; border: 0; background: var(--rand); position: relative; cursor: pointer; flex: 0 0 auto; }
+.schalter::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--text); transition: left .15s; }
+.schalter.an { background: var(--gruen); }
+.schalter.an::after { left: 21px; }
+.ams { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.slot { border-radius: 12px; background: var(--kachel); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.slot .spule-klein { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--rand2); }
+.slot b { font-size: 12px; } .slot small { font-size: 11px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot.leer { opacity: .45; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs button { height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid var(--rand); background: transparent;
+  color: var(--nav); font-weight: 600; font-size: 12px; cursor: pointer; }
+.tabs button.an { background: var(--nav-akt); border-color: var(--gruen); color: var(--gruen-t); }
+.hinweis { font-size: 13px; color: var(--sub); line-height: 1.45; }
+.knopf.rot { border-color: var(--rot) !important; color: var(--rot); }
+.kompakt-liste .zeile { padding: 6px 0; } .kompakt-liste .zeile .sub14 { display: none; }
+.qr { position: absolute; inset: 0; background: rgba(5,6,8,.82); display: grid; place-items: center; z-index: 40; }
+.qr-box { background: var(--panel); border: 2px solid var(--gruen); border-radius: 18px; padding: 18px; display: flex; gap: 18px; align-items: center; max-width: 560px; }
+#qr-code { background: #fff; padding: 10px; border-radius: 10px; }
+#qr-code img, #qr-code canvas { display: block; width: 168px; height: 168px; }
+.qr-url { font-weight: 700; font-size: 15px; color: var(--gruen-t); word-break: break-all; }
+.chip.ams { background: var(--chip-b); color: var(--blau-t); }
+.vorschlag { background: var(--nav-akt); border-radius: 10px; }
+
 .app { cursor: default; user-select: none; -webkit-user-select: none; }
 </style>
 
@@ -272,24 +339,10 @@ button { font-family: inherit; color: inherit; }
   <!-- Detail -->
   <main id="seite-detail" class="seite reihe versteckt"></main>
 
-  <!-- Einstellungen -->
+  <!-- Einstellungen: links das Menü, rechts die gewählte Seite -->
   <main id="seite-einst" class="seite reihe versteckt">
-    <section class="panel gruen spalte gap12 wachsen pad18">
-      <span class="ueber">Waage</span>
-      <span class="sub14">Teller leer machen und Tara drücken. Dann das Kalibriergewicht auflegen und Kalibrieren drücken.</span>
-      <button id="e-tara" class="knopf rahmen h50">Tara</button>
-      <div class="reihe gap8 mitte">
-        <button class="knopf rahmen quadrat" data-kal="-100" aria-label="100 g weniger">−</button>
-        <span id="kal-wert" class="name28 wachsen zentriert">1000 g</span>
-        <button class="knopf rahmen quadrat" data-kal="100" aria-label="100 g mehr">+</button>
-      </div>
-      <button id="e-kal" class="knopf primaer h54">Kalibrieren</button>
-    </section>
-    <section class="panel grau spalte gap12 b300 pad18">
-      <span class="ueber">Verbindung</span>
-      <div id="e-info" class="info"></div>
-      <button id="e-laden" class="knopf rahmen h50">Lager neu laden</button>
-    </section>
+    <nav id="e-menue" class="panel menue" aria-label="Einstellungen"></nav>
+    <section id="e-inhalt" class="panel gruen e-inhalt"></section>
   </main>
 
   <nav class="nav">
@@ -303,7 +356,15 @@ button { font-family: inherit; color: inherit; }
 
   <div id="toast" class="toast versteckt" role="status" aria-live="polite"></div>
   <div id="tastatur" class="tastatur versteckt" aria-label="Bildschirmtastatur"></div>
+  <div id="qr" class="qr versteckt" role="dialog" aria-label="Am Handy einrichten">
+    <div class="qr-box"><div id="qr-code"></div>
+      <div class="spalte gap8"><span class="name20">Am Handy einrichten</span>
+        <span class="sub14">Code scannen oder im Heimnetz öffnen:</span><span id="qr-url" class="qr-url"></span>
+        <span class="sub14">Dort lassen sich Token und Passwörter bequem einfügen.</span>
+        <button id="qr-zu" class="knopf rahmen h50">Schließen</button></div></div>
+  </div>
 </div>
+<script>var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this.parsedData=[];for(var b=[],d=0,e=this.data.length;e>d;d++){var f=this.data.charCodeAt(d);f>65536?(b[0]=240|(1835008&f)>>>18,b[1]=128|(258048&f)>>>12,b[2]=128|(4032&f)>>>6,b[3]=128|63&f):f>2048?(b[0]=224|(61440&f)>>>12,b[1]=128|(4032&f)>>>6,b[2]=128|63&f):f>128?(b[0]=192|(1984&f)>>>6,b[1]=128|63&f):b[0]=f,this.parsedData=this.parsedData.concat(b)}this.parsedData.length!=this.data.length&&(this.parsedData.unshift(191),this.parsedData.unshift(187),this.parsedData.unshift(239))}function b(a,b){this.typeNumber=a,this.errorCorrectLevel=b,this.modules=null,this.moduleCount=0,this.dataCache=null,this.dataList=[]}function i(a,b){if(void 0==a.length)throw new Error(a.length+"/"+b);for(var c=0;c<a.length&&0==a[c];)c++;this.num=new Array(a.length-c+b);for(var d=0;d<a.length-c;d++)this.num[d]=a[d+c]}function j(a,b){this.totalCount=a,this.dataCount=b}function k(){this.buffer=[],this.length=0}function m(){return"undefined"!=typeof CanvasRenderingContext2D}function n(){var a=!1,b=navigator.userAgent;return/android/i.test(b)&&(a=!0,aMat=b.toString().match(/android ([0-9]\.[0-9])/i),aMat&&aMat[1]&&(a=parseFloat(aMat[1]))),a}function r(a,b){for(var c=1,e=s(a),f=0,g=l.length;g>=f;f++){var h=0;switch(b){case d.L:h=l[f][0];break;case d.M:h=l[f][1];break;case d.Q:h=l[f][2];break;case d.H:h=l[f][3]}if(h>=e)break;c++}if(c>l.length)throw new Error("Too long data");return c}function s(a){var b=encodeURI(a).toString().replace(/\%[0-9a-fA-F]{2}/g,"a");return b.length+(b.length!=a?3:0)}a.prototype={getLength:function(){return this.parsedData.length},write:function(a){for(var b=0,c=this.parsedData.length;c>b;b++)a.put(this.parsedData[b],8)}},b.prototype={addData:function(b){var c=new a(b);this.dataList.push(c),this.dataCache=null},isDark:function(a,b){if(0>a||this.moduleCount<=a||0>b||this.moduleCount<=b)throw new Error(a+","+b);return this.modules[a][b]},getModuleCount:function(){return this.moduleCount},make:function(){this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(a,c){this.moduleCount=4*this.typeNumber+17,this.modules=new Array(this.moduleCount);for(var d=0;d<this.moduleCount;d++){this.modules[d]=new Array(this.moduleCount);for(var e=0;e<this.moduleCount;e++)this.modules[d][e]=null}this.setupPositionProbePattern(0,0),this.setupPositionProbePattern(this.moduleCount-7,0),this.setupPositionProbePattern(0,this.moduleCount-7),this.setupPositionAdjustPattern(),this.setupTimingPattern(),this.setupTypeInfo(a,c),this.typeNumber>=7&&this.setupTypeNumber(a),null==this.dataCache&&(this.dataCache=b.createData(this.typeNumber,this.errorCorrectLevel,this.dataList)),this.mapData(this.dataCache,c)},setupPositionProbePattern:function(a,b){for(var c=-1;7>=c;c++)if(!(-1>=a+c||this.moduleCount<=a+c))for(var d=-1;7>=d;d++)-1>=b+d||this.moduleCount<=b+d||(this.modules[a+c][b+d]=c>=0&&6>=c&&(0==d||6==d)||d>=0&&6>=d&&(0==c||6==c)||c>=2&&4>=c&&d>=2&&4>=d?!0:!1)},getBestMaskPattern:function(){for(var a=0,b=0,c=0;8>c;c++){this.makeImpl(!0,c);var d=f.getLostPoint(this);(0==c||a>d)&&(a=d,b=c)}return b},createMovieClip:function(a,b,c){var d=a.createEmptyMovieClip(b,c),e=1;this.make();for(var f=0;f<this.modules.length;f++)for(var g=f*e,h=0;h<this.modules[f].length;h++){var i=h*e,j=this.modules[f][h];j&&(d.beginFill(0,100),d.moveTo(i,g),d.lineTo(i+e,g),d.lineTo(i+e,g+e),d.lineTo(i,g+e),d.endFill())}return d},setupTimingPattern:function(){for(var a=8;a<this.moduleCount-8;a++)null==this.modules[a][6]&&(this.modules[a][6]=0==a%2);for(var b=8;b<this.moduleCount-8;b++)null==this.modules[6][b]&&(this.modules[6][b]=0==b%2)},setupPositionAdjustPattern:function(){for(var a=f.getPatternPosition(this.typeNumber),b=0;b<a.length;b++)for(var c=0;c<a.length;c++){var d=a[b],e=a[c];if(null==this.modules[d][e])for(var g=-2;2>=g;g++)for(var h=-2;2>=h;h++)this.modules[d+g][e+h]=-2==g||2==g||-2==h||2==h||0==g&&0==h?!0:!1}},setupTypeNumber:function(a){for(var b=f.getBCHTypeNumber(this.typeNumber),c=0;18>c;c++){var d=!a&&1==(1&b>>c);this.modules[Math.floor(c/3)][c%3+this.moduleCount-8-3]=d}for(var c=0;18>c;c++){var d=!a&&1==(1&b>>c);this.modules[c%3+this.moduleCount-8-3][Math.floor(c/3)]=d}},setupTypeInfo:function(a,b){for(var c=this.errorCorrectLevel<<3|b,d=f.getBCHTypeInfo(c),e=0;15>e;e++){var g=!a&&1==(1&d>>e);6>e?this.modules[e][8]=g:8>e?this.modules[e+1][8]=g:this.modules[this.moduleCount-15+e][8]=g}for(var e=0;15>e;e++){var g=!a&&1==(1&d>>e);8>e?this.modules[8][this.moduleCount-e-1]=g:9>e?this.modules[8][15-e-1+1]=g:this.modules[8][15-e-1]=g}this.modules[this.moduleCount-8][8]=!a},mapData:function(a,b){for(var c=-1,d=this.moduleCount-1,e=7,g=0,h=this.moduleCount-1;h>0;h-=2)for(6==h&&h--;;){for(var i=0;2>i;i++)if(null==this.modules[d][h-i]){var j=!1;g<a.length&&(j=1==(1&a[g]>>>e));var k=f.getMask(b,d,h-i);k&&(j=!j),this.modules[d][h-i]=j,e--,-1==e&&(g++,e=7)}if(d+=c,0>d||this.moduleCount<=d){d-=c,c=-c;break}}}},b.PAD0=236,b.PAD1=17,b.createData=function(a,c,d){for(var e=j.getRSBlocks(a,c),g=new k,h=0;h<d.length;h++){var i=d[h];g.put(i.mode,4),g.put(i.getLength(),f.getLengthInBits(i.mode,a)),i.write(g)}for(var l=0,h=0;h<e.length;h++)l+=e[h].dataCount;if(g.getLengthInBits()>8*l)throw new Error("code length overflow. ("+g.getLengthInBits()+">"+8*l+")");for(g.getLengthInBits()+4<=8*l&&g.put(0,4);0!=g.getLengthInBits()%8;)g.putBit(!1);for(;;){if(g.getLengthInBits()>=8*l)break;if(g.put(b.PAD0,8),g.getLengthInBits()>=8*l)break;g.put(b.PAD1,8)}return b.createBytes(g,e)},b.createBytes=function(a,b){for(var c=0,d=0,e=0,g=new Array(b.length),h=new Array(b.length),j=0;j<b.length;j++){var k=b[j].dataCount,l=b[j].totalCount-k;d=Math.max(d,k),e=Math.max(e,l),g[j]=new Array(k);for(var m=0;m<g[j].length;m++)g[j][m]=255&a.buffer[m+c];c+=k;var n=f.getErrorCorrectPolynomial(l),o=new i(g[j],n.getLength()-1),p=o.mod(n);h[j]=new Array(n.getLength()-1);for(var m=0;m<h[j].length;m++){var q=m+p.getLength()-h[j].length;h[j][m]=q>=0?p.get(q):0}}for(var r=0,m=0;m<b.length;m++)r+=b[m].totalCount;for(var s=new Array(r),t=0,m=0;d>m;m++)for(var j=0;j<b.length;j++)m<g[j].length&&(s[t++]=g[j][m]);for(var m=0;e>m;m++)for(var j=0;j<b.length;j++)m<h[j].length&&(s[t++]=h[j][m]);return s};for(var c={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8},d={L:1,M:0,Q:3,H:2},e={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7},f={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],G15:1335,G18:7973,G15_MASK:21522,getBCHTypeInfo:function(a){for(var b=a<<10;f.getBCHDigit(b)-f.getBCHDigit(f.G15)>=0;)b^=f.G15<<f.getBCHDigit(b)-f.getBCHDigit(f.G15);return(a<<10|b)^f.G15_MASK},getBCHTypeNumber:function(a){for(var b=a<<12;f.getBCHDigit(b)-f.getBCHDigit(f.G18)>=0;)b^=f.G18<<f.getBCHDigit(b)-f.getBCHDigit(f.G18);return a<<12|b},getBCHDigit:function(a){for(var b=0;0!=a;)b++,a>>>=1;return b},getPatternPosition:function(a){return f.PATTERN_POSITION_TABLE[a-1]},getMask:function(a,b,c){switch(a){case e.PATTERN000:return 0==(b+c)%2;case e.PATTERN001:return 0==b%2;case e.PATTERN010:return 0==c%3;case e.PATTERN011:return 0==(b+c)%3;case e.PATTERN100:return 0==(Math.floor(b/2)+Math.floor(c/3))%2;case e.PATTERN101:return 0==b*c%2+b*c%3;case e.PATTERN110:return 0==(b*c%2+b*c%3)%2;case e.PATTERN111:return 0==(b*c%3+(b+c)%2)%2;default:throw new Error("bad maskPattern:"+a)}},getErrorCorrectPolynomial:function(a){for(var b=new i([1],0),c=0;a>c;c++)b=b.multiply(new i([1,g.gexp(c)],0));return b},getLengthInBits:function(a,b){if(b>=1&&10>b)switch(a){case c.MODE_NUMBER:return 10;case c.MODE_ALPHA_NUM:return 9;case c.MODE_8BIT_BYTE:return 8;case c.MODE_KANJI:return 8;default:throw new Error("mode:"+a)}else if(27>b)switch(a){case c.MODE_NUMBER:return 12;case c.MODE_ALPHA_NUM:return 11;case c.MODE_8BIT_BYTE:return 16;case c.MODE_KANJI:return 10;default:throw new Error("mode:"+a)}else{if(!(41>b))throw new Error("type:"+b);switch(a){case c.MODE_NUMBER:return 14;case c.MODE_ALPHA_NUM:return 13;case c.MODE_8BIT_BYTE:return 16;case c.MODE_KANJI:return 12;default:throw new Error("mode:"+a)}}},getLostPoint:function(a){for(var b=a.getModuleCount(),c=0,d=0;b>d;d++)for(var e=0;b>e;e++){for(var f=0,g=a.isDark(d,e),h=-1;1>=h;h++)if(!(0>d+h||d+h>=b))for(var i=-1;1>=i;i++)0>e+i||e+i>=b||(0!=h||0!=i)&&g==a.isDark(d+h,e+i)&&f++;f>5&&(c+=3+f-5)}for(var d=0;b-1>d;d++)for(var e=0;b-1>e;e++){var j=0;a.isDark(d,e)&&j++,a.isDark(d+1,e)&&j++,a.isDark(d,e+1)&&j++,a.isDark(d+1,e+1)&&j++,(0==j||4==j)&&(c+=3)}for(var d=0;b>d;d++)for(var e=0;b-6>e;e++)a.isDark(d,e)&&!a.isDark(d,e+1)&&a.isDark(d,e+2)&&a.isDark(d,e+3)&&a.isDark(d,e+4)&&!a.isDark(d,e+5)&&a.isDark(d,e+6)&&(c+=40);for(var e=0;b>e;e++)for(var d=0;b-6>d;d++)a.isDark(d,e)&&!a.isDark(d+1,e)&&a.isDark(d+2,e)&&a.isDark(d+3,e)&&a.isDark(d+4,e)&&!a.isDark(d+5,e)&&a.isDark(d+6,e)&&(c+=40);for(var k=0,e=0;b>e;e++)for(var d=0;b>d;d++)a.isDark(d,e)&&k++;var l=Math.abs(100*k/b/b-50)/5;return c+=10*l}},g={glog:function(a){if(1>a)throw new Error("glog("+a+")");return g.LOG_TABLE[a]},gexp:function(a){for(;0>a;)a+=255;for(;a>=256;)a-=255;return g.EXP_TABLE[a]},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)},h=0;8>h;h++)g.EXP_TABLE[h]=1<<h;for(var h=8;256>h;h++)g.EXP_TABLE[h]=g.EXP_TABLE[h-4]^g.EXP_TABLE[h-5]^g.EXP_TABLE[h-6]^g.EXP_TABLE[h-8];for(var h=0;255>h;h++)g.LOG_TABLE[g.EXP_TABLE[h]]=h;i.prototype={get:function(a){return this.num[a]},getLength:function(){return this.num.length},multiply:function(a){for(var b=new Array(this.getLength()+a.getLength()-1),c=0;c<this.getLength();c++)for(var d=0;d<a.getLength();d++)b[c+d]^=g.gexp(g.glog(this.get(c))+g.glog(a.get(d)));return new i(b,0)},mod:function(a){if(this.getLength()-a.getLength()<0)return this;for(var b=g.glog(this.get(0))-g.glog(a.get(0)),c=new Array(this.getLength()),d=0;d<this.getLength();d++)c[d]=this.get(d);for(var d=0;d<a.getLength();d++)c[d]^=g.gexp(g.glog(a.get(d))+b);return new i(c,0).mod(a)}},j.RS_BLOCK_TABLE=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],j.getRSBlocks=function(a,b){var c=j.getRsBlockTable(a,b);if(void 0==c)throw new Error("bad rs block @ typeNumber:"+a+"/errorCorrectLevel:"+b);for(var d=c.length/3,e=[],f=0;d>f;f++)for(var g=c[3*f+0],h=c[3*f+1],i=c[3*f+2],k=0;g>k;k++)e.push(new j(h,i));return e},j.getRsBlockTable=function(a,b){switch(b){case d.L:return j.RS_BLOCK_TABLE[4*(a-1)+0];case d.M:return j.RS_BLOCK_TABLE[4*(a-1)+1];case d.Q:return j.RS_BLOCK_TABLE[4*(a-1)+2];case d.H:return j.RS_BLOCK_TABLE[4*(a-1)+3];default:return void 0}},k.prototype={get:function(a){var b=Math.floor(a/8);return 1==(1&this.buffer[b]>>>7-a%8)},put:function(a,b){for(var c=0;b>c;c++)this.putBit(1==(1&a>>>b-c-1))},getLengthInBits:function(){return this.length},putBit:function(a){var b=Math.floor(this.length/8);this.buffer.length<=b&&this.buffer.push(0),a&&(this.buffer[b]|=128>>>this.length%8),this.length++}};var l=[[17,14,11,7],[32,26,20,14],[53,42,32,24],[78,62,46,34],[106,84,60,44],[134,106,74,58],[154,122,86,64],[192,152,108,84],[230,180,130,98],[271,213,151,119],[321,251,177,137],[367,287,203,155],[425,331,241,177],[458,362,258,194],[520,412,292,220],[586,450,322,250],[644,504,364,280],[718,560,394,310],[792,624,442,338],[858,666,482,382],[929,711,509,403],[1003,779,565,439],[1091,857,611,461],[1171,911,661,511],[1273,997,715,535],[1367,1059,751,593],[1465,1125,805,625],[1528,1190,868,658],[1628,1264,908,698],[1732,1370,982,742],[1840,1452,1030,790],[1952,1538,1112,842],[2068,1628,1168,898],[2188,1722,1228,958],[2303,1809,1283,983],[2431,1911,1351,1051],[2563,1989,1423,1093],[2699,2099,1499,1139],[2809,2213,1579,1219],[2953,2331,1663,1273]],o=function(){var a=function(a,b){this._el=a,this._htOption=b};return a.prototype.draw=function(a){function g(a,b){var c=document.createElementNS("http://www.w3.org/2000/svg",a);for(var d in b)b.hasOwnProperty(d)&&c.setAttribute(d,b[d]);return c}var b=this._htOption,c=this._el,d=a.getModuleCount();Math.floor(b.width/d),Math.floor(b.height/d),this.clear();var h=g("svg",{viewBox:"0 0 "+String(d)+" "+String(d),width:"100%",height:"100%",fill:b.colorLight});h.setAttributeNS("http://www.w3.org/2000/xmlns/","xmlns:xlink","http://www.w3.org/1999/xlink"),c.appendChild(h),h.appendChild(g("rect",{fill:b.colorDark,width:"1",height:"1",id:"template"}));for(var i=0;d>i;i++)for(var j=0;d>j;j++)if(a.isDark(i,j)){var k=g("use",{x:String(i),y:String(j)});k.setAttributeNS("http://www.w3.org/1999/xlink","href","#template"),h.appendChild(k)}},a.prototype.clear=function(){for(;this._el.hasChildNodes();)this._el.removeChild(this._el.lastChild)},a}(),p="svg"===document.documentElement.tagName.toLowerCase(),q=p?o:m()?function(){function a(){this._elImage.src=this._elCanvas.toDataURL("image/png"),this._elImage.style.display="block",this._elCanvas.style.display="none"}function d(a,b){var c=this;if(c._fFail=b,c._fSuccess=a,null===c._bSupportDataURI){var d=document.createElement("img"),e=function(){c._bSupportDataURI=!1,c._fFail&&_fFail.call(c)},f=function(){c._bSupportDataURI=!0,c._fSuccess&&c._fSuccess.call(c)};return d.onabort=e,d.onerror=e,d.onload=f,d.src="data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==",void 0}c._bSupportDataURI===!0&&c._fSuccess?c._fSuccess.call(c):c._bSupportDataURI===!1&&c._fFail&&c._fFail.call(c)}if(this._android&&this._android<=2.1){var b=1/window.devicePixelRatio,c=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(a,d,e,f,g,h,i,j){if("nodeName"in a&&/img/i.test(a.nodeName))for(var l=arguments.length-1;l>=1;l--)arguments[l]=arguments[l]*b;else"undefined"==typeof j&&(arguments[1]*=b,arguments[2]*=b,arguments[3]*=b,arguments[4]*=b);c.apply(this,arguments)}}var e=function(a,b){this._bIsPainted=!1,this._android=n(),this._htOption=b,this._elCanvas=document.createElement("canvas"),this._elCanvas.width=b.width,this._elCanvas.height=b.height,a.appendChild(this._elCanvas),this._el=a,this._oContext=this._elCanvas.getContext("2d"),this._bIsPainted=!1,this._elImage=document.createElement("img"),this._elImage.style.display="none",this._el.appendChild(this._elImage),this._bSupportDataURI=null};return e.prototype.draw=function(a){var b=this._elImage,c=this._oContext,d=this._htOption,e=a.getModuleCount(),f=d.width/e,g=d.height/e,h=Math.round(f),i=Math.round(g);b.style.display="none",this.clear();for(var j=0;e>j;j++)for(var k=0;e>k;k++){var l=a.isDark(j,k),m=k*f,n=j*g;c.strokeStyle=l?d.colorDark:d.colorLight,c.lineWidth=1,c.fillStyle=l?d.colorDark:d.colorLight,c.fillRect(m,n,f,g),c.strokeRect(Math.floor(m)+.5,Math.floor(n)+.5,h,i),c.strokeRect(Math.ceil(m)-.5,Math.ceil(n)-.5,h,i)}this._bIsPainted=!0},e.prototype.makeImage=function(){this._bIsPainted&&d.call(this,a)},e.prototype.isPainted=function(){return this._bIsPainted},e.prototype.clear=function(){this._oContext.clearRect(0,0,this._elCanvas.width,this._elCanvas.height),this._bIsPainted=!1},e.prototype.round=function(a){return a?Math.floor(1e3*a)/1e3:a},e}():function(){var a=function(a,b){this._el=a,this._htOption=b};return a.prototype.draw=function(a){for(var b=this._htOption,c=this._el,d=a.getModuleCount(),e=Math.floor(b.width/d),f=Math.floor(b.height/d),g=['<table style="border:0;border-collapse:collapse;">'],h=0;d>h;h++){g.push("<tr>");for(var i=0;d>i;i++)g.push('<td style="border:0;border-collapse:collapse;padding:0;margin:0;width:'+e+"px;height:"+f+"px;background-color:"+(a.isDark(h,i)?b.colorDark:b.colorLight)+';"></td>');g.push("</tr>")}g.push("</table>"),c.innerHTML=g.join("");var j=c.childNodes[0],k=(b.width-j.offsetWidth)/2,l=(b.height-j.offsetHeight)/2;k>0&&l>0&&(j.style.margin=l+"px "+k+"px")},a.prototype.clear=function(){this._el.innerHTML=""},a}();QRCode=function(a,b){if(this._htOption={width:256,height:256,typeNumber:4,colorDark:"#000000",colorLight:"#ffffff",correctLevel:d.H},"string"==typeof b&&(b={text:b}),b)for(var c in b)this._htOption[c]=b[c];"string"==typeof a&&(a=document.getElementById(a)),this._android=n(),this._el=a,this._oQRCode=null,this._oDrawing=new q(this._el,this._htOption),this._htOption.text&&this.makeCode(this._htOption.text)},QRCode.prototype.makeCode=function(a){this._oQRCode=new b(r(a,this._htOption.correctLevel),this._htOption.correctLevel),this._oQRCode.addData(a),this._oQRCode.make(),this._el.title=a,this._oDrawing.draw(this._oQRCode),this.makeImage()},QRCode.prototype.makeImage=function(){"function"==typeof this._oDrawing.makeImage&&(!this._android||this._android>=3)&&this._oDrawing.makeImage()},QRCode.prototype.clear=function(){this._oDrawing.clear()},QRCode.CorrectLevel=d}();</script>
         </div>
       </div>
       <div class="s-unter"><span>5″ · 800 × 480 · Touch</span><span id="sim-messung">0,0 g</span></div>
@@ -447,7 +508,8 @@ const SIM = {
   ziel: 0, ist: 0, ruhigSeit: 0, tag: "", leser: "R", spule: -1,
 };
 function lagerZuruecksetzen() {
-  SIM.items = SIM_DATEN.service_response["todo.filament"].items.map((x) => ({ ...x }));
+  // Demo-Tags wie echte Bambu-Spulen: die ersten 4 Byte der AMS-tag_uid sind die UID, die der PN532 liest
+  SIM.items = SIM_DATEN.service_response["todo.filament"].items.map((x) => ({ ...x, description: (x.description || "").replace("04C0FFEE112233", "3E96DA70") }));
   SIM.version++;
 }
 lagerZuruecksetzen();
@@ -481,6 +543,78 @@ function aendern(uid, f) {
   return a.meldung || "";
 }
 
+
+// ---- Einstellungen, WLAN, Home Assistant und AMS (Simulation) ----
+const EINST = {
+  akzent: "#4caf50", helligkeit: 100, display_aus_min: 15, kompakt: false, leerspule_g: 250, nfc_stufe: 3,
+  drucker: ["x1c_rechts", "x1c_links", "h2c"], ams_suche: true, abbuchung_aktiv: true,
+  wlan: { ssid: "FRITZ!Box 7590 KL", ip: "192.168.178.57", signal: 78 },
+  ha: { url: "http://homeassistant.local:8123", todo: "todo.filament", token_gesetzt: true, token_ende: "x9Qw" },
+  einrichten_url: "http://192.168.178.57:8080/einrichten",
+};
+const NETZE = [
+  { ssid: "FRITZ!Box 7590 KL", signal: 78, gesichert: true },
+  { ssid: "Werkstatt", signal: 61, gesichert: true },
+  { ssid: "FRITZ!Box Gastzugang", signal: 52, gesichert: false },
+  { ssid: "Vodafone-8C21", signal: 34, gesichert: true },
+  { ssid: "DIRECT-HP-Drucker", signal: 18, gesichert: true },
+];
+const slot = (slot, name, hex, rest, tag, filament_id, aktiv) => ({ slot, name, hex, rest, tag, filament_id, aktiv: !!aktiv, leer: !name });
+const AMS = {
+  drucker: [
+    { id: "x1c_rechts", name: "X1C rechts", online: true, ams: [
+      { name: "AMS 1", kurz: "A", feuchte: 18, slots: [
+        slot(1, "PLA Basic", "#3F8E43FF", 71, "BDBCE2CD00000100", "GFA00"),
+        slot(2, "PLA Matte", "#9B9EA0FF", 100, "7A11C04B00000100", "GFA01"),
+        slot(3, "PLA Basic", "#545454FF", 34, "5C2E19A800000100", "GFA00", true),
+        slot(4, "", "", -1, "", "") ] },
+      { name: "AMS 2", kurz: "B", feuchte: 21, slots: [
+        slot(1, "PETG HF", "#F9DFB9FF", 88, "A1F0336200000100", "GFG02"),
+        slot(2, "PLA Basic", "#5B6579FF", 56, "3E96DA7000000100", "GFA00"),
+        slot(3, "PLA Silk+", "#F4A925FF", 12, "0D77E15900000100", "GFA06"),
+        slot(4, "Generic PLA", "#8A68B5FF", -1, "0000000000000000", "GFL99") ] } ] },
+    { id: "x1c_links", name: "X1C links", online: true, ams: [
+      { name: "AMS 1", kurz: "A", feuchte: 24, slots: [
+        slot(1, "ABS-GF", "#F48438FF", 63, "29C4A71E00000100", "GFB50", true),
+        slot(2, "ASA", "#00A6A0FF", 90, "E3505B0C00000100", "GFB01"),
+        slot(3, "PLA Tough+", "#000000FF", 45, "6B0E92D400000100", "GFA10"),
+        slot(4, "PLA Metal", "#39699EFF", 100, "91A2B3C400000100", "GFA02") ] } ] },
+    { id: "h2c", name: "H2C", online: true, ams: [
+      { name: "AMS 2 Pro", kurz: "A", feuchte: 12, slots: [
+        slot(1, "PETG-CF", "#000000FF", 77, "1F2E3D4C00000100", "GFG50"),
+        slot(2, "PA6-CF", "#000000FF", 40, "5A6B7C8D00000100", "GFN04"),
+        slot(3, "", "", -1, "", ""),
+        slot(4, "", "", -1, "", "") ] } ] },
+    { id: "h2s", name: "H2S", online: false, ams: [] },
+    { id: "a1mini_1", name: "A1 mini", online: false, ams: [] },
+  ],
+  abbuchungen: [
+    { zeit: "heute 19:42", text: "X1C rechts · PLA Dark Gray −38 g" },
+    { zeit: "heute 15:10", text: "X1C links · ABS Orange (GF) −112 g" },
+    { zeit: "gestern", text: "H2C · PETG Black (CF) −64 g" },
+  ],
+};
+const simApi = {
+  "/api/einstellungen": (d, opt) => {
+    if (opt.method === "POST") { Object.assign(EINST, d); }
+    return EINST;
+  },
+  "/api/wlan/netze": () => new Promise((r) => setTimeout(() => r(NETZE), 900)),
+  "/api/wlan": (d) => new Promise((r) => setTimeout(() => {
+    const n = NETZE.find((x) => x.ssid === d.ssid);
+    if (n && n.gesichert && (d.passwort || "").length < 8) return r({ ok: false, text: "Passwort zu kurz oder falsch" });
+    EINST.wlan = { ssid: d.ssid, ip: "192.168.178.57", signal: n ? n.signal : 50 };
+    r({ ok: true, text: `Verbunden mit ${d.ssid}` });
+  }, 1200)),
+  "/api/ha/test": (d) => new Promise((r) => setTimeout(() => r(/^https?:\/\/.+/.test(d.url)
+    ? { ok: true, text: `Verbindung ok · ${SIM.items.length - 1} Einträge in ${d.todo}` } : { ok: false, text: "Adresse muss mit http:// beginnen" }), 700)),
+  "/api/ha": (d) => { if (!/^https?:\/\/.+/.test(d.url)) return { ok: false, text: "Adresse muss mit http:// beginnen" };
+    Object.assign(EINST.ha, { url: d.url, todo: d.todo }); if (d.token) Object.assign(EINST.ha, { token_gesetzt: true, token_ende: d.token.slice(-4) });
+    return { ok: true, text: "Home Assistant gespeichert" }; },
+  "/api/ams": () => AMS,
+  "/api/system": (d) => { simMeldung({ neustart: "Startet neu … (Simulation)", update: "Version 1.0.0 ist aktuell", werk: "Auf Werkseinstellungen gesetzt (Simulation)" }[d.aktion] || "ok"); return { ok: true }; },
+};
+
 // ---- Ersatz für den Pi-Dienst: fetch() und EventSource ----
 const echtesFetch = window.fetch.bind(window);
 window.fetch = async (url, opt = {}) => {
@@ -489,6 +623,7 @@ window.fetch = async (url, opt = {}) => {
   const antwort = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { "Content-Type": "application/json" } });
   if (pfad === "/api/lager") return antwort({ version: SIM.version, sorten: sorten() });
   const d = opt.body ? JSON.parse(opt.body) : {};
+  if (simApi[pfad]) return antwort(JSON.parse(JSON.stringify(await simApi[pfad](d, opt))));
   const z = simZustand();
   if (pfad === "/api/tara") { SIM.ziel = 0; SIM.ist = 0; setzeRegler(0); simMeldung("Tara gesetzt"); }
   else if (pfad === "/api/kalibrieren") simMeldung(`Kalibriert mit ${d.g} g (Simulation)`);
@@ -538,11 +673,12 @@ setInterval(() => {
 
 // ---- Bedienfeld ----
 const SPULEN = [
-  { name: "PLA Blue Gray", info: "Tag bekannt · Rest 560 g", hex: "#5b6579", g: 812, tag: "04C0FFEE112233" },
+  { name: "PLA Blue Gray", info: "Tag bekannt · steckt im AMS", hex: "#5b6579", g: 812, tag: "3E96DA70" },
   { name: "PLA Ash Gray", info: "Tag bekannt · voll", hex: "#9b9ea0", g: 1252, tag: "04A1B2C3D4E5F6" },
+  { name: "Neue Bambu-Spule", info: "Tag aus AMS · Vorschlag", hex: "#3f8e43", g: 960, tag: "BDBCE2CD" },
   { name: "Neue Spule", info: "unbekannter Tag", hex: "#3a4048", g: 655, tag: "04DEADBEEF0001" },
   { name: "Spule ohne Tag", info: "Sorte selbst wählen", hex: "#2a2f36", g: 430, tag: "" },
-  { name: "Fast leer", info: "Blue Gray · 8 g Rest", hex: "#5b6579", g: 258, tag: "04C0FFEE112233" },
+  { name: "Fast leer", info: "Blue Gray · 8 g Rest", hex: "#5b6579", g: 258, tag: "3E96DA70" },
 ];
 function setzeRegler(g) {
   document.getElementById("sim-gewicht").value = g;
@@ -725,6 +861,8 @@ function wiegen() {
     const c = sorte.besonderheiten.slice(0, 2).map((b) => [b, ""]);
     c.push([`${spulenText(sorte.spulen)} im Lager`, "g"]);
     if (sorte.reste.length) c.push([`Rest bisher ${gramm(sorte.reste[sorte.reste.length - 1])}`, "o"]);
+    const ams = amsSlotFuerTag(tag);
+    if (ams) c.push([`${ams.drucker.name} · ${ams.ams.kurz}${ams.slot.slot}${ams.slot.rest >= 0 ? ` · ${ams.slot.rest} %` : ""}`, "ams"]);
     karteChips(c);
     S.haupt = da ? "speichern" : "nichts";
     haupt.textContent = "✓  Rest speichern";
@@ -734,9 +872,12 @@ function wiegen() {
     $("k-swatch").style.background = "var(--rand)";
     $("k-name").textContent = "Neue Spule";
     $("k-sub").textContent = `UID ${tag}`;
-    karteChips([["Keiner Sorte zugeordnet", "o"]]);
+    const ams = amsSlotFuerTag(tag);
+    S.vorschlag = ams ? vorschlagFuerSlot(ams.slot) : null;
+    karteChips(ams ? [[`${ams.drucker.name} · ${ams.ams.kurz}${ams.slot.slot}`, "ams"], [S.vorschlag ? `Vorschlag: ${kurzname(S.vorschlag)}` : ams.slot.name, "g"]]
+      : [["Keiner Sorte zugeordnet", "o"]]);
     S.haupt = "zuordnen";
-    haupt.textContent = "Sorte zuordnen";
+    haupt.textContent = S.vorschlag ? `Als ${kurzname(S.vorschlag)} speichern` : "Sorte zuordnen";
     $("btn-wahl").textContent = "Sorte wählen";
   } else {
     $("k-titel").textContent = "Keine Spule erkannt";
@@ -753,6 +894,7 @@ function wiegen() {
 
 function auswahlStarten() {
   S.auswahlModus = true;
+  if (!S.aktiv.tag) S.vorschlag = null;
   S.auswahlTag = S.aktiv.tag;
   zeige("lager");
 }
@@ -760,6 +902,10 @@ function auswahlStarten() {
 $("btn-haupt").onclick = () => {
   if (S.haupt === "speichern" && S.aktiv.sorte) {
     post("/api/rest", { sorte: S.aktiv.sorte.uid, netto: S.aktiv.netto, tag: S.aktiv.tag });
+  } else if (S.haupt === "zuordnen" && S.vorschlag) {
+    S.auswahlUid = S.vorschlag.uid;
+    post("/api/zuordnen", { sorte: S.vorschlag.uid, tag: S.aktiv.tag });
+    S.karteSchluessel = "";
   } else if (S.haupt === "zuordnen" || S.haupt === "waehlen") {
     auswahlStarten();
   }
@@ -784,16 +930,18 @@ function liste() {
   const q = $("suche").value.trim().toLowerCase();
   let n = 0, weitere = 0;
   const html = [];
-  for (const s of S.sorten) {
-    if (!passtFilter(s, S.filter)) continue;
+  const vorschlag = S.auswahlModus && S.vorschlag ? S.vorschlag : null;
+  const reihe = vorschlag ? [vorschlag, ...S.sorten.filter((x) => x !== vorschlag)] : S.sorten;
+  for (const s of reihe) {
+    if (!passtFilter(s, S.filter) && s !== vorschlag) continue;
     if (q && !`${s.summary} ${s.hersteller} ${s.farbe}`.toLowerCase().includes(q)) continue;
     if (n >= MAX_ZEILEN) { weitere++; continue; }
     n++;
-    html.push(`<div class="zeile" data-uid="${esc(s.uid)}">
+    html.push(`<div class="zeile${s === vorschlag ? " vorschlag" : ""}" data-uid="${esc(s.uid)}">
       <div class="swatch s30" style="background:${esc(s.hex)}"></div>
       <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${esc(kurzname(s))}</span>
         <span class="sub14 ellipse">${esc(unterzeile(s))}</span></div>
-      ${s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
+      ${s === vorschlag ? '<span class="chip ams">Vorschlag aus AMS</span>' : s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
       <div class="rechts"><div class="anz${s.spulen ? "" : " leer"}">${spulenText(s.spulen)}</div>
         <div class="sub14">${esc(restText(s))}</div></div></div>`);
   }
@@ -830,29 +978,44 @@ function reste() {
     : '<span class="sub14">Keine angebrochenen Rollen</span>';
 }
 
-// ------------------------------------------------------------ Bildschirmtastatur für die Suche
+// ------------------------------------------------------------ Bildschirmtastatur (Suche und Eingabefelder)
 const TASTEN = ["1234567890", "QWERTZUIOPÜ", "ASDFGHJKLÖÄ", "YXCVBNM-"];
-function tastatur(an) {
-  const t = $("tastatur");
-  if (an && !t.childElementCount) {
-    t.innerHTML = TASTEN.map((r) => `<div class="t-reihe">${[...r].map((k) => `<button data-k="${k}">${k}</button>`).join("")}</div>`).join("")
-      + `<div class="t-reihe"><button class="breit" data-k="⌫">⌫ Löschen</button><button class="breit" data-k=" ">Leerzeichen</button>
-         <button class="breit" data-k="leeren">Leeren</button><button class="breit ok" data-k="ok">Fertig</button></div>`;
-  }
-  t.classList.toggle("versteckt", !an);
+const TASTEN_SONDER = ["1234567890", "qwertzuiop", "asdfghjkl.", "yxcvbnm:/_"];
+let tastaturZiel = null;
+let gross = false;
+function tastaturZeichnen() {
+  const reihen = tastaturZiel && tastaturZiel.dataset.tastatur === "frei" ? (gross ? TASTEN : TASTEN_SONDER) : TASTEN;
+  $("tastatur").innerHTML = reihen.map((r) => `<div class="t-reihe">${[...r].map((k) => `<button data-k="${esc(k)}">${esc(k)}</button>`).join("")}</div>`).join("")
+    + `<div class="t-reihe">${tastaturZiel && tastaturZiel.dataset.tastatur === "frei" ? '<button class="breit" data-k="⇧">⇧ Groß</button>' : ""}
+       <button class="breit" data-k="⌫">⌫ Löschen</button><button class="breit" data-k=" ">Leerzeichen</button>
+       <button class="breit" data-k="leeren">Leeren</button><button class="breit ok" data-k="ok">Fertig</button></div>`;
 }
-$("suche").onfocus = () => tastatur(true);
+function tastatur(an, ziel) {
+  if (an) { tastaturZiel = ziel || $("suche"); gross = false; tastaturZeichnen(); }
+  $("tastatur").classList.toggle("versteckt", !an);
+  $("e-inhalt").style.paddingBottom = an && tastaturZiel && tastaturZiel.id !== "suche" ? "220px" : "";
+  if (!an && tastaturZiel) { tastaturZiel.blur(); tastaturZiel = null; }
+}
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (el.matches && (el.id === "suche" || el.matches("input[data-tastatur]"))) {
+    tastatur(true, el);
+    if (el.id !== "suche") setTimeout(() => el.scrollIntoView({ block: "start", behavior: "smooth" }), 0);
+  }
+});
 $("tastatur").onclick = (e) => {
   const b = e.target.closest("button");
-  if (!b) return;
-  const i = $("suche");
+  if (!b || !tastaturZiel) return;
+  const i = tastaturZiel;
   const k = b.dataset.k;
-  if (k === "ok") { tastatur(false); i.blur(); return; }
+  if (k === "ok") { tastatur(false); return; }
+  if (k === "⇧") { gross = !gross; tastaturZeichnen(); return; }
   if (k === "⌫") i.value = i.value.slice(0, -1);
   else if (k === "leeren") i.value = "";
-  else i.value += k.toLowerCase();
-  liste();
+  else i.value += i.id === "suche" ? k.toLowerCase() : k;
+  i.dispatchEvent(new Event("input", { bubbles: true }));
 };
+$("suche").addEventListener("input", () => liste());
 
 // ------------------------------------------------------------ Detail
 function bereich(a, b, e) {
@@ -895,24 +1058,287 @@ function detail() {
 }
 
 // ------------------------------------------------------------ Einstellungen
-function einst() {
-  const z = S.z || {};
-  $("e-info").textContent = [
-    `WLAN: ${z.ip || "getrennt"}`,
-    `Home Assistant: ${z.ha_ok ? "verbunden" : "keine Verbindung"}`,
-    `Sensor: ${z.sensor_ok ? "verbunden" : "antwortet nicht"}`,
-    `Sorten im Lager: ${S.sorten.length}`,
-    `Leerspule Standard: ${gramm(z.leer_standard_g ?? 250)}`,
-    `Version: ${z.version || ""}`,
-  ].join("\n");
+const AKZENTE = ["#4caf50", "#26c6da", "#2196f3", "#3f51b5", "#9c27b0", "#e91e63", "#f44336", "#ff9800", "#fbc02d", "#8bc34a"];
+const AKZENT_NAMEN = ["Grün", "Türkis", "Blau", "Indigo", "Lila", "Pink", "Rot", "Orange", "Gelb", "Hellgrün"];
+const ICONS = {
+  design: '<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1-.8-1.4-.8-2.4 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+  wlan: '<path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5.5 12.5a10 10 0 0 1 13 0"/><path d="M9 16.2a5 5 0 0 1 6 0"/><circle cx="12" cy="19.5" r=".8"/>',
+  ha: '<path d="M3 11 12 4l9 7v9H3z"/><path d="M9 20v-6h6v6"/>',
+  bambu: '<rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 8.5h16"/><path d="M10.2 8.5v2.2h3.6V8.5"/><path d="M7.5 16.5h9"/>',
+  waage: '<path d="M4 20h16"/><path d="M6 20l2-9h8l2 9"/><path d="M12 11V5"/><path d="M8 5h8"/>',
+  system: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
+};
+const MENUE = [
+  ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["system", "System"],
+];
+S.e = null;          // Einstellungen vom Dienst
+S.eSeite = "design";
+S.ams = { drucker: [], abbuchungen: [] };
+S.amsDrucker = "";
+S.netze = null;
+S.wlanWahl = "";
+S.resetFrage = false;
+
+const icon = (n) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+const schalter = (an, key) => `<button class="schalter${an ? " an" : ""}" data-schalter="${key}" role="switch" aria-checked="${!!an}" aria-label="${key}"></button>`;
+const seg = (key, wert, optionen) => `<div class="seg">${optionen.map(([v, t]) =>
+  `<button class="${String(v) === String(wert) ? "an" : ""}" data-seg="${key}" data-v="${v}">${t}</button>`).join("")}</div>`;
+const pill = (ok, t) => `<span class="status-pill ${ok === null ? "grau" : ok ? "ok" : "aus"}">${esc(t)}</span>`;
+
+async function einstLaden() {
+  try {
+    S.e = await (await fetch("/api/einstellungen")).json();
+    designAnwenden();
+    if (S.seite === "einst") einst();
+  } catch (e) { /* Dienst noch nicht bereit */ }
 }
-document.querySelectorAll("[data-kal]").forEach((b) => (b.onclick = () => {
-  S.kalG = Math.max(100, Math.min(5000, S.kalG + Number(b.dataset.kal)));
-  $("kal-wert").textContent = gramm(S.kalG);
-}));
-$("e-tara").onclick = () => post("/api/tara");
-$("e-kal").onclick = () => post("/api/kalibrieren", { g: S.kalG });
-$("e-laden").onclick = () => post("/api/neu_laden");
+async function einstSetzen(teil) {
+  Object.assign(S.e, teil);
+  designAnwenden();
+  try {
+    const r = await fetch("/api/einstellungen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(teil) });
+    S.e = await r.json();
+  } catch (e) { meldung("Speichern fehlgeschlagen", true); }
+  designAnwenden();
+  einst();
+}
+
+function mischen(hex, ziel, anteil) {
+  const a = hex.match(/\w\w/g).map((x) => parseInt(x, 16)), b = ziel.match(/\w\w/g).map((x) => parseInt(x, 16));
+  return "#" + a.map((v, i) => Math.round(v + (b[i] - v) * anteil).toString(16).padStart(2, "0")).join("");
+}
+function designAnwenden() {
+  if (!S.e) return;
+  const app = $("app"), f = S.e.akzent || "#4caf50";
+  app.style.setProperty("--gruen", f);
+  app.style.setProperty("--gruen-t", mischen(f, "#ffffff", 0.5));
+  app.style.setProperty("--nav-akt", mischen(f, "#0d0f12", 0.84));
+  app.style.setProperty("--chip-g", mischen(f, "#15181c", 0.82));
+  app.style.filter = S.e.helligkeit < 100 ? `brightness(${0.35 + 0.65 * S.e.helligkeit / 100})` : "";
+  $("liste").classList.toggle("kompakt-liste", !!S.e.kompakt);
+}
+
+function menueText(n) {
+  const e = S.e || {}, z = S.z || {};
+  if (n === "design") return `${AKZENT_NAMEN[AKZENTE.indexOf(e.akzent)] || "Eigene Farbe"} · ${e.helligkeit ?? 100} %`;
+  if (n === "wlan") return e.wlan?.ssid ? `${e.wlan.ssid}` : "nicht verbunden";
+  if (n === "ha") return z.ha_ok ? `verbunden · ${e.ha?.todo || ""}` : "keine Verbindung";
+  if (n === "bambu") { const n2 = (S.ams.drucker || []).filter((d) => (e.drucker || []).includes(d.id)).length; return `${n2} Drucker über Home Assistant`; }
+  if (n === "waage") return `Leerspule ${e.leerspule_g ?? 250} g · NFC Stufe ${e.nfc_stufe ?? 3}`;
+  return `Version ${z.version || ""}`;
+}
+function einstMenue() {
+  $("e-menue").innerHTML = MENUE.map(([n, t]) => `<button class="m-zeile${S.eSeite === n ? " an" : ""}" data-m="${n}">
+    <span class="m-icon">${icon(n)}</span><span class="m-text"><b>${t}</b><small>${esc(menueText(n))}</small></span>
+    <span class="pfeil" aria-hidden="true">›</span></button>`).join("");
+}
+$("e-menue").onclick = (e) => {
+  const b = e.target.closest(".m-zeile");
+  if (!b) return;
+  S.eSeite = b.dataset.m;
+  S.resetFrage = false;
+  tastatur(false);
+  if (S.eSeite === "wlan" && !S.netze) wlanSuchen();
+  if (S.eSeite === "bambu") amsLaden();
+  einst();
+};
+
+function einst() {
+  einstMenue();
+  const e = S.e;
+  const z = S.z || {};
+  const ziel = $("e-inhalt");
+  if (!e) { ziel.innerHTML = '<span class="sub14">Einstellungen werden geladen …</span>'; return; }
+  let h = "";
+  if (S.eSeite === "design") {
+    h = `<span class="e-titel">Design</span>
+      <div class="e-block"><span class="ueber">Akzentfarbe</span>
+        <div class="farben">${AKZENTE.map((f) => `<button class="farbe${f === e.akzent ? " an" : ""}" data-akzent="${f}" style="background:${f}" aria-label="Farbe ${f}"></button>`).join("")}</div></div>
+      <div class="e-block"><span class="ueber">Helligkeit</span>
+        <div class="e-zeile"><input type="range" class="regler" id="e-hell" min="10" max="100" step="5" value="${e.helligkeit}" aria-label="Helligkeit"><span class="e-wert" id="e-hell-w">${e.helligkeit} %</span></div></div>
+      <div class="e-block"><span class="ueber">Display ausschalten</span>${seg("display_aus_min", e.display_aus_min, [[0, "Nie"], [5, "5 min"], [15, "15 min"], [30, "30 min"]])}</div>
+      <div class="e-block"><span class="ueber">Lagerliste</span>${seg("kompakt", e.kompakt, [[false, "Normal"], [true, "Kompakt"]])}</div>`;
+  } else if (S.eSeite === "wlan") {
+    const w = e.wlan || {};
+    h = `<div class="e-zeile"><span class="e-titel wachsen">WLAN</span>${pill(!!w.ssid, w.ssid ? "verbunden" : "getrennt")}</div>
+      ${w.ssid ? `<div class="info-liste" style="flex:0 0 auto"><div class="info-zeile"><span>Netzwerk</span><span>${esc(w.ssid)}</span></div>
+        <div class="info-zeile"><span>IP-Adresse</span><span>${esc(w.ip || "–")}</span></div>
+        <div class="info-zeile"><span>Signal</span><span>${w.signal ?? "–"} %</span></div></div>` : ""}
+      <div class="e-zeile"><span class="ueber wachsen">Netzwerke in der Nähe</span><button class="knopf rahmen" style="height:38px;padding:0 12px;font-size:13px" id="e-scan">Neu suchen</button></div>
+      <div>${S.netze === null ? '<span class="sub14">Suche …</span>' : S.netze.map((n) => `<div class="netz" data-ssid="${esc(n.ssid)}">
+        <span class="balken-wlan" aria-label="Signal ${n.signal} %">${[25, 50, 75, 90].map((g, i) => `<i class="${n.signal >= g ? "an" : ""}" style="height:${4 + i * 3}px"></i>`).join("")}</span>
+        <span class="wachsen">${esc(n.ssid)}</span>${n.ssid === w.ssid ? pill(true, "aktiv") : n.gesichert ? '<span class="sub14">🔒</span>' : ""}</div>
+        ${S.wlanWahl === n.ssid ? `<div class="e-zeile" style="padding:8px 0">
+          ${n.gesichert ? `<div class="feld wachsen"><input id="e-wlan-pw" type="password" data-tastatur="frei" inputmode="none" autocomplete="off" placeholder="Passwort" aria-label="WLAN-Passwort"></div>` : '<span class="sub14 wachsen">Offenes Netzwerk</span>'}
+          <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" id="e-wlan-ok">Verbinden</button></div>` : ""}`).join("")}</div>`;
+  } else if (S.eSeite === "ha") {
+    const ha = e.ha || {};
+    h = `<div class="e-zeile"><span class="e-titel wachsen">Home Assistant</span>${pill(z.ha_ok, z.ha_ok ? "verbunden" : "keine Verbindung")}</div>
+      <div class="feld"><label for="e-ha-url">Adresse</label><input id="e-ha-url" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(ha.url || "")}"></div>
+      <div class="feld"><label for="e-ha-todo">Filamentliste</label><input id="e-ha-todo" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(ha.todo || "todo.filament")}"></div>
+      <div class="feld"><label for="e-ha-token">Zugriffstoken</label><input id="e-ha-token" data-tastatur="frei" inputmode="none" autocomplete="off" placeholder="${ha.token_gesetzt ? `gespeichert · endet auf …${esc(ha.token_ende || "")}` : "noch kein Token"}"></div>
+      <div class="e-zeile">
+        <button class="knopf rahmen h50 wachsen" id="e-ha-test">Verbindung testen</button>
+        <button class="knopf primaer h50 wachsen" id="e-ha-ok" style="font-size:15px">Speichern</button></div>
+      <button class="knopf rahmen h50" id="e-qr">Token am Handy eingeben</button>
+      <span class="hinweis">Ein Token ist über 180 Zeichen lang. Am bequemsten fügst du es am Handy ein: Code scannen, Token einfügen, fertig.</span>`;
+  } else if (S.eSeite === "bambu") {
+    const dr = S.ams.drucker || [];
+    if (!S.amsDrucker && dr.length) S.amsDrucker = (dr.find((d) => (e.drucker || []).includes(d.id)) || dr[0]).id;
+    const d = dr.find((x) => x.id === S.amsDrucker);
+    h = `<span class="e-titel">Bambu Lab</span>
+      <span class="hinweis">Die Drucker kommen über deine Bambu-Lab-Integration in Home Assistant. Hier wählst du, welche die Waage kennen soll.</span>
+      <div class="e-block"><span class="ueber">Drucker</span>
+        ${dr.length ? dr.map((x) => `<div class="e-zeile"><span class="e-name">${esc(x.name)}</span>${pill(x.online, x.online ? "online" : "aus")}${schalter((e.drucker || []).includes(x.id), "drucker:" + x.id)}</div>`).join("")
+          : '<span class="sub14">Keine Drucker gefunden</span>'}</div>
+      <div class="e-block"><div class="e-zeile"><span class="e-name"><b>Spule im AMS erkennen</b><br><span class="sub14">Zeigt beim Wiegen, in welchem Slot eine Bambu-Spule zuletzt steckte, und schlägt bei neuen Tags die Sorte vor.</span></span>${schalter(e.ams_suche, "ams_suche")}</div></div>
+      ${d ? `<div class="e-block"><span class="ueber">AMS-Belegung</span>
+        <div class="tabs">${dr.filter((x) => (e.drucker || []).includes(x.id)).map((x) => `<button class="${x.id === S.amsDrucker ? "an" : ""}" data-drucker="${x.id}">${esc(x.name)}</button>`).join("")}</div>
+        ${(d.ams || []).map((a) => `<div class="e-zeile"><span class="sub14 wachsen">${esc(a.name)}</span>${a.feuchte != null ? `<span class="sub14">${a.feuchte} % Feuchte</span>` : ""}</div>
+          <div class="ams">${a.slots.map((sl) => `<div class="slot${sl.leer ? " leer" : ""}"><div class="spule-klein" style="background:${sl.leer ? "transparent" : esc(sl.hex)}"></div>
+            <b>${esc(a.kurz)}${sl.slot}${sl.aktiv ? " · aktiv" : ""}</b><small>${sl.leer ? "leer" : esc(sl.name)}</small>${sl.leer ? "" : `<small>${sl.rest >= 0 ? sl.rest + " % laut AMS" : ""}</small>`}</div>`).join("")}</div>`).join("") || '<span class="sub14">Kein AMS</span>'}</div>` : ""}
+      <div class="e-block"><span class="ueber">Abbuchen nach dem Druck</span>
+        <div class="e-zeile"><span class="e-name">Verbrauch wird nach jedem Druck automatisch abgezogen</span>${pill(e.abbuchung_aktiv, e.abbuchung_aktiv ? "aktiv" : "aus")}</div>
+        <span class="hinweis">Das erledigt „Ernsthaft gelagert“ in Home Assistant. Die Waage zeigt die letzten Abbuchungen und korrigiert Reste, wenn du eine Spule nachwiegst.</span>
+        ${(S.ams.abbuchungen || []).slice(0, 4).map((x) => `<div class="e-zeile"><span class="sub14" style="width:86px">${esc(x.zeit)}</span><span class="e-name">${esc(x.text)}</span></div>`).join("")}</div>`;
+  } else if (S.eSeite === "waage") {
+    h = `<span class="e-titel">Waage</span>
+      <div class="e-block"><span class="ueber">Tara und Kalibrieren</span>
+        <span class="hinweis">Teller leer machen und Tara drücken. Dann das Kalibriergewicht auflegen und Kalibrieren drücken.</span>
+        <div class="e-zeile"><button class="knopf rahmen h50 wachsen" id="e-tara">Tara</button>
+          <button class="knopf rahmen quadrat" data-kal="-100" aria-label="100 g weniger">−</button>
+          <span class="name20" style="width:86px;text-align:center" id="kal-wert">${gramm(S.kalG)}</span>
+          <button class="knopf rahmen quadrat" data-kal="100" aria-label="100 g mehr">+</button></div>
+        <button class="knopf primaer h54" id="e-kal">Kalibrieren</button></div>
+      <div class="e-block"><span class="ueber">Leere Spule</span>
+        <div class="e-zeile"><span class="e-name">Gewicht, wenn die Sorte keinen eigenen Wert hat</span>
+          <button class="knopf rahmen quadrat" data-leer="-5" aria-label="5 g weniger">−</button><span class="e-wert" style="width:64px;text-align:center">${gramm(e.leerspule_g)}</span>
+          <button class="knopf rahmen quadrat" data-leer="5" aria-label="5 g mehr">+</button></div></div>
+      <div class="e-block"><span class="ueber">Empfindlichkeit der NFC-Leser</span>${seg("nfc_stufe", e.nfc_stufe, [[1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"]])}
+        <span class="hinweis">Höher liest Tags aus größerem Abstand. Liest ein Leser den Tag des anderen, eine Stufe herunter.</span></div>`;
+  } else {
+    h = `<span class="e-titel">System</span>
+      <div class="info-liste" style="flex:0 0 auto">
+        <div class="info-zeile"><span>Version</span><span>${esc(z.version || "")}</span></div>
+        <div class="info-zeile"><span>Sensor</span><span>${z.sensor_ok ? "verbunden" : "antwortet nicht"}</span></div>
+        <div class="info-zeile"><span>Sorten im Lager</span><span>${S.sorten.length}</span></div>
+        <div class="info-zeile"><span>IP-Adresse</span><span>${esc(z.ip || "–")}</span></div></div>
+      <div class="e-zeile"><button class="knopf rahmen h50 wachsen" data-system="neu_laden">Lager neu laden</button>
+        <button class="knopf rahmen h50 wachsen" data-system="update">Nach Update suchen</button></div>
+      <button class="knopf rahmen h50" data-system="neustart">Neu starten</button>
+      <button class="knopf rahmen rot h50" data-system="werk">${S.resetFrage ? "Wirklich alles zurücksetzen? Nochmal tippen" : "Werkseinstellungen"}</button>`;
+  }
+  ziel.innerHTML = h;
+}
+
+$("e-inhalt").addEventListener("input", (e) => {
+  if (e.target.id === "e-hell") {
+    $("e-hell-w").textContent = `${e.target.value} %`;
+    S.e.helligkeit = Number(e.target.value);
+    designAnwenden();
+  }
+});
+$("e-inhalt").addEventListener("change", (e) => {
+  if (e.target.id === "e-hell") einstSetzen({ helligkeit: Number(e.target.value) });
+});
+$("e-inhalt").onclick = async (e) => {
+  const b = e.target.closest("button, .netz");
+  if (!b) return;
+  const d = b.dataset;
+  if (d.akzent) return einstSetzen({ akzent: d.akzent });
+  if (d.seg) { let v = d.v; v = v === "true" ? true : v === "false" ? false : isNaN(Number(v)) ? v : Number(v); return einstSetzen({ [d.seg]: v }); }
+  if (d.schalter) {
+    if (d.schalter.startsWith("drucker:")) {
+      const id = d.schalter.slice(8), liste = new Set(S.e.drucker || []);
+      liste.has(id) ? liste.delete(id) : liste.add(id);
+      return einstSetzen({ drucker: [...liste] });
+    }
+    return einstSetzen({ [d.schalter]: !S.e[d.schalter] });
+  }
+  if (d.drucker) { S.amsDrucker = d.drucker; return einst(); }
+  if (d.kal) { S.kalG = Math.max(100, Math.min(5000, S.kalG + Number(d.kal))); $("kal-wert").textContent = gramm(S.kalG); return; }
+  if (d.leer) return einstSetzen({ leerspule_g: Math.max(0, Math.min(1000, S.e.leerspule_g + Number(d.leer))) });
+  if (d.ssid !== undefined && b.classList.contains("netz")) { S.wlanWahl = S.wlanWahl === d.ssid ? "" : d.ssid; einst(); $("e-wlan-pw")?.focus(); return; }
+  if (d.system) {
+    if (d.system === "werk" && !S.resetFrage) { S.resetFrage = true; return einst(); }
+    S.resetFrage = false;
+    if (d.system === "neu_laden") return post("/api/neu_laden");
+    post("/api/system", { aktion: d.system });
+    return einst();
+  }
+  switch (b.id) {
+    case "e-tara": return post("/api/tara");
+    case "e-kal": return post("/api/kalibrieren", { g: S.kalG });
+    case "e-scan": return wlanSuchen();
+    case "e-wlan-ok": {
+      tastatur(false);
+      const pw = $("e-wlan-pw") ? $("e-wlan-pw").value : "";
+      meldung(`Verbinde mit ${S.wlanWahl} …`);
+      const r = await (await fetch("/api/wlan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ssid: S.wlanWahl, passwort: pw }) })).json();
+      meldung(r.text, !r.ok);
+      if (r.ok) { S.wlanWahl = ""; await einstLaden(); }
+      return;
+    }
+    case "e-ha-test":
+    case "e-ha-ok": {
+      tastatur(false);
+      const daten = { url: $("e-ha-url").value.trim(), todo: $("e-ha-todo").value.trim() };
+      if ($("e-ha-token").value.trim()) daten.token = $("e-ha-token").value.trim();
+      const r = await (await fetch(b.id === "e-ha-test" ? "/api/ha/test" : "/api/ha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(daten) })).json();
+      meldung(r.text, !r.ok);
+      if (r.ok && b.id === "e-ha-ok") await einstLaden();
+      return;
+    }
+    case "e-qr": return qrZeigen();
+  }
+};
+
+async function wlanSuchen() {
+  S.netze = null;
+  if (S.seite === "einst" && S.eSeite === "wlan") einst();
+  try { S.netze = await (await fetch("/api/wlan/netze")).json(); } catch (e) { S.netze = []; }
+  if (S.seite === "einst" && S.eSeite === "wlan") einst();
+}
+
+function qrZeigen() {
+  const url = (S.e && S.e.einrichten_url) || `http://${(S.z && S.z.ip) || "waage.local"}:8080/einrichten`;
+  $("qr-url").textContent = url;
+  $("qr-code").innerHTML = "";
+  if (window.QRCode) new QRCode($("qr-code"), { text: url, width: 168, height: 168, correctLevel: QRCode.CorrectLevel.M });
+  $("qr").classList.remove("versteckt");
+}
+$("qr-zu").onclick = () => $("qr").classList.add("versteckt");
+
+// ------------------------------------------------------------ AMS (über Home Assistant)
+async function amsLaden() {
+  try {
+    S.ams = await (await fetch("/api/ams")).json();
+    S.karteSchluessel = "";
+    if (S.seite === "einst" && S.eSeite === "bambu") einst();
+  } catch (e) { /* ohne AMS weiter */ }
+}
+function amsSlotFuerTag(tag) {
+  if (!tag || !S.e || !S.e.ams_suche) return null;
+  const t = tag.toUpperCase();
+  for (const d of S.ams.drucker || []) {
+    if (!(S.e.drucker || []).includes(d.id)) continue;
+    for (const a of d.ams || []) for (const sl of a.slots) {
+      if (sl.tag && sl.tag.toUpperCase().startsWith(t.slice(0, 8))) return { drucker: d, ams: a, slot: sl };
+    }
+  }
+  return null;
+}
+function farbAbstand(a, b) {
+  const x = a.match(/\w\w/g).map((v) => parseInt(v, 16)), y = b.match(/\w\w/g).map((v) => parseInt(v, 16));
+  return x.reduce((s, v, i) => s + (v - y[i]) ** 2, 0);
+}
+function vorschlagFuerSlot(sl) {
+  if (!sl || !sl.filament_id) return null;
+  const kand = S.sorten.filter((s) => s.bambu_id === sl.filament_id);
+  if (!kand.length) return null;
+  kand.sort((a, b) => farbAbstand(a.hex, sl.hex.slice(0, 7)) - farbAbstand(b.hex, sl.hex.slice(0, 7)));
+  return farbAbstand(kand[0].hex, sl.hex.slice(0, 7)) < 19200 ? kand[0] : null;
+}
 
 document.querySelectorAll(".nav-knopf").forEach((b) => (b.onclick = () => { S.auswahlModus = false; zeige(b.dataset.seite); }));
 
@@ -935,7 +1361,7 @@ function zustand(z) {
     lagerLaden();
   }
   if (S.seite === "wiegen") wiegen();
-  else if (S.seite === "einst") einst();
+  else if (S.seite === "einst") einstMenue();
 }
 
 function verbinden() {
@@ -949,5 +1375,8 @@ skalieren();
 filterLeiste();
 zeige("wiegen");
 verbinden();
+einstLaden();
+amsLaden();
+setInterval(amsLaden, 30000);
 
 </script>

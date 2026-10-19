@@ -79,24 +79,10 @@
   <!-- Detail -->
   <main id="seite-detail" class="seite reihe versteckt"></main>
 
-  <!-- Einstellungen -->
+  <!-- Einstellungen: links das Menü, rechts die gewählte Seite -->
   <main id="seite-einst" class="seite reihe versteckt">
-    <section class="panel gruen spalte gap12 wachsen pad18">
-      <span class="ueber">Waage</span>
-      <span class="sub14">Teller leer machen und Tara drücken. Dann das Kalibriergewicht auflegen und Kalibrieren drücken.</span>
-      <button id="e-tara" class="knopf rahmen h50">Tara</button>
-      <div class="reihe gap8 mitte">
-        <button class="knopf rahmen quadrat" data-kal="-100" aria-label="100 g weniger">−</button>
-        <span id="kal-wert" class="name28 wachsen zentriert">1000 g</span>
-        <button class="knopf rahmen quadrat" data-kal="100" aria-label="100 g mehr">+</button>
-      </div>
-      <button id="e-kal" class="knopf primaer h54">Kalibrieren</button>
-    </section>
-    <section class="panel grau spalte gap12 b300 pad18">
-      <span class="ueber">Verbindung</span>
-      <div id="e-info" class="info"></div>
-      <button id="e-laden" class="knopf rahmen h50">Lager neu laden</button>
-    </section>
+    <nav id="e-menue" class="panel menue" aria-label="Einstellungen"></nav>
+    <section id="e-inhalt" class="panel gruen e-inhalt"></section>
   </main>
 
   <nav class="nav">
@@ -110,7 +96,15 @@
 
   <div id="toast" class="toast versteckt" role="status" aria-live="polite"></div>
   <div id="tastatur" class="tastatur versteckt" aria-label="Bildschirmtastatur"></div>
+  <div id="qr" class="qr versteckt" role="dialog" aria-label="Am Handy einrichten">
+    <div class="qr-box"><div id="qr-code"></div>
+      <div class="spalte gap8"><span class="name20">Am Handy einrichten</span>
+        <span class="sub14">Code scannen oder im Heimnetz öffnen:</span><span id="qr-url" class="qr-url"></span>
+        <span class="sub14">Dort lassen sich Token und Passwörter bequem einfügen.</span>
+        <button id="qr-zu" class="knopf rahmen h50">Schließen</button></div></div>
+  </div>
 </div>
+<script src="/static/qrcode.min.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>
