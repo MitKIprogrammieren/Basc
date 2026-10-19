@@ -2,8 +2,7 @@
 
 Filamentwaage mit NFC, die direkt mit dem Filamentlager **„Ernsthaft gelagert“** (`todo.filament`)
 in Home Assistant arbeitet. Spule auflegen, die Waage erkennt sie am NFC-Tag, zeigt den Rest an und
-trägt ihn mit einem Tipp ins Lager ein. Aufbau nach dem Vorbild der
-[TigerScale V3](https://github.com/TigerTag-Project/Tiger-Scale-V3), eigenes Design auf 800×480.
+trägt ihn mit einem Tipp ins Lager ein. Eigenes Design auf 800×480.
 
 ![Bildschirme der Waage](docs/bilder/uebersicht.png)
 
