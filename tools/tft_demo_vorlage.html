@@ -1,0 +1,346 @@
+<title>FilamentLager TFT-Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Werkbank: links das Gerät mit der echten Oberfläche, rechts die Simulation von Waage, NFC und Home Assistant */
+:root {
+  --s-grund: #0b0d10; --s-flaeche: #13171b; --s-linie: #252b31; --s-text: #e8ecef; --s-leise: #98a1aa;
+  --s-akzent: #4caf50; --s-akzent-t: #9fe3a2; --s-warn: #ffb74d; --s-rot: #ef5350; --s-rahmen: #050607;
+  --s-schrift: "Barlow", "Segoe UI", system-ui, sans-serif; --s-mono: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+body { background: var(--s-grund); color: var(--s-text); font-family: var(--s-schrift); font-size: 15px; }
+.s-seite { max-width: 1260px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 18px; }
+.s-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+.s-kopf h1 { margin: 0; font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -.01em; }
+.s-kopf p { margin: 0; color: var(--s-leise); max-width: 62ch; line-height: 1.45; }
+.s-werkbank { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.s-geraet { flex: 1 1 620px; min-width: 0; max-width: 860px; }
+.s-rahmen { background: var(--s-rahmen); border-radius: 22px; padding: 14px; border: 1px solid #1c2126;
+  box-shadow: 0 30px 60px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04); }
+.s-screen { position: relative; overflow: hidden; border-radius: 6px; width: 100%; height: 480px; background: #0d0f12; }
+.s-unter { display: flex; justify-content: space-between; color: var(--s-leise); font-size: 12px; padding: 8px 6px 0;
+  font-family: var(--s-mono); }
+.s-steuer { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.s-karte { background: var(--s-flaeche); border: 1px solid var(--s-linie); border-radius: 14px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px; }
+.s-karte h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--s-leise); }
+.s-spulen { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.s-spule { text-align: left; background: #0f1215; border: 1px solid var(--s-linie); border-radius: 10px; color: var(--s-text);
+  padding: 9px 11px; font: inherit; cursor: pointer; display: flex; gap: 9px; align-items: center; }
+.s-spule:hover { border-color: #3a434c; }
+.s-spule:focus-visible, .s-knopf:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--s-akzent); outline-offset: 2px; }
+.s-spule.an { border-color: var(--s-akzent); background: #142017; }
+.s-spule .farbe { width: 22px; height: 22px; border-radius: 6px; flex: 0 0 auto; border: 1px solid #4a5058; }
+.s-spule b { display: block; font-weight: 600; font-size: 14px; line-height: 1.2; }
+.s-spule small { color: var(--s-leise); font-size: 12px; }
+.s-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.s-zeile label { color: var(--s-leise); font-size: 13px; }
+.s-regler { flex: 1 1 160px; accent-color: var(--s-akzent); }
+.s-wert { font-family: var(--s-mono); font-size: 14px; min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.s-knopf { background: transparent; color: var(--s-text); border: 1px solid #3a434c; border-radius: 9px; padding: 8px 12px;
+  font: inherit; font-weight: 500; cursor: pointer; }
+.s-knopf:hover { background: #1a1f24; }
+select.s-knopf { padding-right: 8px; }
+.s-log { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow: auto; }
+.s-log li { font-family: var(--s-mono); font-size: 12px; line-height: 1.5; color: var(--s-leise); border-left: 2px solid var(--s-linie);
+  padding-left: 10px; overflow-wrap: anywhere; }
+.s-log li b { color: var(--s-text); font-weight: 500; }
+.s-log li .neu { color: var(--s-akzent-t); } .s-log li .alt { color: var(--s-warn); }
+.s-leer { color: var(--s-leise); font-size: 13px; }
+.s-hinweis { color: var(--s-leise); font-size: 13px; line-height: 1.45; margin: 0; }
+.s-hinweis code { font-family: var(--s-mono); font-size: 12px; color: var(--s-text); }
+
+/* ---- Oberfläche der Waage (aus pi/filamentwaage/web/style.css) ---- */
+{{STYLE}}
+.app { cursor: default; user-select: none; -webkit-user-select: none; }
+</style>
+
+<div class="s-seite">
+  <header class="s-kopf">
+    <h1>FilamentLager TFT-Demo</h1>
+    <p>Die echte Oberfläche der Waage auf einem simulierten 5″-Display. Spule auflegen, tippen, speichern – Waage, NFC-Leser und Home Assistant laufen hier nur im Browser, dein echtes Lager bleibt unberührt.</p>
+  </header>
+
+  <div class="s-werkbank">
+    <div class="s-geraet">
+      <div class="s-rahmen">
+        <div class="s-screen" id="sim-screen">
+{{APP_HTML}}
+        </div>
+      </div>
+      <div class="s-unter"><span>5″ · 800 × 480 · Touch</span><span id="sim-messung">0,0 g</span></div>
+    </div>
+
+    <aside class="s-steuer">
+      <section class="s-karte" aria-labelledby="sim-h-spule">
+        <h2 id="sim-h-spule">Auf den Teller legen</h2>
+        <div class="s-spulen" id="sim-spulen"></div>
+        <div class="s-zeile">
+          <label for="sim-leser">NFC-Leser</label>
+          <select id="sim-leser" class="s-knopf"><option value="R">rechts</option><option value="L">links</option></select>
+          <button class="s-knopf" id="sim-wackeln" type="button">Spule anstoßen</button>
+          <button class="s-knopf" id="sim-ab" type="button">Abnehmen</button>
+        </div>
+      </section>
+
+      <section class="s-karte" aria-labelledby="sim-h-gewicht">
+        <h2 id="sim-h-gewicht">Gewicht auf dem Teller</h2>
+        <div class="s-zeile">
+          <input type="range" id="sim-gewicht" class="s-regler" min="0" max="1400" step="1" value="0" aria-label="Gewicht in Gramm">
+          <span class="s-wert" id="sim-gewicht-wert">0 g</span>
+        </div>
+        <p class="s-hinweis">Brutto inkl. Leerspule (250 g). Unter 260 g gilt eine Spule beim Speichern als leer und wird ausgebucht.</p>
+      </section>
+
+      <section class="s-karte" aria-labelledby="sim-h-ha">
+        <div class="s-zeile" style="justify-content: space-between">
+          <h2 id="sim-h-ha">An Home Assistant gesendet</h2>
+          <button class="s-knopf" id="sim-reset" type="button">Lager zurücksetzen</button>
+        </div>
+        <ul class="s-log" id="sim-log"></ul>
+        <p class="s-leer" id="sim-log-leer">Noch nichts gespeichert. Leg eine Spule auf und tippe auf „Rest speichern“.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+// ===================================================================== Simulation
+// Testdaten: Auszug aus dem Filamentlager (testdaten/todo_filament.json)
+const SIM_DATEN = {{DATEN}};
+
+// ---- Datenmodell, gleiche Regeln wie pi/filamentwaage/modell.py ----
+const M = (() => {
+  const int = (v, d) => {
+    if (typeof v === "boolean" || v === null || v === undefined) return d;
+    if (typeof v === "number") return Math.round(v);
+    if (typeof v === "string" && v.trim()) { const n = parseFloat(v.replace(",", ".")); return isNaN(n) ? d : Math.trunc(n); }
+    return d;
+  };
+  const reste = (v, g) => Array.isArray(v) ? v.map((x) => int(x, -1)).filter((x) => x > 0 && (g <= 0 || x < g)) : [];
+  const lesen = (b) => { if (!b) return {}; try { const d = JSON.parse(b); return d && typeof d === "object" && !Array.isArray(d) ? d : null; } catch { return null; } };
+  const hex = (h) => (typeof h === "string" && /^#[0-9a-fA-F]{6}$/.test(h) ? h.toLowerCase() : "#888888");
+  function sorte(uid, summary, beschreibung) {
+    const d = lesen(beschreibung) || {};
+    if (d.typ) return null;
+    let gewicht = int(d.gewicht, 1000); if (gewicht <= 0) gewicht = 1000;
+    const spulen = Math.max(0, int(d.spulen, 1));
+    const s = {
+      uid, summary, beschreibung, hersteller: String(d.hersteller || ""), material: String(d.material || ""),
+      farbe: String(d.farbe || ""), hex: hex(d.hex),
+      besonderheiten: (d.besonderheiten || []).filter((b) => typeof b === "string"),
+      gewicht, spulen, reste: reste(d.reste, gewicht), refills: Math.max(0, Math.min(int(d.refills, 0), spulen)),
+      duese_min: int(d.duese_min, -1), duese_max: int(d.duese_max, -1), trocknen_c: int(d.trocknen_c, -1),
+      trocknen_h: int(d.trocknen_h, -1), durchmesser: typeof d.durchmesser === "number" ? d.durchmesser : 1.75,
+      leer_g: int(d.leer_g, -1), fcode: String(d.fcode || ""), bambu_id: String(d.bambu_id || ""),
+      codes: (d.codes || []).filter((c) => typeof c === "string"), nfc: (d.nfc || []).filter((c) => typeof c === "string"),
+    };
+    if (!s.material && !s.farbe) s.farbe = summary;
+    s.kurzname = [s.material, s.farbe].filter(Boolean).join(" ") || summary;
+    s.bestand_g = Math.max(0, s.spulen - s.reste.length) * s.gewicht + s.reste.reduce((a, b) => a + b, 0);
+    return s;
+  }
+  const naechster = (r, z) => r.length ? r.reduce((b, x, i) => (Math.abs(x - z) < Math.abs(r[b] - z) ? i : b), 0) : -1;
+  function restSpeichern(b, netto, tag) {
+    const d = lesen(b); if (!d) return { geaendert: false, meldung: "Eintrag nicht lesbar" };
+    let gewicht = int(d.gewicht, 1000); if (gewicht <= 0) gewicht = 1000;
+    let spulen = Math.max(0, int(d.spulen, 1));
+    const r = reste(d.reste, gewicht);
+    const waage = d.waage && typeof d.waage === "object" ? d.waage : {};
+    const alt = tag ? int(waage[tag], -1) : -1;
+    let meldung;
+    if (netto >= gewicht - 15) {
+      if (alt <= 0) return { geaendert: false, meldung: "Spule ist voll – nichts geändert" };
+      const i = naechster(r, alt); if (i >= 0) r.splice(i, 1);
+      delete waage[tag]; meldung = "Spule ist voll – Rest gestrichen";
+    } else if (netto <= 10) {
+      let i = alt > 0 ? naechster(r, alt) : -1;
+      if (i < 0 && r.length) i = r.indexOf(Math.min(...r));
+      if (i >= 0) r.splice(i, 1);
+      spulen = Math.max(0, spulen - 1); d.spulen = spulen;
+      if (int(d.refills, 0) > spulen) d.refills = spulen;
+      if (tag) delete waage[tag];
+      meldung = "Spule leer – ausgebucht";
+    } else {
+      let i = alt > 0 ? naechster(r, alt) : -1;
+      if (i < 0) { const k = r.map((x, j) => [x, j]).filter(([x]) => x >= netto - 5); if (k.length) i = k.reduce((a, b) => (b[0] < a[0] ? b : a))[1]; }
+      if (i < 0 && r.length < spulen) { r.push(netto); meldung = `Neue angebrochene Spule: ${netto} g`; }
+      else {
+        if (i < 0) i = naechster(r, netto);
+        if (i < 0) { spulen += 1; d.spulen = spulen; r.push(netto); meldung = `Spule ergänzt: ${netto} g`; }
+        else { meldung = `Rest ${r[i]} g → ${netto} g`; r[i] = netto; }
+      }
+      if (tag) waage[tag] = netto;
+    }
+    d.reste = r;
+    if (Object.keys(waage).length) d.waage = waage; else delete d.waage;
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung };
+  }
+  function tagZuordnen(b, tag) {
+    const d = lesen(b); if (!d || !tag) return { geaendert: false, meldung: "Eintrag nicht lesbar" };
+    const n = Array.isArray(d.nfc) ? d.nfc : [];
+    if (n.includes(tag)) return { geaendert: false, meldung: "Tag war schon zugeordnet" };
+    d.nfc = [...n, tag];
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung: "Tag gespeichert" };
+  }
+  function tagEntfernen(b, tag) {
+    const d = lesen(b); if (!d) return { geaendert: false };
+    const n = Array.isArray(d.nfc) ? d.nfc : [];
+    if (!n.includes(tag)) return { geaendert: false };
+    const rest = n.filter((x) => x !== tag); if (rest.length) d.nfc = rest; else delete d.nfc;
+    if (d.waage && typeof d.waage === "object") { delete d.waage[tag]; if (!Object.keys(d.waage).length) delete d.waage; }
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung: "Tag entfernt" };
+  }
+  function spulenAendern(b, delta) {
+    const d = lesen(b); if (!d) return { geaendert: false, meldung: "Eintrag nicht lesbar" };
+    const g = int(d.gewicht, 1000), alt = Math.max(0, int(d.spulen, 1)), neu = Math.max(0, alt + delta);
+    if (neu === alt) return { geaendert: false, meldung: "Keine Spule mehr da" };
+    d.spulen = neu;
+    const r = reste(d.reste, g); if (r.length > neu) { r.sort((a, b) => a - b); r.shift(); d.reste = r; }
+    if (int(d.refills, 0) > neu) d.refills = neu;
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung: `${neu} Spule${neu === 1 ? "" : "n"}` };
+  }
+  return { sorte, restSpeichern, tagZuordnen, tagEntfernen, spulenAendern };
+})();
+
+// ---- Zustand der simulierten Hardware und des Lagers ----
+const SIM = {
+  items: [], version: 1, meldungen: [], zuhoerer: { zustand: [], meldung: [] },
+  ziel: 0, ist: 0, ruhigSeit: 0, tag: "", leser: "R", spule: -1,
+};
+function lagerZuruecksetzen() {
+  SIM.items = SIM_DATEN.service_response["todo.filament"].items.map((x) => ({ ...x }));
+  SIM.version++;
+}
+lagerZuruecksetzen();
+const sorten = () => SIM.items.map((i) => M.sorte(i.uid, i.summary, i.description)).filter(Boolean);
+function simMeldung(text, fehler = false) {
+  const m = { text, fehler };
+  setTimeout(() => SIM.zuhoerer.meldung.forEach((f) => f({ data: JSON.stringify(m) })), 0);
+}
+
+// ---- „Home Assistant“: Änderungen schreiben und protokollieren ----
+function haSchreiben(uid, neu) {
+  const it = SIM.items.find((x) => x.uid === uid);
+  const vorher = JSON.parse(it.description || "{}"), nachher = JSON.parse(neu);
+  it.description = neu;
+  SIM.version++;
+  const felder = [...new Set([...Object.keys(vorher), ...Object.keys(nachher)])]
+    .filter((k) => JSON.stringify(vorher[k]) !== JSON.stringify(nachher[k]));
+  const li = document.createElement("li");
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  li.innerHTML = `<b>todo.update_item · ${esc(it.summary)}</b><br>` + felder.map((k) =>
+    `${esc(k)}: <span class="alt">${esc(JSON.stringify(vorher[k]) ?? "–")}</span> → <span class="neu">${esc(JSON.stringify(nachher[k]) ?? "–")}</span>`).join("<br>");
+  const log = document.getElementById("sim-log");
+  log.prepend(li);
+  document.getElementById("sim-log-leer").hidden = true;
+}
+function aendern(uid, f) {
+  const it = SIM.items.find((x) => x.uid === uid);
+  if (!it) { simMeldung("Sorte nicht mehr im Lager", true); return ""; }
+  const a = f(it.description);
+  if (a.geaendert) haSchreiben(uid, a.beschreibung);
+  return a.meldung || "";
+}
+
+// ---- Ersatz für den Pi-Dienst: fetch() und EventSource ----
+const echtesFetch = window.fetch.bind(window);
+window.fetch = async (url, opt = {}) => {
+  const pfad = String(url);
+  if (!pfad.startsWith("/api/")) return echtesFetch(url, opt);
+  const antwort = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { "Content-Type": "application/json" } });
+  if (pfad === "/api/lager") return antwort({ version: SIM.version, sorten: sorten() });
+  const d = opt.body ? JSON.parse(opt.body) : {};
+  const z = simZustand();
+  if (pfad === "/api/tara") { SIM.ziel = 0; SIM.ist = 0; setzeRegler(0); simMeldung("Tara gesetzt"); }
+  else if (pfad === "/api/kalibrieren") simMeldung(`Kalibriert mit ${d.g} g (Simulation)`);
+  else if (pfad === "/api/rest") {
+    if (!z.stabil) { simMeldung("Gewicht noch unruhig – kurz warten", true); return antwort({ ok: false }); }
+    simMeldung("Speichere …");
+    setTimeout(() => { const t = aendern(d.sorte, (b) => M.restSpeichern(b, d.netto, d.tag || "")); if (t) simMeldung(t); }, 350);
+  } else if (pfad === "/api/zuordnen") {
+    simMeldung("Ordne Tag zu …");
+    setTimeout(() => {
+      SIM.items.filter((i) => i.uid !== d.sorte && (M.sorte(i.uid, i.summary, i.description)?.nfc || []).includes(d.tag))
+        .forEach((i) => aendern(i.uid, (b) => M.tagEntfernen(b, d.tag)));
+      const t = aendern(d.sorte, (b) => M.tagZuordnen(b, d.tag)); if (t) simMeldung(t);
+    }, 350);
+  } else if (pfad === "/api/spulen") { const t = aendern(d.sorte, (b) => M.spulenAendern(b, d.delta)); if (t) simMeldung(t); }
+  else if (pfad === "/api/neu_laden") simMeldung("Lager geladen");
+  return antwort({ ok: true }, 202);
+};
+
+function simZustand() {
+  return {
+    brutto_g: Math.round(SIM.ist * 10) / 10, stabil: SIM.ruhigSeit && performance.now() - SIM.ruhigSeit > 1200,
+    kalibriert: true, tag_l: SIM.leser === "L" ? SIM.tag : "", tag_r: SIM.leser === "R" ? SIM.tag : "",
+    sensor_ok: true, ha_ok: true, lager_version: SIM.version,
+    uhrzeit: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+    leer_standard_g: 250, version: "1.0.0 · Demo", ip: "192.168.178.57",
+  };
+}
+
+window.EventSource = class {
+  constructor() {
+    this.t = setInterval(() => { const e = { data: JSON.stringify(simZustand()) }; SIM.zuhoerer.zustand.forEach((f) => f(e)); }, 150);
+  }
+  addEventListener(typ, f) { (SIM.zuhoerer[typ] ||= []).push(f); }
+  close() { clearInterval(this.t); }
+};
+
+// Gewicht nähert sich dem Ziel an, mit etwas Rauschen wie bei einer echten Wägezelle
+setInterval(() => {
+  const vorher = SIM.ist;
+  SIM.ist += (SIM.ziel - SIM.ist) * 0.35 + (Math.random() - 0.5) * (SIM.ziel > 5 ? 0.4 : 0.15);
+  if (Math.abs(SIM.ziel - SIM.ist) < 0.6) SIM.ist = SIM.ziel + (Math.random() - 0.5) * 0.3;
+  if (Math.abs(SIM.ist - vorher) > 2) SIM.ruhigSeit = 0;
+  else if (!SIM.ruhigSeit) SIM.ruhigSeit = performance.now();
+  document.getElementById("sim-messung").textContent = `${SIM.ist.toFixed(1).replace(".", ",")} g`;
+}, 100);
+
+// ---- Bedienfeld ----
+const SPULEN = [
+  { name: "PLA Blue Gray", info: "Tag bekannt · Rest 560 g", hex: "#5b6579", g: 812, tag: "04C0FFEE112233" },
+  { name: "PLA Ash Gray", info: "Tag bekannt · voll", hex: "#9b9ea0", g: 1252, tag: "04A1B2C3D4E5F6" },
+  { name: "Neue Spule", info: "unbekannter Tag", hex: "#3a4048", g: 655, tag: "04DEADBEEF0001" },
+  { name: "Spule ohne Tag", info: "Sorte selbst wählen", hex: "#2a2f36", g: 430, tag: "" },
+  { name: "Fast leer", info: "Blue Gray · 8 g Rest", hex: "#5b6579", g: 258, tag: "04C0FFEE112233" },
+];
+function setzeRegler(g) {
+  document.getElementById("sim-gewicht").value = g;
+  document.getElementById("sim-gewicht-wert").textContent = `${Math.round(g)} g`;
+}
+function auflegen(i) {
+  const s = SPULEN[i];
+  SIM.spule = i; SIM.ziel = s.g; SIM.tag = ""; SIM.ruhigSeit = 0;
+  setzeRegler(s.g);
+  setTimeout(() => { if (SIM.spule === i) SIM.tag = s.tag; }, 450);  // Tag wird kurz nach dem Auflegen gelesen
+  document.querySelectorAll(".s-spule").forEach((b, j) => b.classList.toggle("an", j === i));
+}
+document.getElementById("sim-spulen").innerHTML = SPULEN.map((s, i) =>
+  `<button class="s-spule" type="button" data-i="${i}"><span class="farbe" style="background:${s.hex}"></span>
+   <span><b>${s.name}</b><small>${s.info}</small></span></button>`).join("");
+document.getElementById("sim-spulen").onclick = (e) => { const b = e.target.closest(".s-spule"); if (b) auflegen(Number(b.dataset.i)); };
+document.getElementById("sim-ab").onclick = () => {
+  SIM.spule = -1; SIM.ziel = 0; SIM.tag = ""; SIM.ruhigSeit = 0; setzeRegler(0);
+  document.querySelectorAll(".s-spule").forEach((b) => b.classList.remove("an"));
+};
+document.getElementById("sim-wackeln").onclick = () => { SIM.ist += 40; SIM.ruhigSeit = 0; };
+document.getElementById("sim-gewicht").oninput = (e) => { SIM.ziel = Number(e.target.value); SIM.ruhigSeit = 0; setzeRegler(SIM.ziel); };
+document.getElementById("sim-leser").onchange = (e) => { SIM.leser = e.target.value; };
+document.getElementById("sim-reset").onclick = () => {
+  lagerZuruecksetzen();
+  document.getElementById("sim-log").innerHTML = "";
+  document.getElementById("sim-log-leer").hidden = false;
+  simMeldung("Lager auf Testdaten zurückgesetzt");
+};
+</script>
+
+<script>
+// ===================================================================== Oberfläche (pi/filamentwaage/web/app.js)
+{{APPJS}}
+</script>

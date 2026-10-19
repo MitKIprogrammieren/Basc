@@ -1,0 +1,953 @@
+<title>FilamentLager TFT-Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Werkbank: links das Gerät mit der echten Oberfläche, rechts die Simulation von Waage, NFC und Home Assistant */
+:root {
+  --s-grund: #0b0d10; --s-flaeche: #13171b; --s-linie: #252b31; --s-text: #e8ecef; --s-leise: #98a1aa;
+  --s-akzent: #4caf50; --s-akzent-t: #9fe3a2; --s-warn: #ffb74d; --s-rot: #ef5350; --s-rahmen: #050607;
+  --s-schrift: "Barlow", "Segoe UI", system-ui, sans-serif; --s-mono: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+body { background: var(--s-grund); color: var(--s-text); font-family: var(--s-schrift); font-size: 15px; }
+.s-seite { max-width: 1260px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 18px; }
+.s-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+.s-kopf h1 { margin: 0; font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -.01em; }
+.s-kopf p { margin: 0; color: var(--s-leise); max-width: 62ch; line-height: 1.45; }
+.s-werkbank { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.s-geraet { flex: 1 1 620px; min-width: 0; max-width: 860px; }
+.s-rahmen { background: var(--s-rahmen); border-radius: 22px; padding: 14px; border: 1px solid #1c2126;
+  box-shadow: 0 30px 60px -30px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04); }
+.s-screen { position: relative; overflow: hidden; border-radius: 6px; width: 100%; height: 480px; background: #0d0f12; }
+.s-unter { display: flex; justify-content: space-between; color: var(--s-leise); font-size: 12px; padding: 8px 6px 0;
+  font-family: var(--s-mono); }
+.s-steuer { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.s-karte { background: var(--s-flaeche); border: 1px solid var(--s-linie); border-radius: 14px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px; }
+.s-karte h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--s-leise); }
+.s-spulen { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.s-spule { text-align: left; background: #0f1215; border: 1px solid var(--s-linie); border-radius: 10px; color: var(--s-text);
+  padding: 9px 11px; font: inherit; cursor: pointer; display: flex; gap: 9px; align-items: center; }
+.s-spule:hover { border-color: #3a434c; }
+.s-spule:focus-visible, .s-knopf:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--s-akzent); outline-offset: 2px; }
+.s-spule.an { border-color: var(--s-akzent); background: #142017; }
+.s-spule .farbe { width: 22px; height: 22px; border-radius: 6px; flex: 0 0 auto; border: 1px solid #4a5058; }
+.s-spule b { display: block; font-weight: 600; font-size: 14px; line-height: 1.2; }
+.s-spule small { color: var(--s-leise); font-size: 12px; }
+.s-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.s-zeile label { color: var(--s-leise); font-size: 13px; }
+.s-regler { flex: 1 1 160px; accent-color: var(--s-akzent); }
+.s-wert { font-family: var(--s-mono); font-size: 14px; min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.s-knopf { background: transparent; color: var(--s-text); border: 1px solid #3a434c; border-radius: 9px; padding: 8px 12px;
+  font: inherit; font-weight: 500; cursor: pointer; }
+.s-knopf:hover { background: #1a1f24; }
+select.s-knopf { padding-right: 8px; }
+.s-log { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow: auto; }
+.s-log li { font-family: var(--s-mono); font-size: 12px; line-height: 1.5; color: var(--s-leise); border-left: 2px solid var(--s-linie);
+  padding-left: 10px; overflow-wrap: anywhere; }
+.s-log li b { color: var(--s-text); font-weight: 500; }
+.s-log li .neu { color: var(--s-akzent-t); } .s-log li .alt { color: var(--s-warn); }
+.s-leer { color: var(--s-leise); font-size: 13px; }
+.s-hinweis { color: var(--s-leise); font-size: 13px; line-height: 1.45; margin: 0; }
+.s-hinweis code { font-family: var(--s-mono); font-size: 12px; color: var(--s-text); }
+
+/* ---- Oberfläche der Waage (aus pi/filamentwaage/web/style.css) ---- */
+/* FilamentLager Waage – gleiches Design wie die ESP32-Firmware (800×480) */
+:root {
+  --bg: #0d0f12; --panel: #15181c; --kachel: #1d2126; --linie: #23272d; --rand: #3a4048; --rand2: #2a2f36;
+  --text: #f1f3f5; --sub: #a3aab3; --nav: #c9ced4; --gruen: #4caf50; --gruen-t: #9fe3a2; --nav-akt: #1c2a1e;
+  --orange: #ffa726; --orange-t: #ffb74d; --rot: #ef5350; --chip: #23272d; --chip-g: #1e3024;
+  --chip-b: #1a2a3d; --blau-t: #90caf9;
+}
+* { box-sizing: border-box; }
+button { font-family: inherit; color: inherit; }
+
+.app { position: absolute; left: 0; top: 0; width: 800px; height: 480px; transform-origin: 0 0;
+  display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+/* Kopf */
+.kopf { height: 46px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px; border-bottom: 1px solid var(--linie); }
+.kopf-links, .kopf-rechts { display: flex; align-items: center; gap: 10px; }
+.kopf-rechts { gap: 14px; font-size: 12px; color: var(--sub); }
+.logo { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--gruen); display: grid; place-items: center; }
+.logo span { width: 6px; height: 6px; border-radius: 50%; background: var(--gruen); }
+.titel { font-weight: 700; font-size: 17px; }
+.sub { font-size: 13px; color: var(--sub); }
+.status { display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rand); }
+.dot.an { background: var(--gruen); } .dot.aus { background: var(--rot); }
+#wlan.aus { color: var(--rot); }
+.uhr { font-weight: 600; font-size: 14px; color: var(--text); }
+
+/* Grundbausteine */
+.seite { flex: 1 1 auto; min-height: 0; padding: 14px 16px; gap: 14px; }
+.reihe { display: flex; flex-direction: row; }
+.spalte { display: flex; flex-direction: column; }
+.versteckt { display: none !important; }
+.gap2 { gap: 2px; } .gap6 { gap: 6px; } .gap8 { gap: 8px; } .gap10 { gap: 10px; } .gap12 { gap: 12px; }
+.mt8 { margin-top: 8px; } .mitte { align-items: center; } .wachsen { flex: 1 1 auto; } .minw0 { min-width: 0; }
+.zentriert { text-align: center; } .pad18 { padding: 18px; }
+.panel { background: var(--panel); border: 2px solid var(--rand2); border-radius: 18px; }
+.panel.gruen { border-color: var(--gruen); } .panel.orange { border-color: var(--orange); }
+.ueber { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--sub); }
+.ueber.klein { font-size: 11px; } .orange-t { color: var(--orange-t); }
+.sub14 { font-size: 13px; color: var(--sub); } .sub16 { font-size: 15px; color: var(--sub); }
+.name20 { font-weight: 700; font-size: 17px; line-height: 1.2; } .name28 { font-weight: 800; font-size: 28px; }
+.ellipse { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { font-size: 12px; padding: 3px 9px; border-radius: 7px; background: var(--chip); white-space: nowrap; }
+.chip.g { background: var(--chip-g); color: var(--gruen-t); }
+.chip.o { background: transparent; border: 1px solid rgba(255,167,38,.6); color: var(--orange-t); }
+.chip.b { background: var(--chip-b); color: var(--blau-t); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { border-radius: 9px; border: 1px solid #4a5058; flex: 0 0 auto; background: var(--rand); }
+.s34 { width: 34px; height: 34px; } .s30 { width: 30px; height: 30px; border-radius: 8px; }
+.s22 { width: 22px; height: 22px; border-radius: 6px; } .s64 { width: 64px; height: 64px; border-radius: 14px; }
+
+.knopf { border: 0; border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; gap: 10px; }
+.knopf:disabled { opacity: .4; }
+.knopf.primaer { background: var(--gruen); color: var(--bg); font-size: 17px; font-weight: 700; }
+.knopf.primaer:active { background: #3d8b40; }
+.knopf.rahmen { background: transparent; border: 2px solid var(--rand); color: var(--text); }
+.knopf.rahmen:active { background: var(--linie); }
+.knopf.gross { height: 58px; } .h50 { height: 50px; } .h54 { height: 54px; }
+.knopf.quadrat { width: 58px; height: 52px; font-size: 24px; flex: 0 0 auto; }
+
+/* Wiegen */
+.wiegen-karte { flex: 1 1 auto; display: flex; align-items: center; gap: 22px; padding: 18px 22px; }
+.ring { width: 168px; height: 168px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--gruen) 0 0%, var(--rand2) 0% 100%); }
+.ring-innen { width: 140px; height: 140px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; }
+.spule { width: 92px; height: 92px; border-radius: 50%; border: 3px solid var(--rand2); background: var(--rand);
+  display: grid; place-items: center; }
+.nabe { width: 26px; height: 26px; border-radius: 50%; background: var(--panel); }
+.zahl-zeile { display: flex; align-items: baseline; gap: 8px; }
+.zahl { font-size: 92px; font-weight: 800; line-height: .95; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.einheit { font-size: 30px; font-weight: 600; color: var(--sub); }
+.rechts270 { width: 270px; flex: 0 0 auto; }
+.rechts270 > .reihe > .knopf { flex: 1 1 0; height: 50px; }
+.karte { flex: 1 1 auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+
+/* Lager */
+.suche { flex: 1 1 auto; min-width: 0; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  border-radius: 12px; background: var(--panel); border: 1px solid var(--rand2); color: var(--sub); }
+.suche input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text);
+  font: inherit; font-size: 14px; }
+.filter { height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid var(--rand); background: transparent;
+  color: var(--nav); font-weight: 600; font-size: 13px; }
+.filter.an { background: var(--gruen); border-color: var(--gruen); color: var(--bg); font-weight: 700; }
+.liste { flex: 1 1 auto; min-height: 0; padding: 0 14px; overflow-y: auto; scrollbar-width: thin; }
+.zeile { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--linie); cursor: pointer; }
+.zeile:active { background: var(--linie); }
+.zeile:last-child { border-bottom: 0; }
+.zeile .rechts { width: 86px; text-align: right; flex: 0 0 auto; }
+.zeile .anz { font-weight: 700; font-size: 15px; } .zeile .anz.leer { color: var(--rot); }
+.leer-hinweis { padding: 16px 0; color: var(--sub); }
+.reste { width: 232px; flex: 0 0 auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.rest-zeile { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.balken { height: 4px; border-radius: 2px; background: var(--rand2); margin-top: 4px; overflow: hidden; }
+.balken div { height: 100%; border-radius: 2px; }
+
+/* Detail */
+.links300 { width: 300px; flex: 0 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.kachel { flex: 1 1 0; border-radius: 12px; background: var(--kachel); padding: 10px 12px; }
+.kachel b { display: block; font-size: 30px; font-weight: 800; line-height: 1; }
+.kachel span { font-size: 12px; color: var(--sub); }
+.wert-kachel { flex: 1 1 0; border: 2px solid var(--rand2); border-radius: 16px; background: var(--panel); padding: 12px 14px; }
+.wert-kachel b { display: block; font-size: 26px; font-weight: 800; margin-top: 4px; }
+.info-liste { flex: 1 1 auto; border: 2px solid var(--rand2); border-radius: 16px; background: var(--panel); padding: 4px 14px; }
+.info-zeile { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--linie); font-size: 14px; }
+.info-zeile:last-child { border-bottom: 0; }
+.info-zeile span:first-child { color: var(--sub); } .info-zeile span:last-child { font-weight: 600; }
+.zurueck { width: 44px; height: 44px; flex: 0 0 auto; }
+
+/* Einstellungen */
+.b300 { width: 300px; flex: 0 0 auto; }
+.info { font-size: 15px; font-weight: 600; line-height: 1.75; white-space: pre-line; }
+
+/* Navigation */
+.nav { height: 62px; flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 16px 10px; }
+.nav-knopf { border: 0; border-radius: 14px; background: var(--panel); color: var(--nav); display: flex; align-items: center;
+  justify-content: center; gap: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.nav-knopf.an { background: var(--nav-akt); color: var(--gruen-t); font-weight: 700; }
+
+/* Meldung und Tastatur */
+.toast { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); background: var(--panel);
+  border: 2px solid var(--gruen); border-radius: 14px; padding: 12px 18px; font-weight: 600; font-size: 15px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.6); white-space: nowrap; z-index: 20; }
+.toast.fehler { border-color: var(--rot); }
+.tastatur { position: absolute; left: 0; right: 0; bottom: 0; height: 220px; background: #1b1e22; border-top: 1px solid var(--rand);
+  padding: 8px; display: flex; flex-direction: column; gap: 6px; z-index: 30; }
+.tastatur .t-reihe { display: flex; gap: 6px; flex: 1 1 0; }
+.tastatur button { flex: 1 1 0; border: 0; border-radius: 8px; background: var(--rand2); color: var(--text); font-size: 18px; font-weight: 600; }
+.tastatur button:active { background: var(--rand); }
+.tastatur button.breit { flex: 2 1 0; font-size: 15px; } .tastatur button.ok { background: var(--gruen); color: var(--bg); }
+
+.app { cursor: default; user-select: none; -webkit-user-select: none; }
+</style>
+
+<div class="s-seite">
+  <header class="s-kopf">
+    <h1>FilamentLager TFT-Demo</h1>
+    <p>Die echte Oberfläche der Waage auf einem simulierten 5″-Display. Spule auflegen, tippen, speichern – Waage, NFC-Leser und Home Assistant laufen hier nur im Browser, dein echtes Lager bleibt unberührt.</p>
+  </header>
+
+  <div class="s-werkbank">
+    <div class="s-geraet">
+      <div class="s-rahmen">
+        <div class="s-screen" id="sim-screen">
+<div id="app" class="app">
+  <header class="kopf">
+    <div class="kopf-links">
+      <span class="logo" aria-hidden="true"><span></span></span>
+      <span class="titel">FilamentLager</span>
+      <span id="kopf-sub" class="sub">Waage</span>
+    </div>
+    <div class="kopf-rechts">
+      <span class="status"><span id="dot-l" class="dot"></span>NFC L</span>
+      <span class="status"><span id="dot-r" class="dot"></span>NFC R</span>
+      <span id="wlan" class="status">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5.5 12.5a10 10 0 0 1 13 0"/><path d="M9 16.2a5 5 0 0 1 6 0"/><circle cx="12" cy="19.5" r=".8"/></svg>WLAN</span>
+      <span class="status"><span id="dot-ha" class="dot"></span>Home Assistant</span>
+      <span id="uhr" class="uhr">--:--</span>
+    </div>
+  </header>
+
+  <!-- Wiegen -->
+  <main id="seite-wiegen" class="seite reihe">
+    <section class="panel gruen wiegen-karte">
+      <div class="ring" id="ring">
+        <div class="ring-innen"><div class="spule" id="spule"><div class="nabe"></div></div></div>
+      </div>
+      <div class="spalte gap6">
+        <span class="ueber">Filament übrig</span>
+        <div class="zahl-zeile"><span id="zahl" class="zahl">0</span><span class="einheit">g</span></div>
+        <span id="proz" class="sub16">Spule auflegen</span>
+        <div class="reihe gap8 mt8">
+          <span id="chip-brutto" class="chip">Brutto 0 g</span>
+          <span id="chip-leer" class="chip">Leerspule 250 g</span>
+        </div>
+      </div>
+    </section>
+    <aside class="spalte gap10 rechts270">
+      <div class="panel gruen karte">
+        <span id="k-titel" class="ueber klein ellipse">Keine Spule erkannt</span>
+        <div class="reihe gap12 mitte">
+          <div id="k-swatch" class="swatch s34"></div>
+          <div class="spalte gap2 minw0">
+            <span id="k-name" class="name20 ellipse">Teller ist leer</span>
+            <span id="k-sub" class="sub14 ellipse">Spule mit Tag auflegen</span>
+          </div>
+        </div>
+        <div id="k-chips" class="chips"></div>
+      </div>
+      <button id="btn-haupt" class="knopf primaer gross" disabled>Rest speichern</button>
+      <div class="reihe gap10">
+        <button id="btn-tara" class="knopf rahmen">Tara</button>
+        <button id="btn-wahl" class="knopf rahmen">Sorte wählen</button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Lager -->
+  <main id="seite-lager" class="seite reihe versteckt">
+    <section class="spalte gap10 wachsen minw0">
+      <div class="reihe gap8">
+        <label class="suche"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="suche" inputmode="none" autocomplete="off" placeholder="Suchen …" aria-label="Suchen"></label>
+        <div id="filter" class="reihe gap8"></div>
+      </div>
+      <div id="liste" class="panel gruen liste"></div>
+    </section>
+    <aside class="panel orange reste">
+      <span class="ueber orange-t">Angebrochene Rollen</span>
+      <div id="reste" class="spalte gap6"></div>
+    </aside>
+  </main>
+
+  <!-- Detail -->
+  <main id="seite-detail" class="seite reihe versteckt"></main>
+
+  <!-- Einstellungen -->
+  <main id="seite-einst" class="seite reihe versteckt">
+    <section class="panel gruen spalte gap12 wachsen pad18">
+      <span class="ueber">Waage</span>
+      <span class="sub14">Teller leer machen und Tara drücken. Dann das Kalibriergewicht auflegen und Kalibrieren drücken.</span>
+      <button id="e-tara" class="knopf rahmen h50">Tara</button>
+      <div class="reihe gap8 mitte">
+        <button class="knopf rahmen quadrat" data-kal="-100" aria-label="100 g weniger">−</button>
+        <span id="kal-wert" class="name28 wachsen zentriert">1000 g</span>
+        <button class="knopf rahmen quadrat" data-kal="100" aria-label="100 g mehr">+</button>
+      </div>
+      <button id="e-kal" class="knopf primaer h54">Kalibrieren</button>
+    </section>
+    <section class="panel grau spalte gap12 b300 pad18">
+      <span class="ueber">Verbindung</span>
+      <div id="e-info" class="info"></div>
+      <button id="e-laden" class="knopf rahmen h50">Lager neu laden</button>
+    </section>
+  </main>
+
+  <nav class="nav">
+    <button class="nav-knopf" data-seite="wiegen">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M6 20l2-9h8l2 9"/><path d="M12 11V5"/><path d="M8 5h8"/></svg>Wiegen</button>
+    <button class="nav-knopf" data-seite="lager">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01"/></svg>Lager</button>
+    <button class="nav-knopf" data-seite="einst">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Einstellungen</button>
+  </nav>
+
+  <div id="toast" class="toast versteckt" role="status" aria-live="polite"></div>
+  <div id="tastatur" class="tastatur versteckt" aria-label="Bildschirmtastatur"></div>
+</div>
+        </div>
+      </div>
+      <div class="s-unter"><span>5″ · 800 × 480 · Touch</span><span id="sim-messung">0,0 g</span></div>
+    </div>
+
+    <aside class="s-steuer">
+      <section class="s-karte" aria-labelledby="sim-h-spule">
+        <h2 id="sim-h-spule">Auf den Teller legen</h2>
+        <div class="s-spulen" id="sim-spulen"></div>
+        <div class="s-zeile">
+          <label for="sim-leser">NFC-Leser</label>
+          <select id="sim-leser" class="s-knopf"><option value="R">rechts</option><option value="L">links</option></select>
+          <button class="s-knopf" id="sim-wackeln" type="button">Spule anstoßen</button>
+          <button class="s-knopf" id="sim-ab" type="button">Abnehmen</button>
+        </div>
+      </section>
+
+      <section class="s-karte" aria-labelledby="sim-h-gewicht">
+        <h2 id="sim-h-gewicht">Gewicht auf dem Teller</h2>
+        <div class="s-zeile">
+          <input type="range" id="sim-gewicht" class="s-regler" min="0" max="1400" step="1" value="0" aria-label="Gewicht in Gramm">
+          <span class="s-wert" id="sim-gewicht-wert">0 g</span>
+        </div>
+        <p class="s-hinweis">Brutto inkl. Leerspule (250 g). Unter 260 g gilt eine Spule beim Speichern als leer und wird ausgebucht.</p>
+      </section>
+
+      <section class="s-karte" aria-labelledby="sim-h-ha">
+        <div class="s-zeile" style="justify-content: space-between">
+          <h2 id="sim-h-ha">An Home Assistant gesendet</h2>
+          <button class="s-knopf" id="sim-reset" type="button">Lager zurücksetzen</button>
+        </div>
+        <ul class="s-log" id="sim-log"></ul>
+        <p class="s-leer" id="sim-log-leer">Noch nichts gespeichert. Leg eine Spule auf und tippe auf „Rest speichern“.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+// ===================================================================== Simulation
+// Testdaten: Auszug aus dem Filamentlager (testdaten/todo_filament.json)
+const SIM_DATEN = {"changed_states": [], "service_response": {"todo.filament": {"items": [{"summary": "Bambu Lab PLA Ash Gray (Matt)", "uid": "uid-000", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Ash Gray\",\"hex\":\"#9b9ea0\",\"besonderheiten\":[\"Matt\"],\"gewicht\":1000,\"spulen\":4,\"refills\":1,\"reste\":[],\"codes\":[\"6975337030058\",\"6975337031352\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":190,\"duese_max\":230,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":55,\"trocknen_h\":8,\"fcode\":\"11102\",\"bambu_id\":\"GFA01\",\"nfc\":[\"04A1B2C3D4E5F6\"]}"}, {"summary": "Bambu Lab PLA Blue Gray (Basic)", "uid": "uid-001", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Blue Gray\",\"hex\":\"#5b6579\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":5,\"refills\":0,\"reste\":[560],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\",\"nfc\":[\"04C0FFEE112233\"]}"}, {"summary": "Bambu Lab PLA Cobalt Blue Metallic (Metallic)", "uid": "uid-002", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Cobalt Blue Metallic\",\"hex\":\"#39699e\",\"besonderheiten\":[\"Metallic\"],\"gewicht\":1000,\"spulen\":4,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA02\"}"}, {"summary": "Bambu Lab PLA Dark Gray (Basic)", "uid": "uid-003", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Dark Gray\",\"hex\":\"#545454\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":4,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\"}"}, {"summary": "Bambu Lab PLA Mistletoe Green (Basic)", "uid": "uid-004", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Mistletoe Green\",\"hex\":\"#3f8e43\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[710],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\"}"}, {"summary": "Princore PLA Telegrau", "uid": "uid-005", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Princore\",\"material\":\"PLA\",\"farbe\":\"Telegrau\",\"hex\":\"#8f9695\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":6,\"refills\":0,\"reste\":[],\"codes\":[\"4260714917711\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":200,\"duese_max\":220,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"PCPLA0011\",\"bambu_id\":\"\"}"}, {"summary": "Bambu Lab PLA Grün (Basic)", "uid": "uid-006", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Grün\",\"hex\":\"#00ae42\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":3,\"refills\":0,\"reste\":[10],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\"}"}, {"summary": "Bambu Lab PLA Schwarz (Tough+)", "uid": "uid-007", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Schwarz\",\"hex\":\"#000000\",\"besonderheiten\":[\"Tough+\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[],\"codes\":[\"6937285500694\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":220,\"duese_max\":250,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":55,\"trocknen_h\":8,\"fcode\":\"12104\",\"bambu_id\":\"GFA10\"}"}, {"summary": "Polymaker PLA Panchroma Matte Lavender Purple", "uid": "uid-008", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Polymaker\",\"material\":\"PLA\",\"farbe\":\"Panchroma Matte Lavender Purple\",\"hex\":\"#8a68b5\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "Bambu Lab PLA Silk+ Gold (Seide)", "uid": "uid-009", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Silk+ Gold\",\"hex\":\"#f4a925\",\"besonderheiten\":[\"Seide\"],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[\"6977252427418\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":190,\"duese_max\":240,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"13405\",\"bambu_id\":\"GFA06\"}"}, {"summary": "Jayo PLA Oreo Marble (HF, Marmor)", "uid": "uid-010", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Jayo\",\"material\":\"PLA\",\"farbe\":\"Oreo Marble\",\"hex\":\"#eaeaea\",\"besonderheiten\":[\"HF\",\"Marmor\"],\"gewicht\":1100,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "iFilament PLA Marine Blau", "uid": "uid-011", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"iFilament\",\"material\":\"PLA\",\"farbe\":\"Marine Blau\",\"hex\":\"#0c00a2\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[800],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "TINMORRY PETG Frosted Orange (GF, Matt)", "uid": "uid-012", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"TINMORRY\",\"material\":\"PETG\",\"farbe\":\"Frosted Orange\",\"hex\":\"#e8742a\",\"besonderheiten\":[\"GF\",\"Matt\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[],\"codes\":[\"X002FQZ10J\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"PETG-GF04\",\"bambu_id\":\"P73af434\"}"}, {"summary": "Bambu Lab PETG Black (CF)", "uid": "uid-013", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PETG\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"CF\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[420],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFG50\"}"}, {"summary": "Filaxix PETG Black (GF)", "uid": "uid-014", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Filaxix\",\"material\":\"PETG\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"GF\"],\"gewicht\":1000,\"spulen\":11,\"refills\":0,\"reste\":[979],\"codes\":[\"X0026WA79R\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFG98\"}"}, {"summary": "Bambu Lab PETG Cream (HF)", "uid": "uid-015", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PETG\",\"farbe\":\"Cream\",\"hex\":\"#f9dfb9\",\"besonderheiten\":[\"HF\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[],\"codes\":[\"6977252424691\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":230,\"duese_max\":260,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":65,\"trocknen_h\":8,\"fcode\":\"33401\",\"bambu_id\":\"GFG02\"}"}, {"summary": "Jayo PETG Sky Blue (Matt, HF)", "uid": "uid-016", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Jayo\",\"material\":\"PETG\",\"farbe\":\"Sky Blue\",\"hex\":\"#00a0d7\",\"besonderheiten\":[\"Matt\",\"HF\"],\"gewicht\":1100,\"spulen\":3,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":230,\"duese_max\":270,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"P888d95a\"}"}, {"summary": "Nobufil PETG Alu Grey", "uid": "uid-017", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Nobufil\",\"material\":\"PETG\",\"farbe\":\"Alu Grey\",\"hex\":\"#c1c1c1\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":3,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "eSUN ABS Black", "uid": "uid-018", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"eSUN\",\"material\":\"ABS\",\"farbe\":\"Black\",\"hex\":\"#111214\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[200],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "Bambu Lab ABS Orange (GF)", "uid": "uid-019", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"ABS\",\"farbe\":\"Orange\",\"hex\":\"#f48438\",\"besonderheiten\":[\"GF\"],\"gewicht\":1000,\"spulen\":6,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFB50\"}"}, {"summary": "Bambu Lab ASA Green", "uid": "uid-020", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"ASA\",\"farbe\":\"Green\",\"hex\":\"#00a6a0\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[\"921087642070\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":240,\"duese_max\":270,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"45500\",\"bambu_id\":\"GFB01\"}"}, {"summary": "Nobufil ABSx Neon Orange", "uid": "uid-021", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Nobufil\",\"material\":\"ABSx\",\"farbe\":\"Neon Orange\",\"hex\":\"#ffaa00\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "Bambu Lab PAHT Black (CF)", "uid": "uid-022", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PAHT\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"CF\"],\"gewicht\":1000,\"spulen\":4,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFN04\"}"}, {"summary": "ColorFabb TPU Black (Schäumend)", "uid": "uid-023", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"ColorFabb\",\"material\":\"TPU\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"Schäumend\"],\"gewicht\":700,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "Fiberlogy PA12 Orange", "uid": "uid-024", "status": "needs_action", "description": "{\"v\":2,\"hersteller\":\"Fiberlogy\",\"material\":\"PA12\",\"farbe\":\"Orange\",\"hex\":\"#ffb200\",\"besonderheiten\":[],\"gewicht\":750,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"}, {"summary": "⚙ Einstellungen (Ernsthaft gelagert Plus)", "uid": "uid-ein", "status": "needs_action", "description": "{\"typ\": \"einstellungen_plus\", \"v\": 1, \"werte\": {}}"}]}}};
+
+// ---- Datenmodell, gleiche Regeln wie pi/filamentwaage/modell.py ----
+const M = (() => {
+  const int = (v, d) => {
+    if (typeof v === "boolean" || v === null || v === undefined) return d;
+    if (typeof v === "number") return Math.round(v);
+    if (typeof v === "string" && v.trim()) { const n = parseFloat(v.replace(",", ".")); return isNaN(n) ? d : Math.trunc(n); }
+    return d;
+  };
+  const reste = (v, g) => Array.isArray(v) ? v.map((x) => int(x, -1)).filter((x) => x > 0 && (g <= 0 || x < g)) : [];
+  const lesen = (b) => { if (!b) return {}; try { const d = JSON.parse(b); return d && typeof d === "object" && !Array.isArray(d) ? d : null; } catch { return null; } };
+  const hex = (h) => (typeof h === "string" && /^#[0-9a-fA-F]{6}$/.test(h) ? h.toLowerCase() : "#888888");
+  function sorte(uid, summary, beschreibung) {
+    const d = lesen(beschreibung) || {};
+    if (d.typ) return null;
+    let gewicht = int(d.gewicht, 1000); if (gewicht <= 0) gewicht = 1000;
+    const spulen = Math.max(0, int(d.spulen, 1));
+    const s = {
+      uid, summary, beschreibung, hersteller: String(d.hersteller || ""), material: String(d.material || ""),
+      farbe: String(d.farbe || ""), hex: hex(d.hex),
+      besonderheiten: (d.besonderheiten || []).filter((b) => typeof b === "string"),
+      gewicht, spulen, reste: reste(d.reste, gewicht), refills: Math.max(0, Math.min(int(d.refills, 0), spulen)),
+      duese_min: int(d.duese_min, -1), duese_max: int(d.duese_max, -1), trocknen_c: int(d.trocknen_c, -1),
+      trocknen_h: int(d.trocknen_h, -1), durchmesser: typeof d.durchmesser === "number" ? d.durchmesser : 1.75,
+      leer_g: int(d.leer_g, -1), fcode: String(d.fcode || ""), bambu_id: String(d.bambu_id || ""),
+      codes: (d.codes || []).filter((c) => typeof c === "string"), nfc: (d.nfc || []).filter((c) => typeof c === "string"),
+    };
+    if (!s.material && !s.farbe) s.farbe = summary;
+    s.kurzname = [s.material, s.farbe].filter(Boolean).join(" ") || summary;
+    s.bestand_g = Math.max(0, s.spulen - s.reste.length) * s.gewicht + s.reste.reduce((a, b) => a + b, 0);
+    return s;
+  }
+  const naechster = (r, z) => r.length ? r.reduce((b, x, i) => (Math.abs(x - z) < Math.abs(r[b] - z) ? i : b), 0) : -1;
+  function restSpeichern(b, netto, tag) {
+    const d = lesen(b); if (!d) return { geaendert: false, meldung: "Eintrag nicht lesbar" };
+    let gewicht = int(d.gewicht, 1000); if (gewicht <= 0) gewicht = 1000;
+    let spulen = Math.max(0, int(d.spulen, 1));
+    const r = reste(d.reste, gewicht);
+    const waage = d.waage && typeof d.waage === "object" ? d.waage : {};
+    const alt = tag ? int(waage[tag], -1) : -1;
+    let meldung;
+    if (netto >= gewicht - 15) {
+      if (alt <= 0) return { geaendert: false, meldung: "Spule ist voll – nichts geändert" };
+      const i = naechster(r, alt); if (i >= 0) r.splice(i, 1);
+      delete waage[tag]; meldung = "Spule ist voll – Rest gestrichen";
+    } else if (netto <= 10) {
+      let i = alt > 0 ? naechster(r, alt) : -1;
+      if (i < 0 && r.length) i = r.indexOf(Math.min(...r));
+      if (i >= 0) r.splice(i, 1);
+      spulen = Math.max(0, spulen - 1); d.spulen = spulen;
+      if (int(d.refills, 0) > spulen) d.refills = spulen;
+      if (tag) delete waage[tag];
+      meldung = "Spule leer – ausgebucht";
+    } else {
+      let i = alt > 0 ? naechster(r, alt) : -1;
+      if (i < 0) { const k = r.map((x, j) => [x, j]).filter(([x]) => x >= netto - 5); if (k.length) i = k.reduce((a, b) => (b[0] < a[0] ? b : a))[1]; }
+      if (i < 0 && r.length < spulen) { r.push(netto); meldung = `Neue angebrochene Spule: ${netto} g`; }
+      else {
+        if (i < 0) i = naechster(r, netto);
+        if (i < 0) { spulen += 1; d.spulen = spulen; r.push(netto); meldung = `Spule ergänzt: ${netto} g`; }
+        else { meldung = `Rest ${r[i]} g → ${netto} g`; r[i] = netto; }
+      }
+      if (tag) waage[tag] = netto;
+    }
+    d.reste = r;
+    if (Object.keys(waage).length) d.waage = waage; else delete d.waage;
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung };
+  }
+  function tagZuordnen(b, tag) {
+    const d = lesen(b); if (!d || !tag) return { geaendert: false, meldung: "Eintrag nicht lesbar" };
+    const n = Array.isArray(d.nfc) ? d.nfc : [];
+    if (n.includes(tag)) return { geaendert: false, meldung: "Tag war schon zugeordnet" };
+    d.nfc = [...n, tag];
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung: "Tag gespeichert" };
+  }
+  function tagEntfernen(b, tag) {
+    const d = lesen(b); if (!d) return { geaendert: false };
+    const n = Array.isArray(d.nfc) ? d.nfc : [];
+    if (!n.includes(tag)) return { geaendert: false };
+    const rest = n.filter((x) => x !== tag); if (rest.length) d.nfc = rest; else delete d.nfc;
+    if (d.waage && typeof d.waage === "object") { delete d.waage[tag]; if (!Object.keys(d.waage).length) delete d.waage; }
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung: "Tag entfernt" };
+  }
+  function spulenAendern(b, delta) {
+    const d = lesen(b); if (!d) return { geaendert: false, meldung: "Eintrag nicht lesbar" };
+    const g = int(d.gewicht, 1000), alt = Math.max(0, int(d.spulen, 1)), neu = Math.max(0, alt + delta);
+    if (neu === alt) return { geaendert: false, meldung: "Keine Spule mehr da" };
+    d.spulen = neu;
+    const r = reste(d.reste, g); if (r.length > neu) { r.sort((a, b) => a - b); r.shift(); d.reste = r; }
+    if (int(d.refills, 0) > neu) d.refills = neu;
+    return { geaendert: true, beschreibung: JSON.stringify(d), meldung: `${neu} Spule${neu === 1 ? "" : "n"}` };
+  }
+  return { sorte, restSpeichern, tagZuordnen, tagEntfernen, spulenAendern };
+})();
+
+// ---- Zustand der simulierten Hardware und des Lagers ----
+const SIM = {
+  items: [], version: 1, meldungen: [], zuhoerer: { zustand: [], meldung: [] },
+  ziel: 0, ist: 0, ruhigSeit: 0, tag: "", leser: "R", spule: -1,
+};
+function lagerZuruecksetzen() {
+  SIM.items = SIM_DATEN.service_response["todo.filament"].items.map((x) => ({ ...x }));
+  SIM.version++;
+}
+lagerZuruecksetzen();
+const sorten = () => SIM.items.map((i) => M.sorte(i.uid, i.summary, i.description)).filter(Boolean);
+function simMeldung(text, fehler = false) {
+  const m = { text, fehler };
+  setTimeout(() => SIM.zuhoerer.meldung.forEach((f) => f({ data: JSON.stringify(m) })), 0);
+}
+
+// ---- „Home Assistant“: Änderungen schreiben und protokollieren ----
+function haSchreiben(uid, neu) {
+  const it = SIM.items.find((x) => x.uid === uid);
+  const vorher = JSON.parse(it.description || "{}"), nachher = JSON.parse(neu);
+  it.description = neu;
+  SIM.version++;
+  const felder = [...new Set([...Object.keys(vorher), ...Object.keys(nachher)])]
+    .filter((k) => JSON.stringify(vorher[k]) !== JSON.stringify(nachher[k]));
+  const li = document.createElement("li");
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  li.innerHTML = `<b>todo.update_item · ${esc(it.summary)}</b><br>` + felder.map((k) =>
+    `${esc(k)}: <span class="alt">${esc(JSON.stringify(vorher[k]) ?? "–")}</span> → <span class="neu">${esc(JSON.stringify(nachher[k]) ?? "–")}</span>`).join("<br>");
+  const log = document.getElementById("sim-log");
+  log.prepend(li);
+  document.getElementById("sim-log-leer").hidden = true;
+}
+function aendern(uid, f) {
+  const it = SIM.items.find((x) => x.uid === uid);
+  if (!it) { simMeldung("Sorte nicht mehr im Lager", true); return ""; }
+  const a = f(it.description);
+  if (a.geaendert) haSchreiben(uid, a.beschreibung);
+  return a.meldung || "";
+}
+
+// ---- Ersatz für den Pi-Dienst: fetch() und EventSource ----
+const echtesFetch = window.fetch.bind(window);
+window.fetch = async (url, opt = {}) => {
+  const pfad = String(url);
+  if (!pfad.startsWith("/api/")) return echtesFetch(url, opt);
+  const antwort = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { "Content-Type": "application/json" } });
+  if (pfad === "/api/lager") return antwort({ version: SIM.version, sorten: sorten() });
+  const d = opt.body ? JSON.parse(opt.body) : {};
+  const z = simZustand();
+  if (pfad === "/api/tara") { SIM.ziel = 0; SIM.ist = 0; setzeRegler(0); simMeldung("Tara gesetzt"); }
+  else if (pfad === "/api/kalibrieren") simMeldung(`Kalibriert mit ${d.g} g (Simulation)`);
+  else if (pfad === "/api/rest") {
+    if (!z.stabil) { simMeldung("Gewicht noch unruhig – kurz warten", true); return antwort({ ok: false }); }
+    simMeldung("Speichere …");
+    setTimeout(() => { const t = aendern(d.sorte, (b) => M.restSpeichern(b, d.netto, d.tag || "")); if (t) simMeldung(t); }, 350);
+  } else if (pfad === "/api/zuordnen") {
+    simMeldung("Ordne Tag zu …");
+    setTimeout(() => {
+      SIM.items.filter((i) => i.uid !== d.sorte && (M.sorte(i.uid, i.summary, i.description)?.nfc || []).includes(d.tag))
+        .forEach((i) => aendern(i.uid, (b) => M.tagEntfernen(b, d.tag)));
+      const t = aendern(d.sorte, (b) => M.tagZuordnen(b, d.tag)); if (t) simMeldung(t);
+    }, 350);
+  } else if (pfad === "/api/spulen") { const t = aendern(d.sorte, (b) => M.spulenAendern(b, d.delta)); if (t) simMeldung(t); }
+  else if (pfad === "/api/neu_laden") simMeldung("Lager geladen");
+  return antwort({ ok: true }, 202);
+};
+
+function simZustand() {
+  return {
+    brutto_g: Math.round(SIM.ist * 10) / 10, stabil: SIM.ruhigSeit && performance.now() - SIM.ruhigSeit > 1200,
+    kalibriert: true, tag_l: SIM.leser === "L" ? SIM.tag : "", tag_r: SIM.leser === "R" ? SIM.tag : "",
+    sensor_ok: true, ha_ok: true, lager_version: SIM.version,
+    uhrzeit: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+    leer_standard_g: 250, version: "1.0.0 · Demo", ip: "192.168.178.57",
+  };
+}
+
+window.EventSource = class {
+  constructor() {
+    this.t = setInterval(() => { const e = { data: JSON.stringify(simZustand()) }; SIM.zuhoerer.zustand.forEach((f) => f(e)); }, 150);
+  }
+  addEventListener(typ, f) { (SIM.zuhoerer[typ] ||= []).push(f); }
+  close() { clearInterval(this.t); }
+};
+
+// Gewicht nähert sich dem Ziel an, mit etwas Rauschen wie bei einer echten Wägezelle
+setInterval(() => {
+  const vorher = SIM.ist;
+  SIM.ist += (SIM.ziel - SIM.ist) * 0.35 + (Math.random() - 0.5) * (SIM.ziel > 5 ? 0.4 : 0.15);
+  if (Math.abs(SIM.ziel - SIM.ist) < 0.6) SIM.ist = SIM.ziel + (Math.random() - 0.5) * 0.3;
+  if (Math.abs(SIM.ist - vorher) > 2) SIM.ruhigSeit = 0;
+  else if (!SIM.ruhigSeit) SIM.ruhigSeit = performance.now();
+  document.getElementById("sim-messung").textContent = `${SIM.ist.toFixed(1).replace(".", ",")} g`;
+}, 100);
+
+// ---- Bedienfeld ----
+const SPULEN = [
+  { name: "PLA Blue Gray", info: "Tag bekannt · Rest 560 g", hex: "#5b6579", g: 812, tag: "04C0FFEE112233" },
+  { name: "PLA Ash Gray", info: "Tag bekannt · voll", hex: "#9b9ea0", g: 1252, tag: "04A1B2C3D4E5F6" },
+  { name: "Neue Spule", info: "unbekannter Tag", hex: "#3a4048", g: 655, tag: "04DEADBEEF0001" },
+  { name: "Spule ohne Tag", info: "Sorte selbst wählen", hex: "#2a2f36", g: 430, tag: "" },
+  { name: "Fast leer", info: "Blue Gray · 8 g Rest", hex: "#5b6579", g: 258, tag: "04C0FFEE112233" },
+];
+function setzeRegler(g) {
+  document.getElementById("sim-gewicht").value = g;
+  document.getElementById("sim-gewicht-wert").textContent = `${Math.round(g)} g`;
+}
+function auflegen(i) {
+  const s = SPULEN[i];
+  SIM.spule = i; SIM.ziel = s.g; SIM.tag = ""; SIM.ruhigSeit = 0;
+  setzeRegler(s.g);
+  setTimeout(() => { if (SIM.spule === i) SIM.tag = s.tag; }, 450);  // Tag wird kurz nach dem Auflegen gelesen
+  document.querySelectorAll(".s-spule").forEach((b, j) => b.classList.toggle("an", j === i));
+}
+document.getElementById("sim-spulen").innerHTML = SPULEN.map((s, i) =>
+  `<button class="s-spule" type="button" data-i="${i}"><span class="farbe" style="background:${s.hex}"></span>
+   <span><b>${s.name}</b><small>${s.info}</small></span></button>`).join("");
+document.getElementById("sim-spulen").onclick = (e) => { const b = e.target.closest(".s-spule"); if (b) auflegen(Number(b.dataset.i)); };
+document.getElementById("sim-ab").onclick = () => {
+  SIM.spule = -1; SIM.ziel = 0; SIM.tag = ""; SIM.ruhigSeit = 0; setzeRegler(0);
+  document.querySelectorAll(".s-spule").forEach((b) => b.classList.remove("an"));
+};
+document.getElementById("sim-wackeln").onclick = () => { SIM.ist += 40; SIM.ruhigSeit = 0; };
+document.getElementById("sim-gewicht").oninput = (e) => { SIM.ziel = Number(e.target.value); SIM.ruhigSeit = 0; setzeRegler(SIM.ziel); };
+document.getElementById("sim-leser").onchange = (e) => { SIM.leser = e.target.value; };
+document.getElementById("sim-reset").onclick = () => {
+  lagerZuruecksetzen();
+  document.getElementById("sim-log").innerHTML = "";
+  document.getElementById("sim-log-leer").hidden = false;
+  simMeldung("Lager auf Testdaten zurückgesetzt");
+};
+</script>
+
+<script>
+// ===================================================================== Oberfläche (pi/filamentwaage/web/app.js)
+// FilamentLager Waage – Web-Oberfläche für den Raspberry Pi (gleiche Logik wie ui.cpp der ESP32-Firmware)
+"use strict";
+
+const SPULE_DA_G = 20;
+const MAX_ZEILEN = 80;
+const FILTER = ["PLA", "PETG", "ABS·ASA", "Andere", "Alle"];
+
+const S = {
+  z: null,                // letzter Zustand vom Server
+  sorten: [],
+  lagerVersion: -1,
+  seite: "wiegen",
+  auswahlUid: "",         // per Hand gewählte Sorte für die Spule auf dem Teller
+  spuleWarDa: false,
+  auswahlModus: false,
+  auswahlTag: "",
+  detailUid: "",
+  filter: 4,
+  kalG: 1000,
+  haupt: "nichts",
+  aktiv: { sorte: null, tag: "", netto: 0 },
+  karteSchluessel: "",
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const gramm = (g) => `${g} g`;
+const spulenText = (n) => `${n} ${n === 1 ? "Spule" : "Spulen"}`;
+const komma = (v, n) => Number(v).toFixed(n).replace(".", ",");
+
+async function post(pfad, daten = {}) {
+  try {
+    await fetch(pfad, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(daten) });
+  } catch (e) {
+    meldung("Dienst nicht erreichbar", true);
+  }
+}
+
+// ------------------------------------------------------------ Skalierung (Test im Browser)
+function skalieren() {
+  const box = document.getElementById("sim-screen");
+  const f = box.clientWidth / 800;
+  $("app").style.transform = `scale(${f})`;
+  box.style.height = `${480 * f}px`;
+}
+addEventListener("resize", skalieren);
+addEventListener("mousemove", () => document.body.classList.add("maus"), { once: true });
+
+// ------------------------------------------------------------ Meldung
+let toastTimer = 0;
+function meldung(text, fehler = false) {
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.toggle("fehler", fehler);
+  t.classList.remove("versteckt");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add("versteckt"), 2800);
+}
+
+// ------------------------------------------------------------ Hilfen zur Sorte
+function kurzname(s) { return s.kurzname || s.summary; }
+function unterzeile(s) { return [s.hersteller, ...s.besonderheiten.slice(0, 2)].filter(Boolean).join(" · "); }
+function restText(s) {
+  if (s.spulen === 0) return "aufgebraucht";
+  if (!s.reste.length) return s.refills ? `${s.refills} Refill` : "voll";
+  if (s.reste.length === 1) return `Rest ${gramm(s.reste[0])}`;
+  return `${s.reste.length} Reste`;
+}
+function passtFilter(s, f) {
+  const m = (s.material || "").toLowerCase();
+  const pla = m.startsWith("pla") || m.startsWith("apla");
+  const petg = m.includes("pet") && !pla;
+  const abs = m.startsWith("abs") || m.startsWith("asa") || m.startsWith("pcabs");
+  return [pla, petg, abs, !pla && !petg && !abs, true][f];
+}
+const findeNfc = (tag) => (tag ? S.sorten.find((s) => s.nfc.includes(tag)) : undefined);
+const findeUid = (uid) => S.sorten.find((s) => s.uid === uid);
+
+// ------------------------------------------------------------ Seiten
+function zeige(seite) {
+  S.seite = seite;
+  for (const n of ["wiegen", "lager", "detail", "einst"]) $(`seite-${n}`).classList.toggle("versteckt", n !== seite);
+  const nav = seite === "detail" ? "lager" : seite;
+  document.querySelectorAll(".nav-knopf").forEach((b) => b.classList.toggle("an", b.dataset.seite === nav));
+  tastatur(false);
+  if (seite === "wiegen") { $("kopf-sub").textContent = "Waage"; S.karteSchluessel = ""; wiegen(); }
+  if (seite === "lager") { kopfLager(); liste(); reste(); }
+  if (seite === "detail") { $("kopf-sub").textContent = "Sorte im Detail"; detail(); }
+  if (seite === "einst") { $("kopf-sub").textContent = "Einstellungen"; einst(); }
+}
+function kopfLager() {
+  $("kopf-sub").textContent = S.auswahlModus ? "Sorte für die Spule wählen" : `${S.sorten.length} Sorten`;
+}
+
+// ------------------------------------------------------------ Kopfzeile
+function kopf() {
+  const z = S.z;
+  const aus = z.sensor_ok ? "" : "aus";
+  $("dot-l").className = "dot " + (z.tag_l ? "an" : aus);
+  $("dot-r").className = "dot " + (z.tag_r ? "an" : aus);
+  $("dot-ha").className = "dot " + (z.ha_ok ? "an" : "aus");
+  $("wlan").classList.toggle("aus", !z.ip);
+  $("uhr").textContent = z.uhrzeit || "--:--";
+}
+
+// ------------------------------------------------------------ Wiegen
+function karteChips(chips) {
+  $("k-chips").innerHTML = chips.map(([t, a]) => `<span class="chip ${a}">${esc(t)}</span>`).join("");
+}
+
+function wiegen() {
+  const z = S.z;
+  if (!z) return;
+  const tag = z.tag_r || z.tag_l;
+  const leser = z.tag_r ? "rechts" : "links";
+  const da = z.brutto_g >= SPULE_DA_G;
+  if (S.spuleWarDa && !da) S.auswahlUid = "";
+  S.spuleWarDa = da;
+  let sorte = findeNfc(tag);
+  if (!sorte && S.auswahlUid) sorte = findeUid(S.auswahlUid);
+  const leer = sorte && sorte.leer_g > 0 ? sorte.leer_g : z.leer_standard_g;
+  const brutto = Math.round(z.brutto_g);
+  const netto = Math.max(0, brutto - leer);
+  const soll = sorte ? sorte.gewicht : 1000;
+  const proz = da ? Math.min(100, Math.floor((netto * 100) / Math.max(1, soll))) : 0;
+  S.aktiv = { sorte, tag, netto };
+
+  const farbe = proz < 15 && da ? "var(--rot)" : "var(--gruen)";
+  $("ring").style.background = `conic-gradient(${farbe} 0 ${proz}%, var(--rand2) ${proz}% 100%)`;
+  $("spule").style.background = sorte ? sorte.hex : "var(--rand)";
+  $("zahl").textContent = da ? netto : 0;
+  $("proz").textContent = !z.sensor_ok ? "Sensor antwortet nicht"
+    : !da ? "Spule auflegen" : `${proz} % von ${gramm(soll)}${z.stabil ? "" : " · misst …"}`;
+  $("chip-brutto").textContent = `Brutto ${gramm(brutto)}`;
+  $("chip-leer").textContent = `Leerspule ${gramm(leer)}`;
+
+  const schluessel = [sorte ? sorte.uid + JSON.stringify(sorte) : "", tag, da].join("|");
+  if (schluessel === S.karteSchluessel) return;
+  S.karteSchluessel = schluessel;
+
+  const haupt = $("btn-haupt");
+  if (sorte) {
+    $("k-titel").textContent = tag ? `Erkannt · NFC ${leser}` : "Gewählte Sorte";
+    $("k-swatch").style.background = sorte.hex;
+    $("k-name").textContent = kurzname(sorte);
+    $("k-sub").textContent = sorte.hersteller;
+    const c = sorte.besonderheiten.slice(0, 2).map((b) => [b, ""]);
+    c.push([`${spulenText(sorte.spulen)} im Lager`, "g"]);
+    if (sorte.reste.length) c.push([`Rest bisher ${gramm(sorte.reste[sorte.reste.length - 1])}`, "o"]);
+    karteChips(c);
+    S.haupt = da ? "speichern" : "nichts";
+    haupt.textContent = "✓  Rest speichern";
+    $("btn-wahl").textContent = "Andere Sorte";
+  } else if (tag) {
+    $("k-titel").textContent = `Neuer Tag · NFC ${leser}`;
+    $("k-swatch").style.background = "var(--rand)";
+    $("k-name").textContent = "Neue Spule";
+    $("k-sub").textContent = `UID ${tag}`;
+    karteChips([["Keiner Sorte zugeordnet", "o"]]);
+    S.haupt = "zuordnen";
+    haupt.textContent = "Sorte zuordnen";
+    $("btn-wahl").textContent = "Sorte wählen";
+  } else {
+    $("k-titel").textContent = "Keine Spule erkannt";
+    $("k-swatch").style.background = "var(--rand2)";
+    $("k-name").textContent = da ? "Ohne NFC-Tag" : "Teller ist leer";
+    $("k-sub").textContent = da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen";
+    karteChips([]);
+    S.haupt = da ? "waehlen" : "nichts";
+    haupt.textContent = da ? "Sorte wählen" : "✓  Rest speichern";
+    $("btn-wahl").textContent = "Sorte wählen";
+  }
+  haupt.disabled = S.haupt === "nichts";
+}
+
+function auswahlStarten() {
+  S.auswahlModus = true;
+  S.auswahlTag = S.aktiv.tag;
+  zeige("lager");
+}
+
+$("btn-haupt").onclick = () => {
+  if (S.haupt === "speichern" && S.aktiv.sorte) {
+    post("/api/rest", { sorte: S.aktiv.sorte.uid, netto: S.aktiv.netto, tag: S.aktiv.tag });
+  } else if (S.haupt === "zuordnen" || S.haupt === "waehlen") {
+    auswahlStarten();
+  }
+};
+$("btn-tara").onclick = () => post("/api/tara");
+$("btn-wahl").onclick = auswahlStarten;
+
+// ------------------------------------------------------------ Lager
+function filterLeiste() {
+  $("filter").innerHTML = FILTER.map((f, i) =>
+    `<button class="filter${i === S.filter ? " an" : ""}" data-f="${i}">${f}</button>`).join("");
+}
+$("filter").onclick = (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  S.filter = Number(b.dataset.f);
+  liste();
+};
+
+function liste() {
+  filterLeiste();
+  const q = $("suche").value.trim().toLowerCase();
+  let n = 0, weitere = 0;
+  const html = [];
+  for (const s of S.sorten) {
+    if (!passtFilter(s, S.filter)) continue;
+    if (q && !`${s.summary} ${s.hersteller} ${s.farbe}`.toLowerCase().includes(q)) continue;
+    if (n >= MAX_ZEILEN) { weitere++; continue; }
+    n++;
+    html.push(`<div class="zeile" data-uid="${esc(s.uid)}">
+      <div class="swatch s30" style="background:${esc(s.hex)}"></div>
+      <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${esc(kurzname(s))}</span>
+        <span class="sub14 ellipse">${esc(unterzeile(s))}</span></div>
+      ${s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
+      <div class="rechts"><div class="anz${s.spulen ? "" : " leer"}">${spulenText(s.spulen)}</div>
+        <div class="sub14">${esc(restText(s))}</div></div></div>`);
+  }
+  if (!n) html.push(`<div class="leer-hinweis">${S.sorten.length ? "Keine passende Sorte" : "Lager wird geladen …"}</div>`);
+  if (weitere) html.push(`<div class="leer-hinweis">… und ${weitere} weitere – Suche verwenden</div>`);
+  $("liste").innerHTML = html.join("");
+}
+
+$("liste").onclick = (e) => {
+  const z = e.target.closest(".zeile");
+  if (!z) return;
+  const s = findeUid(z.dataset.uid);
+  if (!s) return;
+  if (S.auswahlModus) {
+    S.auswahlModus = false;
+    S.auswahlUid = s.uid;
+    if (S.auswahlTag && !s.nfc.includes(S.auswahlTag)) post("/api/zuordnen", { sorte: s.uid, tag: S.auswahlTag });
+    zeige("wiegen");
+  } else {
+    S.detailUid = s.uid;
+    zeige("detail");
+  }
+};
+
+function reste() {
+  const alle = [];
+  for (const s of S.sorten) for (const g of s.reste) alle.push([s, g]);
+  alle.sort((a, b) => b[1] - a[1]);
+  $("reste").innerHTML = alle.length ? alle.slice(0, 7).map(([s, g]) => `<div class="rest-zeile">
+      <div class="swatch s22" style="background:${esc(s.hex)}"></div>
+      <div class="wachsen minw0"><div class="ellipse" style="font-size:13px;font-weight:600">${esc(kurzname(s))}</div>
+        <div class="balken"><div style="width:${Math.max(2, (g * 100) / s.gewicht)}%;background:${g < 250 ? "var(--rot)" : "var(--orange)"}"></div></div></div>
+      <span style="font-size:13px;font-weight:700;width:50px;text-align:right">${gramm(g)}</span></div>`).join("")
+    : '<span class="sub14">Keine angebrochenen Rollen</span>';
+}
+
+// ------------------------------------------------------------ Bildschirmtastatur für die Suche
+const TASTEN = ["1234567890", "QWERTZUIOPÜ", "ASDFGHJKLÖÄ", "YXCVBNM-"];
+function tastatur(an) {
+  const t = $("tastatur");
+  if (an && !t.childElementCount) {
+    t.innerHTML = TASTEN.map((r) => `<div class="t-reihe">${[...r].map((k) => `<button data-k="${k}">${k}</button>`).join("")}</div>`).join("")
+      + `<div class="t-reihe"><button class="breit" data-k="⌫">⌫ Löschen</button><button class="breit" data-k=" ">Leerzeichen</button>
+         <button class="breit" data-k="leeren">Leeren</button><button class="breit ok" data-k="ok">Fertig</button></div>`;
+  }
+  t.classList.toggle("versteckt", !an);
+}
+$("suche").onfocus = () => tastatur(true);
+$("tastatur").onclick = (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const i = $("suche");
+  const k = b.dataset.k;
+  if (k === "ok") { tastatur(false); i.blur(); return; }
+  if (k === "⌫") i.value = i.value.slice(0, -1);
+  else if (k === "leeren") i.value = "";
+  else i.value += k.toLowerCase();
+  liste();
+};
+
+// ------------------------------------------------------------ Detail
+function bereich(a, b, e) {
+  if (a < 0 && b < 0) return "–";
+  if (a < 0 || a === b) return `${b}${e}`;
+  if (b < 0) return `${a}${e}`;
+  return `${a}–${b}${e}`;
+}
+function detail() {
+  const s = findeUid(S.detailUid);
+  const ziel = $("seite-detail");
+  if (!s) { ziel.innerHTML = ""; return; }
+  const chips = [s.material ? `<span class="chip">${esc(s.material)}</span>` : "",
+    ...s.besonderheiten.slice(0, 2).map((b) => `<span class="chip b">${esc(b)}</span>`)].join("");
+  let trocknen = s.trocknen_c > 0 ? `${s.trocknen_c} °C` : "–";
+  if (s.trocknen_c > 0 && s.trocknen_h > 0) trocknen += ` · ${s.trocknen_h} h`;
+  const zeile = (n, w) => `<div class="info-zeile"><span>${n}</span><span>${esc(w || "–")}</span></div>`;
+  ziel.innerHTML = `
+    <section class="panel gruen links300">
+      <div class="reihe gap10 mitte"><button class="knopf rahmen zurueck" id="d-zurueck" aria-label="Zurück zum Lager">‹</button>
+        <div class="spalte minw0"><span class="name20 ellipse">${esc(kurzname(s))}</span><span class="sub14">${esc(s.hersteller)}</span></div></div>
+      <div class="reihe gap12 mitte"><div class="swatch s64" style="background:${esc(s.hex)}"></div>
+        <div class="spalte gap6"><div class="chips">${chips}</div><span class="sub14">${komma(s.durchmesser, 2)} mm · ${gramm(s.gewicht)}</span></div></div>
+      <div class="reihe gap10"><div class="kachel"><b>${s.spulen}</b><span>Spulen</span></div>
+        <div class="kachel"><b>${s.reste.length}</b><span>angebrochen</span></div></div>
+      <div class="reihe gap8">
+        <button class="knopf rahmen quadrat" data-d="-1" aria-label="Eine Spule weniger">−</button>
+        <button class="knopf primaer wachsen" id="d-wiegen" style="height:52px;font-size:15px">Spule wiegen</button>
+        <button class="knopf rahmen quadrat" data-d="1" aria-label="Eine Spule mehr">+</button></div>
+    </section>
+    <section class="spalte gap10 wachsen minw0">
+      <div class="reihe gap10"><div class="wert-kachel"><span class="ueber">Düse</span><b>${bereich(s.duese_min, s.duese_max, " °C")}</b></div>
+        <div class="wert-kachel"><span class="ueber">Trocknen</span><b>${trocknen}</b></div></div>
+      <div class="info-liste">${zeile("Reste", s.reste.map(gramm).join(", "))}${zeile("Bambu-ID", s.bambu_id)}${zeile("Farbcode", s.fcode)}
+        ${zeile("EAN", s.codes[0])}${zeile("NFC-Tags", s.nfc.length ? `${s.nfc.length} zugeordnet` : "")}</div>
+    </section>`;
+  $("d-zurueck").onclick = () => zeige("lager");
+  $("d-wiegen").onclick = () => { S.auswahlUid = s.uid; zeige("wiegen"); };
+  ziel.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => post("/api/spulen", { sorte: s.uid, delta: Number(b.dataset.d) })));
+}
+
+// ------------------------------------------------------------ Einstellungen
+function einst() {
+  const z = S.z || {};
+  $("e-info").textContent = [
+    `WLAN: ${z.ip || "getrennt"}`,
+    `Home Assistant: ${z.ha_ok ? "verbunden" : "keine Verbindung"}`,
+    `Sensor: ${z.sensor_ok ? "verbunden" : "antwortet nicht"}`,
+    `Sorten im Lager: ${S.sorten.length}`,
+    `Leerspule Standard: ${gramm(z.leer_standard_g ?? 250)}`,
+    `Version: ${z.version || ""}`,
+  ].join("\n");
+}
+document.querySelectorAll("[data-kal]").forEach((b) => (b.onclick = () => {
+  S.kalG = Math.max(100, Math.min(5000, S.kalG + Number(b.dataset.kal)));
+  $("kal-wert").textContent = gramm(S.kalG);
+}));
+$("e-tara").onclick = () => post("/api/tara");
+$("e-kal").onclick = () => post("/api/kalibrieren", { g: S.kalG });
+$("e-laden").onclick = () => post("/api/neu_laden");
+
+document.querySelectorAll(".nav-knopf").forEach((b) => (b.onclick = () => { S.auswahlModus = false; zeige(b.dataset.seite); }));
+
+// ------------------------------------------------------------ Daten vom Dienst
+async function lagerLaden() {
+  const r = await fetch("/api/lager");
+  const d = await r.json();
+  S.sorten = d.sorten;
+  S.lagerVersion = d.version;
+  S.karteSchluessel = "";
+  if (S.seite === "lager") { kopfLager(); liste(); reste(); }
+  else if (S.seite === "detail") detail();
+}
+
+function zustand(z) {
+  S.z = z;
+  kopf();
+  if (z.lager_version !== S.lagerVersion) {
+    S.lagerVersion = z.lager_version;
+    lagerLaden();
+  }
+  if (S.seite === "wiegen") wiegen();
+  else if (S.seite === "einst") einst();
+}
+
+function verbinden() {
+  const es = new EventSource("/api/ereignisse");
+  es.addEventListener("zustand", (e) => zustand(JSON.parse(e.data)));
+  es.addEventListener("meldung", (e) => { const m = JSON.parse(e.data); meldung(m.text, m.fehler); });
+  es.onerror = () => { es.close(); setTimeout(verbinden, 2000); };
+}
+
+skalieren();
+filterLeiste();
+zeige("wiegen");
+verbinden();
+
+</script>
