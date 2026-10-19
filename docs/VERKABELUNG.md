@@ -24,11 +24,11 @@ Wird in beiden Bauarten empfohlen. Sie sitzt im Sockel der Waage bei Wägezelle 
 | Wägezelle → HX711 | rot / schwarz / weiß / grün | E+ / E− / A− / A+ |
 | PN532 rechts (V3, HSU) | TXD | GPIO4 |
 | | RXD | GPIO5 |
-| | RSTO (optional) | GPIO6 |
+| | RST – nicht anschließen | (GPIO6 frei) |
 | | VCC / GND | 3V3 / GND |
 | PN532 links (V3, HSU) | TXD | GPIO7 |
 | | RXD | GPIO8 |
-| | RSTO (optional) | GPIO9 |
+| | RST – nicht anschließen | (GPIO9 frei) |
 | | VCC / GND | 3V3 / GND |
 | MAX3485-Modul (nur ESP32-Variante) | DI | GPIO43 (TX) |
 | | RO | GPIO44 (RX) |

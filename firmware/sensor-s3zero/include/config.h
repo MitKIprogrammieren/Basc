@@ -12,12 +12,12 @@
 // NFC-Leser rechts (PN532 im HSU-Modus, beide Schalter OFF)
 #define NFC_R_RX 4   // an PN532 TXD
 #define NFC_R_TX 5   // an PN532 RXD
-#define NFC_R_RST 6  // an PN532 RSTO, -1 wenn nicht verbunden
+#define NFC_R_RST -1 // nicht nötig; nur mit Leser, der den Reset-Eingang (RSTPDN) herausführt, z. B. 6
 
 // NFC-Leser links
 #define NFC_L_RX 7
 #define NFC_L_TX 8
-#define NFC_L_RST 9
+#define NFC_L_RST -1 // wie oben, z. B. 9
 
 // RS485 zum Display (MAX3485-Modul)
 #define RS485_RX 44  // an RO
