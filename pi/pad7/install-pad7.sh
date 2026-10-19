@@ -40,6 +40,7 @@ cp -r "$HIER/filamentwaage" "$ZIEL/"
 mkdir -p "$ZIEL/testdaten"
 cp "$HIER/testdaten/"*.json "$ZIEL/testdaten/" 2>/dev/null || true
 install -m 755 "$HIER/kiosk-pad7.sh" "$ZIEL/kiosk-pad7.sh"
+[ -f "$HIER/erststart.sh" ] && install -m 755 "$HIER/erststart.sh" "$ZIEL/erststart.sh"
 find "$ZIEL" -type d -exec chmod 755 {} +
 find "$ZIEL/filamentwaage" -type f -exec chmod 644 {} +
 
@@ -77,5 +78,7 @@ echo
 echo "Fertig. Das Pad 7 startet jetzt neu und zeigt danach die Waage."
 echo "Protokoll ansehen:  journalctl -u filamentwaage -f"
 echo "Klipper zurück:     sudo systemctl disable filamentwaage-kiosk && sudo systemctl enable KlipperScreen klipper moonraker && sudo reboot"
-sleep 3
-reboot
+if [ "${FW_KEIN_NEUSTART:-0}" != 1 ]; then
+  sleep 3
+  reboot
+fi

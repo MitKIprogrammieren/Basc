@@ -1,0 +1,14 @@
+[Unit]
+Description=FilamentLager-Waage – Ersteinrichtung beim ersten Start
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/filamentwaage/installiert
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/filamentwaage/erststart.sh
+TimeoutStartSec=0
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

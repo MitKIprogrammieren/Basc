@@ -71,7 +71,13 @@ http://127.0.0.1:8080 im Browser öffnen.
 ## Pad-7-Variante einrichten
 
 Das Pad 7 ist nur Bildschirm, die Sensorplatine in der Waage funkt per WLAN.
-Schritt für Schritt: [pi/pad7/ANLEITUNG.md](pi/pad7/ANLEITUNG.md). Kurz:
+Schritt für Schritt: [pi/pad7/ANLEITUNG.md](pi/pad7/ANLEITUNG.md).
+
+**Fertiges Image:** `FilamentLager-Pad7.img.xz` unter *Releases* flashen, auf der Partition BOOT WLAN
+(`system.cfg`) und HA-Token (`filamentwaage/config.pad7.toml`) eintragen, einschalten – das Pad 7 richtet sich
+beim ersten Start selbst ein. Gebaut mit `tools/pad7_image.sh` (braucht [pyfatfs](https://github.com/nathanhi/pyfatfs)).
+
+Ohne fertiges Image:
 
 1. Sensorplatine flashen, über das WLAN **FilamentWaage-Setup** ins Heimnetz bringen.
 2. BTT-CB1-Image (Klipper-Version) auf die SD-Karte, WLAN in `system.cfg` eintragen.

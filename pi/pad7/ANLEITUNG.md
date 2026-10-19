@@ -25,7 +25,24 @@ WLAN neu einrichten: **BOOT-Taste 5 s halten** (LED wird lila), die Platine star
 Tipp: In der FritzBox der Waage „immer dieselbe IPv4-Adresse zuweisen“. Die Adresse kann man dann
 in `config.pad7.toml` statt `filamentwaage.local` eintragen – das ist die robusteste Variante.
 
-## 2. SD-Karte für das Pad 7 vorbereiten
+## 2. Pad 7: fertiges Image (empfohlen)
+
+Das fertige Image `FilamentLager-Pad7.img.xz` (aus `tools/pad7_image.sh`, liegt als Release im Repo) enthält
+das BTT-CB1-System, die Waage-Software und eine automatische Ersteinrichtung.
+
+1. Mit **balenaEtcher** oder dem **Raspberry Pi Imager** (*Eigenes Image*) auf die microSD schreiben.
+2. Karte neu einstecken, Partition **BOOT** öffnen:
+   - **system.cfg**: bei `WIFI_SSID` und `WIFI_PASSWD` das `#` entfernen und WLAN eintragen, in einfachen
+     Anführungszeichen, z. B. `WIFI_SSID='FRITZ!Box 7590 XY'`.
+   - **filamentwaage/config.pad7.toml**: Home-Assistant-Token eintragen (und ggf. die IP der Waage).
+3. Karte ins Pad 7 (Schalter **CS-Choose** auf **CB1**), einschalten.
+   Der Bildschirm zeigt „FilamentLager-Waage – Ersteinrichtung“. Das Pad 7 lädt Browser und Bildschirm-Pakete
+   (5–15 Minuten, Internet nötig), startet neu und zeigt danach die Waage.
+
+Änderungen an `config.pad7.toml` auf der Karte gelten nach jedem Neustart. Anmeldung per SSH: `biqu` / `biqu`
+(Passwort danach ändern: `passwd`). Protokoll der Ersteinrichtung: `/var/log/filamentwaage-erststart.log`.
+
+## 2b. Ohne fertiges Image: SD-Karte selbst vorbereiten
 
 1. Image von BIGTREETECH laden: [github.com/bigtreetech/CB1/releases](https://github.com/bigtreetech/CB1/releases),
    die Datei mit **Klipper** im Namen (`CB1_Debian…_Klipper_….img.xz`). Das Klipper-Image bringt den
@@ -35,25 +52,20 @@ in `config.pad7.toml` statt `filamentwaage.local` eintragen – das ist die robu
 
    **system.cfg** – WLAN und Pad 7 (Zeilen ohne `#` am Anfang sind aktiv):
    ```
-   WIFI_SSID="Dein WLAN"
-   WIFI_PASSWD="Dein Passwort"
-   hostname="FilamentLager-Pad7"
-   BTT_PAD7="ON"
-   AUTO_BRIGHTNESS="ON"
+   WIFI_SSID='Dein WLAN'
+   WIFI_PASSWD='Dein Passwort'
+   hostname='FilamentLager-Pad7'
    ```
 
-   **armbianEnv.txt** – Auflösung und Pad-7-Hardware:
-   ```
-   extraargs=video=HDMI-A-1:1024x600-24@60
-   overlays=ws2812 light
-   ```
+   **armbianEnv.txt** nicht ändern – im aktuellen BTT-Image ist 1024×600 schon eingestellt
+   (`disp_mode=1024x600p60`). Nur bei schwarzem Bild: `extraargs=video=HDMI-A-1:1024x600-24@60` ohne `#`.
 
 4. Den Ordner **filamentwaage** aus `filamentwaage-pad7.zip` auf die Partition **BOOT** kopieren.
 5. In `filamentwaage/config.pad7.toml` das **Home-Assistant-Token** eintragen
    (HA → Profil → Sicherheit → *Langlebige Zugriffstokens*). Bei Bedarf die HA-Adresse anpassen.
 6. Karte auswerfen, ins Pad 7 (CB1) stecken. Im Pad 7 muss der Schalter **CS-Choose** auf **CB1** stehen.
 
-## 3. Einmal installieren
+## 3. Einmal installieren (nur bei 2b)
 
 Pad 7 einschalten, ca. 2 Minuten warten (beim ersten Start vergrößert sich das System auf der Karte).
 Dann vom PC aus (Passwort `biqu`):
