@@ -1,1 +1,106 @@
-# Bambu-Scale
+# FilamentLager-Waage (bambu-scale)
+
+Filamentwaage mit NFC, die direkt mit dem Filamentlager **„Ernsthaft gelagert“** (`todo.filament`)
+in Home Assistant arbeitet. Spule auflegen, die Waage erkennt sie am NFC-Tag, zeigt den Rest an und
+trägt ihn mit einem Tipp ins Lager ein. Aufbau nach dem Vorbild der
+[TigerScale V3](https://github.com/TigerTag-Project/Tiger-Scale-V3), eigenes Design auf 800×480.
+
+![Bildschirme der Waage](docs/bilder/uebersicht.png)
+
+## Zwei Bauarten
+
+| | ESP32-Variante | Pi-Variante |
+|---|---|---|
+| Display | Waveshare ESP32-S3-Touch-LCD-5 (5", 800×480) | Raspberry Pi 4 + BTT PI TFT50 V2 |
+| Oberfläche | LVGL, direkt auf dem ESP32 | Web-Oberfläche im Chromium-Kiosk |
+| Messung | Sensorplatine (ESP32-S3-Zero) per RS485 | Sensorplatine per USB oder HX711/PN532 am Pi |
+| Ordner | `firmware/display-5inch`, `firmware/sensor-s3zero` | `pi/` |
+
+Beide zeigen dieselben Bildschirme: **Wiegen**, **Lager** (Suche, Filter, angebrochene Rollen),
+**Sorte im Detail** und **Einstellungen** (Tara, Kalibrieren, Verbindung).
+
+## Teile
+
+| Anz. | Teil | ESP32 | Pi |
+|---|---|---|---|
+| 1 | Waveshare ESP32-S3-Touch-LCD-5 (800×480, Touch) | ✓ | |
+| 1 | Raspberry Pi 4 + BTT PI TFT50 V2 | | ✓ |
+| 1 | Waveshare ESP32-S3-Zero-M (Sensorplatine) | ✓ | empfohlen |
+| 2 | PN532 V3 mit Stiftleiste und Modusschalter | ✓ | ✓ |
+| 1 | 5-kg-Wägezelle + HX711 | ✓ | ✓ |
+| 1 | RS485-Modul 3,3 V (MAX3485) | ✓ | |
+| 1 | Netzteil 5 V / ≥ 2 A | ✓ | ✓ (Pi-Netzteil) |
+
+Verkabelung: [docs/VERKABELUNG.md](docs/VERKABELUNG.md)
+
+## ESP32-Variante einrichten
+
+Voraussetzung: [PlatformIO](https://platformio.org/install/cli).
+
+```bash
+# Sensorplatine: BOOT gedrückt halten, USB einstecken
+cd firmware/sensor-s3zero
+pio run -t upload
+
+# Display
+cd ../display-5inch
+cp include/secrets.example.h include/secrets.h   # WLAN, HA-Adresse und Token eintragen
+pio run -t upload
+```
+
+Danach am Display: **Einstellungen → Tara** bei leerem Teller, Gewicht auflegen, **Kalibrieren**.
+
+## Pi-Variante einrichten
+
+Raspberry Pi OS Bookworm (Desktop) auf dem Pi 4, dann:
+
+```bash
+git clone https://github.com/MitKIprogrammieren/bambu-scale
+cd bambu-scale/pi
+./install.sh            # mit --gpio für PN532/HX711 direkt am Pi, --tft50 falls das Display dunkel bleibt
+nano /etc/filamentwaage/config.toml   # Token eintragen, Sensor-Art wählen
+sudo systemctl restart filamentwaage
+```
+
+Die Oberfläche startet nach dem Anmelden im Vollbild. Ohne Hardware ausprobieren:
+`art = "demo"` in der Konfiguration – dann laufen Testszenen mit Testdaten.
+
+Auch am PC (Python 3.11+): `cd pi && python3 -m filamentwaage demo.toml`, dann
+http://127.0.0.1:8080 im Browser öffnen.
+
+## Home Assistant
+
+- Langlebiges Zugriffstoken anlegen: HA → Profil → Sicherheit → *Langlebige Zugriffstokens*.
+- Die Waage braucht nur die Dienste `todo.get_items` und `todo.update_item` für `todo.filament`.
+- Was genau geschrieben wird: [docs/LAGER.md](docs/LAGER.md)
+
+## Entwicklung und Tests
+
+```bash
+# Python (Pi): Modell, HA-Anbindung
+cd pi && python3 -m unittest discover -s tests
+
+# ESP32-Oberfläche am PC rendern (braucht LVGL 8.3 und ArduinoJson 7 als Quellen)
+firmware/display-5inch/test/host/build.sh /pfad/zu/deps ausgabe/
+
+# Schriften neu erzeugen (nach Änderung der Zeichen)
+python3 tools/gen_lvgl_fonts.py <Montserrat-ttf-Ordner> firmware/display-5inch/src/fonts
+```
+
+Das Datenmodell existiert zweimal – `firmware/display-5inch/src/model.cpp` und
+`pi/filamentwaage/modell.py` – mit denselben Regeln und denselben Testfällen.
+
+Protokoll der Sensorplatine: [docs/PROTOKOLL.md](docs/PROTOKOLL.md)
+
+## Stand
+
+| Teil | Geprüft |
+|---|---|
+| Datenmodell C++ und Python | Tests mit echten Lagerdaten |
+| ESP32-Oberfläche | am PC mit LVGL 8.3 gerendert |
+| Pi-Dienst und Web-Oberfläche | im Demo-Modus und gegen nachgebautes Home Assistant |
+| ESP32-Display-Treiber, Touch, WLAN, Sensor-Firmware | **noch nicht auf echter Hardware** – Pins und Display-Timing beim ersten Start prüfen |
+
+## Schrift
+
+Montserrat, SIL Open Font License 1.1 (`OFL.txt` neben den Schriftdateien).

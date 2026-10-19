@@ -1,0 +1,7 @@
+# Zum Ausprobieren ohne Hardware und ohne Home Assistant:
+#   cd pi && python3 -m filamentwaage demo.toml
+[sensor]
+art = "demo"
+
+[server]
+port = 8080

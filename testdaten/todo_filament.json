@@ -1,0 +1,165 @@
+{
+ "changed_states": [],
+ "service_response": {
+  "todo.filament": {
+   "items": [
+    {
+     "summary": "Bambu Lab PLA Ash Gray (Matt)",
+     "uid": "uid-000",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Ash Gray\",\"hex\":\"#9b9ea0\",\"besonderheiten\":[\"Matt\"],\"gewicht\":1000,\"spulen\":4,\"refills\":1,\"reste\":[],\"codes\":[\"6975337030058\",\"6975337031352\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":190,\"duese_max\":230,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":55,\"trocknen_h\":8,\"fcode\":\"11102\",\"bambu_id\":\"GFA01\",\"nfc\":[\"04A1B2C3D4E5F6\"]}"
+    },
+    {
+     "summary": "Bambu Lab PLA Blue Gray (Basic)",
+     "uid": "uid-001",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Blue Gray\",\"hex\":\"#5b6579\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":5,\"refills\":0,\"reste\":[560],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\",\"nfc\":[\"04C0FFEE112233\"]}"
+    },
+    {
+     "summary": "Bambu Lab PLA Cobalt Blue Metallic (Metallic)",
+     "uid": "uid-002",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Cobalt Blue Metallic\",\"hex\":\"#39699e\",\"besonderheiten\":[\"Metallic\"],\"gewicht\":1000,\"spulen\":4,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA02\"}"
+    },
+    {
+     "summary": "Bambu Lab PLA Dark Gray (Basic)",
+     "uid": "uid-003",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Dark Gray\",\"hex\":\"#545454\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":4,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\"}"
+    },
+    {
+     "summary": "Bambu Lab PLA Mistletoe Green (Basic)",
+     "uid": "uid-004",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Mistletoe Green\",\"hex\":\"#3f8e43\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[710],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\"}"
+    },
+    {
+     "summary": "Princore PLA Telegrau",
+     "uid": "uid-005",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Princore\",\"material\":\"PLA\",\"farbe\":\"Telegrau\",\"hex\":\"#8f9695\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":6,\"refills\":0,\"reste\":[],\"codes\":[\"4260714917711\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":200,\"duese_max\":220,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"PCPLA0011\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "Bambu Lab PLA Grün (Basic)",
+     "uid": "uid-006",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Grün\",\"hex\":\"#00ae42\",\"besonderheiten\":[\"Basic\"],\"gewicht\":1000,\"spulen\":3,\"refills\":0,\"reste\":[10],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFA00\"}"
+    },
+    {
+     "summary": "Bambu Lab PLA Schwarz (Tough+)",
+     "uid": "uid-007",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Schwarz\",\"hex\":\"#000000\",\"besonderheiten\":[\"Tough+\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[],\"codes\":[\"6937285500694\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":220,\"duese_max\":250,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":55,\"trocknen_h\":8,\"fcode\":\"12104\",\"bambu_id\":\"GFA10\"}"
+    },
+    {
+     "summary": "Polymaker PLA Panchroma Matte Lavender Purple",
+     "uid": "uid-008",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Polymaker\",\"material\":\"PLA\",\"farbe\":\"Panchroma Matte Lavender Purple\",\"hex\":\"#8a68b5\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "Bambu Lab PLA Silk+ Gold (Seide)",
+     "uid": "uid-009",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PLA\",\"farbe\":\"Silk+ Gold\",\"hex\":\"#f4a925\",\"besonderheiten\":[\"Seide\"],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[\"6977252427418\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":190,\"duese_max\":240,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"13405\",\"bambu_id\":\"GFA06\"}"
+    },
+    {
+     "summary": "Jayo PLA Oreo Marble (HF, Marmor)",
+     "uid": "uid-010",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Jayo\",\"material\":\"PLA\",\"farbe\":\"Oreo Marble\",\"hex\":\"#eaeaea\",\"besonderheiten\":[\"HF\",\"Marmor\"],\"gewicht\":1100,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "iFilament PLA Marine Blau",
+     "uid": "uid-011",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"iFilament\",\"material\":\"PLA\",\"farbe\":\"Marine Blau\",\"hex\":\"#0c00a2\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[800],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "TINMORRY PETG Frosted Orange (GF, Matt)",
+     "uid": "uid-012",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"TINMORRY\",\"material\":\"PETG\",\"farbe\":\"Frosted Orange\",\"hex\":\"#e8742a\",\"besonderheiten\":[\"GF\",\"Matt\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[],\"codes\":[\"X002FQZ10J\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"PETG-GF04\",\"bambu_id\":\"P73af434\"}"
+    },
+    {
+     "summary": "Bambu Lab PETG Black (CF)",
+     "uid": "uid-013",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PETG\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"CF\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[420],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFG50\"}"
+    },
+    {
+     "summary": "Filaxix PETG Black (GF)",
+     "uid": "uid-014",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Filaxix\",\"material\":\"PETG\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"GF\"],\"gewicht\":1000,\"spulen\":11,\"refills\":0,\"reste\":[979],\"codes\":[\"X0026WA79R\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFG98\"}"
+    },
+    {
+     "summary": "Bambu Lab PETG Cream (HF)",
+     "uid": "uid-015",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PETG\",\"farbe\":\"Cream\",\"hex\":\"#f9dfb9\",\"besonderheiten\":[\"HF\"],\"gewicht\":1000,\"spulen\":2,\"refills\":0,\"reste\":[],\"codes\":[\"6977252424691\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":230,\"duese_max\":260,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":65,\"trocknen_h\":8,\"fcode\":\"33401\",\"bambu_id\":\"GFG02\"}"
+    },
+    {
+     "summary": "Jayo PETG Sky Blue (Matt, HF)",
+     "uid": "uid-016",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Jayo\",\"material\":\"PETG\",\"farbe\":\"Sky Blue\",\"hex\":\"#00a0d7\",\"besonderheiten\":[\"Matt\",\"HF\"],\"gewicht\":1100,\"spulen\":3,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":230,\"duese_max\":270,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"P888d95a\"}"
+    },
+    {
+     "summary": "Nobufil PETG Alu Grey",
+     "uid": "uid-017",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Nobufil\",\"material\":\"PETG\",\"farbe\":\"Alu Grey\",\"hex\":\"#c1c1c1\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":3,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "eSUN ABS Black",
+     "uid": "uid-018",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"eSUN\",\"material\":\"ABS\",\"farbe\":\"Black\",\"hex\":\"#111214\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[200],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "Bambu Lab ABS Orange (GF)",
+     "uid": "uid-019",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"ABS\",\"farbe\":\"Orange\",\"hex\":\"#f48438\",\"besonderheiten\":[\"GF\"],\"gewicht\":1000,\"spulen\":6,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFB50\"}"
+    },
+    {
+     "summary": "Bambu Lab ASA Green",
+     "uid": "uid-020",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"ASA\",\"farbe\":\"Green\",\"hex\":\"#00a6a0\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[\"921087642070\"],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":240,\"duese_max\":270,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"45500\",\"bambu_id\":\"GFB01\"}"
+    },
+    {
+     "summary": "Nobufil ABSx Neon Orange",
+     "uid": "uid-021",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Nobufil\",\"material\":\"ABSx\",\"farbe\":\"Neon Orange\",\"hex\":\"#ffaa00\",\"besonderheiten\":[],\"gewicht\":1000,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "Bambu Lab PAHT Black (CF)",
+     "uid": "uid-022",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Bambu Lab\",\"material\":\"PAHT\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"CF\"],\"gewicht\":1000,\"spulen\":4,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"GFN04\"}"
+    },
+    {
+     "summary": "ColorFabb TPU Black (Schäumend)",
+     "uid": "uid-023",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"ColorFabb\",\"material\":\"TPU\",\"farbe\":\"Black\",\"hex\":\"#000000\",\"besonderheiten\":[\"Schäumend\"],\"gewicht\":700,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "Fiberlogy PA12 Orange",
+     "uid": "uid-024",
+     "status": "needs_action",
+     "description": "{\"v\":2,\"hersteller\":\"Fiberlogy\",\"material\":\"PA12\",\"farbe\":\"Orange\",\"hex\":\"#ffb200\",\"besonderheiten\":[],\"gewicht\":750,\"spulen\":1,\"refills\":0,\"reste\":[],\"codes\":[],\"codes_refill\":[],\"durchmesser\":1.75,\"ausfuehrung\":\"spule\",\"duese_min\":null,\"duese_max\":null,\"bett_min\":null,\"bett_max\":null,\"trocknen_c\":null,\"trocknen_h\":null,\"fcode\":\"\",\"bambu_id\":\"\"}"
+    },
+    {
+     "summary": "⚙ Einstellungen (Ernsthaft gelagert Plus)",
+     "uid": "uid-ein",
+     "status": "needs_action",
+     "description": "{\"typ\": \"einstellungen_plus\", \"v\": 1, \"werte\": {}}"
+    }
+   ]
+  }
+ }
+}

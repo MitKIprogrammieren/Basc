@@ -1,0 +1,32 @@
+# FilamentLager-Waage auf dem Raspberry Pi
+# Liegt nach der Installation unter /etc/filamentwaage/config.toml
+
+[home_assistant]
+url = "http://homeassistant.local:8123"
+# Langlebiges Zugriffstoken: HA → Profil → Sicherheit → Langlebige Zugriffstokens
+token = ""
+todo = "todo.filament"
+# bei https mit eigenem Zertifikat auf false setzen
+zertifikat_pruefen = true
+
+[sensor]
+# usb  = Sensorplatine (ESP32-S3-Zero) per USB – empfohlen
+# gpio = HX711 und PN532 direkt am Pi (siehe docs/VERKABELUNG.md)
+# demo = ohne Hardware, mit Testdaten zum Ausprobieren
+art = "usb"
+usb_port = "/dev/ttyACM0"
+
+# nur für art = "gpio" (BCM-Nummern)
+hx711_dout = 23
+hx711_sck = 24
+nfc_links = "/dev/ttyAMA3"   # dtoverlay=uart3 → GPIO4 (TX) / GPIO5 (RX)
+nfc_rechts = "/dev/ttyAMA4"  # dtoverlay=uart4 → GPIO8 (TX) / GPIO9 (RX)
+kalibrierung = "/var/lib/filamentwaage/kalibrierung.json"
+
+[waage]
+leerspule_g = 250          # Gewicht einer leeren Spule, wenn die Sorte keinen Wert "leer_g" hat
+lager_neu_laden_s = 60
+
+[server]
+adresse = "127.0.0.1"      # "0.0.0.0", um die Oberfläche auch im Heimnetz zu öffnen
+port = 8080

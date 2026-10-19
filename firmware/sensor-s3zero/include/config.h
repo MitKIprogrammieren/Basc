@@ -1,0 +1,33 @@
+// Pins der Sensorplatine (Waveshare ESP32-S3-Zero).
+// Nur Pins, die auf der Stiftleiste des S3-Zero liegen. GPIO21 ist die RGB-LED.
+// Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
+#pragma once
+
+#define FW_VERSION "1.0.0"
+
+// Wägezelle über HX711
+#define HX711_DOUT 1
+#define HX711_SCK 2
+
+// NFC-Leser rechts (PN532 im HSU-Modus, beide Schalter OFF)
+#define NFC_R_RX 4   // an PN532 TXD
+#define NFC_R_TX 5   // an PN532 RXD
+#define NFC_R_RST 6  // an PN532 RSTO, -1 wenn nicht verbunden
+
+// NFC-Leser links
+#define NFC_L_RX 7
+#define NFC_L_TX 8
+#define NFC_L_RST 9
+
+// RS485 zum Display (MAX3485-Modul)
+#define RS485_RX 44  // an RO
+#define RS485_TX 43  // an DI
+#define RS485_DE 10  // an DE und /RE; -1 bei Modulen mit automatischer Umschaltung
+#define RS485_BAUD 115200
+
+#define LED_PIN 21  // WS2812 auf dem S3-Zero
+
+// Messung
+#define GLAETTUNG 0.25f      // Anteil des neuen Werts (EMA), kleiner = ruhiger
+#define STABIL_BAND_G 1.5f   // Schwankung, unter der das Gewicht als ruhig gilt
+#define TAG_WEG_MS 1200      // so lange ohne Lesung gilt ein Tag als entfernt

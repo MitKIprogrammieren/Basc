@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=800, height=480, initial-scale=1, user-scalable=no">
+<title>FilamentLager Waage</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app" class="app">
+  <header class="kopf">
+    <div class="kopf-links">
+      <span class="logo" aria-hidden="true"><span></span></span>
+      <span class="titel">FilamentLager</span>
+      <span id="kopf-sub" class="sub">Waage</span>
+    </div>
+    <div class="kopf-rechts">
+      <span class="status"><span id="dot-l" class="dot"></span>NFC L</span>
+      <span class="status"><span id="dot-r" class="dot"></span>NFC R</span>
+      <span id="wlan" class="status">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5.5 12.5a10 10 0 0 1 13 0"/><path d="M9 16.2a5 5 0 0 1 6 0"/><circle cx="12" cy="19.5" r=".8"/></svg>WLAN</span>
+      <span class="status"><span id="dot-ha" class="dot"></span>Home Assistant</span>
+      <span id="uhr" class="uhr">--:--</span>
+    </div>
+  </header>
+
+  <!-- Wiegen -->
+  <main id="seite-wiegen" class="seite reihe">
+    <section class="panel gruen wiegen-karte">
+      <div class="ring" id="ring">
+        <div class="ring-innen"><div class="spule" id="spule"><div class="nabe"></div></div></div>
+      </div>
+      <div class="spalte gap6">
+        <span class="ueber">Filament übrig</span>
+        <div class="zahl-zeile"><span id="zahl" class="zahl">0</span><span class="einheit">g</span></div>
+        <span id="proz" class="sub16">Spule auflegen</span>
+        <div class="reihe gap8 mt8">
+          <span id="chip-brutto" class="chip">Brutto 0 g</span>
+          <span id="chip-leer" class="chip">Leerspule 250 g</span>
+        </div>
+      </div>
+    </section>
+    <aside class="spalte gap10 rechts270">
+      <div class="panel gruen karte">
+        <span id="k-titel" class="ueber klein ellipse">Keine Spule erkannt</span>
+        <div class="reihe gap12 mitte">
+          <div id="k-swatch" class="swatch s34"></div>
+          <div class="spalte gap2 minw0">
+            <span id="k-name" class="name20 ellipse">Teller ist leer</span>
+            <span id="k-sub" class="sub14 ellipse">Spule mit Tag auflegen</span>
+          </div>
+        </div>
+        <div id="k-chips" class="chips"></div>
+      </div>
+      <button id="btn-haupt" class="knopf primaer gross" disabled>Rest speichern</button>
+      <div class="reihe gap10">
+        <button id="btn-tara" class="knopf rahmen">Tara</button>
+        <button id="btn-wahl" class="knopf rahmen">Sorte wählen</button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Lager -->
+  <main id="seite-lager" class="seite reihe versteckt">
+    <section class="spalte gap10 wachsen minw0">
+      <div class="reihe gap8">
+        <label class="suche"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="suche" inputmode="none" autocomplete="off" placeholder="Suchen …" aria-label="Suchen"></label>
+        <div id="filter" class="reihe gap8"></div>
+      </div>
+      <div id="liste" class="panel gruen liste"></div>
+    </section>
+    <aside class="panel orange reste">
+      <span class="ueber orange-t">Angebrochene Rollen</span>
+      <div id="reste" class="spalte gap6"></div>
+    </aside>
+  </main>
+
+  <!-- Detail -->
+  <main id="seite-detail" class="seite reihe versteckt"></main>
+
+  <!-- Einstellungen -->
+  <main id="seite-einst" class="seite reihe versteckt">
+    <section class="panel gruen spalte gap12 wachsen pad18">
+      <span class="ueber">Waage</span>
+      <span class="sub14">Teller leer machen und Tara drücken. Dann das Kalibriergewicht auflegen und Kalibrieren drücken.</span>
+      <button id="e-tara" class="knopf rahmen h50">Tara</button>
+      <div class="reihe gap8 mitte">
+        <button class="knopf rahmen quadrat" data-kal="-100" aria-label="100 g weniger">−</button>
+        <span id="kal-wert" class="name28 wachsen zentriert">1000 g</span>
+        <button class="knopf rahmen quadrat" data-kal="100" aria-label="100 g mehr">+</button>
+      </div>
+      <button id="e-kal" class="knopf primaer h54">Kalibrieren</button>
+    </section>
+    <section class="panel grau spalte gap12 b300 pad18">
+      <span class="ueber">Verbindung</span>
+      <div id="e-info" class="info"></div>
+      <button id="e-laden" class="knopf rahmen h50">Lager neu laden</button>
+    </section>
+  </main>
+
+  <nav class="nav">
+    <button class="nav-knopf" data-seite="wiegen">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M6 20l2-9h8l2 9"/><path d="M12 11V5"/><path d="M8 5h8"/></svg>Wiegen</button>
+    <button class="nav-knopf" data-seite="lager">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01"/></svg>Lager</button>
+    <button class="nav-knopf" data-seite="einst">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Einstellungen</button>
+  </nav>
+
+  <div id="toast" class="toast versteckt" role="status" aria-live="polite"></div>
+  <div id="tastatur" class="tastatur versteckt" aria-label="Bildschirmtastatur"></div>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

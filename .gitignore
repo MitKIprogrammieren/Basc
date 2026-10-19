@@ -1,0 +1,7 @@
+# Zugangsdaten
+firmware/display-5inch/include/secrets.h
+# Build
+.pio/
+firmware/*/test/host/out/
+__pycache__/
+*.pyc
