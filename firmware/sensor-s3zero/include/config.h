@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "1.0.0"
+#define FW_VERSION "1.1.0"
 
 // Wägezelle über HX711
 #define HX711_DOUT 1
@@ -31,3 +31,12 @@
 #define GLAETTUNG 0.25f      // Anteil des neuen Werts (EMA), kleiner = ruhiger
 #define STABIL_BAND_G 1.5f   // Schwankung, unter der das Gewicht als ruhig gilt
 #define TAG_WEG_MS 1200      // so lange ohne Lesung gilt ein Tag als entfernt
+
+// WLAN (für das BTT Pad 7 oder einen anderen Rechner ohne Kabel zur Waage)
+// Beim ersten Start öffnet die Platine das WLAN "FilamentWaage-Setup" – damit verbinden und
+// das Heim-WLAN auswählen. BOOT-Taste 5 s halten löscht die WLAN-Daten wieder.
+#define WLAN_AKTIV 1             // 0 = nur USB/RS485 wie bisher
+#define WLAN_SETUP_NAME "FilamentWaage-Setup"
+#define WLAN_HOSTNAME "filamentwaage"   // erreichbar als filamentwaage.local
+#define WLAN_PORT 4711
+#define BOOT_TASTE 0

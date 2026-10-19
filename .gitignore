@@ -5,3 +5,5 @@ firmware/display-5inch/include/secrets.h
 firmware/*/test/host/out/
 __pycache__/
 *.pyc
+
+filamentwaage-pad7.zip

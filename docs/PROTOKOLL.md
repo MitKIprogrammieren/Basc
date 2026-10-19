@@ -1,8 +1,10 @@
 # Protokoll der Sensorplatine
 
-Die Sensorplatine (ESP32-S3-Zero) spricht dasselbe Protokoll über **USB** (Pi) und **RS485** (5"-Display).
+Die Sensorplatine (ESP32-S3-Zero) spricht dasselbe Protokoll über **USB** (Pi), **RS485** (5"-Display)
+und **WLAN** (TCP-Port 4711, z. B. für das BTT Pad 7).
 
-- 115200 Baud, 8N1
+- USB/RS485: 115200 Baud, 8N1
+- WLAN: TCP-Verbindung zu `filamentwaage.local:4711`, immer nur eine Gegenstelle (eine neue löst die alte ab)
 - eine JSON-Nachricht pro Zeile, abgeschlossen mit `\n`
 - Die Sensorplatine sendet **nur als Antwort** auf eine Anfrage. Auf der RS485-Leitung senden so
   nie zwei Geräte gleichzeitig. Das Display bzw. der Pi fragt alle 100 ms.
@@ -35,9 +37,20 @@ Ein Tag gilt 1,2 s nach der letzten erfolgreichen Lesung als entfernt.
 
 ## Beim Einschalten
 
-Per USB sendet die Platine einmal `{"t":"hallo","fw":"1.0.0","nfc_l":true,"nfc_r":true,"cal":1}`.
+Per USB und bei jeder neuen WLAN-Verbindung sendet die Platine einmal `{"t":"hallo","fw":"1.0.0","nfc_l":true,"nfc_r":true,"cal":1}`.
 Auf RS485 erscheinen nach dem Einschalten ein paar Zeichen des ESP32-Bootloaders. Zeilen,
 die nicht mit `{` beginnen, werden ignoriert.
+
+## WLAN
+
+- Erststart ohne gespeichertes WLAN: Die Platine öffnet das WLAN **FilamentWaage-Setup** mit Einrichtungsseite
+  (WiFiManager). Die Waage misst währenddessen weiter und antwortet über USB/RS485.
+- BOOT-Taste 5 s halten löscht die WLAN-Daten.
+- LED orange blinkend = kein WLAN.
+- Der Pi bzw. das Pad 7 trennt die Verbindung, wenn 3 s keine Antwort kommt, und verbindet nach 2 s neu.
+- `WLAN_AKTIV 0` in `include/config.h` schaltet WLAN ganz ab.
+
+Zum Ausprobieren am PC: `nc filamentwaage.local 4711`, dann `{"c":"p"}` eingeben.
 
 ## Ausprobieren
 

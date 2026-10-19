@@ -1,19 +1,25 @@
 // FilamentLager-Waage – Sensorplatine (Waveshare ESP32-S3-Zero)
 //
 // Misst das Gewicht (HX711) und liest NFC-Tags mit zwei PN532 im HSU-Modus.
-// Antwortet auf Anfragen über USB (Raspberry Pi) und RS485 (5"-Display).
+// Antwortet auf Anfragen über USB (Raspberry Pi), RS485 (5"-Display) und WLAN (Pad 7).
 // Protokoll: eine JSON-Zeile pro Nachricht, siehe docs/PROTOKOLL.md.
 
 #include <Arduino.h>
+
+#include "config.h"
 #include <ArduinoJson.h>
 #include <HX711.h>
 #include <Preferences.h>
+#if WLAN_AKTIV
+#include <ESPmDNS.h>
+#include <WiFi.h>
+#include <WiFiManager.h>
+#endif
 
 #include <algorithm>
 #include <mutex>
 #include <utility>
 
-#include "config.h"
 #include "pn532_hsu.h"
 
 namespace {
@@ -128,8 +134,25 @@ struct Kanal {
 
 Kanal g_usb{&Serial, -1, {}, 0};
 Kanal g_bus{&Serial0, RS485_DE, {}, 0};
+#if WLAN_AKTIV
+WiFiServer g_server(WLAN_PORT);
+WiFiClient g_client;  // immer nur eine Gegenstelle; eine neue löst die alte ab
+Kanal g_wlan{&g_client, -1, {}, 0};
+WiFiManager g_wm;
+#endif
 
 void senden(Stream* s, const JsonDocument& doc) {
+    if (!s) return;
+#if WLAN_AKTIV
+    if (s == g_wlan.s) {
+        if (!g_client.connected()) return;
+        String z;
+        serializeJson(doc, z);
+        z += '\n';
+        g_client.write((const uint8_t*)z.c_str(), z.length());  // in einem Paket
+        return;
+    }
+#endif
     Kanal* k = (s == g_bus.s) ? &g_bus : &g_usb;
     if (k->de >= 0) digitalWrite(k->de, HIGH);
     serializeJson(doc, *s);
@@ -244,6 +267,65 @@ void vorgang_weiter(long roh) {
     g_vorgang = Vorgang::KEINER;
 }
 
+// ---------------------------------------------------------------- WLAN
+#if WLAN_AKTIV
+void wlan_start() {
+    WiFi.mode(WIFI_STA);
+    WiFi.setHostname(WLAN_HOSTNAME);
+    WiFi.setSleep(false);  // sonst kommen die Antworten mit Verzögerung
+    g_wm.setConfigPortalBlocking(false);  // Waage misst weiter, während das Setup-WLAN offen ist
+    g_wm.setConfigPortalTimeout(0);
+    g_wm.setTitle("FilamentLager-Waage");
+    g_wm.setShowInfoUpdate(false);
+    g_wm.autoConnect(WLAN_SETUP_NAME);
+    g_server.begin();
+    g_server.setNoDelay(true);
+}
+
+void wlan_weiter() {
+    g_wm.process();
+    static bool mdns = false;
+    if (WiFi.status() == WL_CONNECTED && !mdns && MDNS.begin(WLAN_HOSTNAME)) {
+        MDNS.addService("filamentwaage", "tcp", WLAN_PORT);
+        mdns = true;
+    }
+    WiFiClient neu = g_server.available();
+    if (neu) {
+        if (g_client) g_client.stop();
+        g_client = neu;
+        g_client.setNoDelay(true);
+        g_wlan.n = 0;
+        JsonDocument d;
+        d["t"] = "hallo";
+        d["fw"] = FW_VERSION;
+        d["nfc_l"] = g_nfc_l.bereit();
+        d["nfc_r"] = g_nfc_r.bereit();
+        d["cal"] = g_faktor != 0 ? 1 : 0;
+        senden(&g_client, d);
+    }
+    if (g_client && !g_client.connected()) g_client.stop();
+    if (g_client) kanal_lesen(g_wlan);
+
+    // BOOT-Taste 5 s gedrückt: WLAN-Daten löschen und neu starten
+    static uint32_t gedrueckt_seit = 0;
+    if (digitalRead(BOOT_TASTE) == LOW) {
+        if (!gedrueckt_seit) gedrueckt_seit = millis();
+        else if (millis() - gedrueckt_seit > 5000) {
+            neopixelWrite(LED_PIN, 14, 0, 14);
+            g_wm.resetSettings();
+            delay(300);
+            ESP.restart();
+        }
+    } else {
+        gedrueckt_seit = 0;
+    }
+}
+
+bool wlan_verbunden() { return WiFi.status() == WL_CONNECTED; }
+#else
+bool wlan_verbunden() { return true; }
+#endif
+
 void led() {
     static uint32_t zuletzt = 0;
     if (millis() - zuletzt < 200) return;
@@ -253,7 +335,10 @@ void led() {
         std::lock_guard<std::mutex> l(g_nfc_mx);
         tag = g_tag[0].length() || g_tag[1].length();
     }
-    if (g_faktor == 0) neopixelWrite(LED_PIN, 12, 0, 0);       // rot: nicht kalibriert
+    static bool blink = false;
+    blink = !blink;
+    if (!wlan_verbunden()) neopixelWrite(LED_PIN, blink ? 14 : 0, blink ? 6 : 0, 0);  // orange blinkend: kein WLAN
+    else if (g_faktor == 0) neopixelWrite(LED_PIN, 12, 0, 0);  // rot: nicht kalibriert
     else if (tag) neopixelWrite(LED_PIN, 0, 14, 0);            // grün: Tag erkannt
     else neopixelWrite(LED_PIN, 0, 0, 6);                      // blau: bereit
 }
@@ -275,6 +360,10 @@ void setup() {
     bool r = g_nfc_r.begin(Serial1, NFC_R_RX, NFC_R_TX, NFC_R_RST);
     bool l = g_nfc_l.begin(Serial2, NFC_L_RX, NFC_L_TX, NFC_L_RST);
     xTaskCreatePinnedToCore(nfc_task, "nfc", 4096, nullptr, 1, nullptr, 0);
+#if WLAN_AKTIV
+    pinMode(BOOT_TASTE, INPUT_PULLUP);
+    wlan_start();
+#endif
 
     JsonDocument d;
     d["t"] = "hallo";
@@ -293,6 +382,9 @@ void loop() {
     }
     kanal_lesen(g_usb);
     kanal_lesen(g_bus);
+#if WLAN_AKTIV
+    wlan_weiter();
+#endif
     led();
     delay(2);
 }

@@ -1,0 +1,16 @@
+[Unit]
+Description=FilamentLager-Waage (Pad 7)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@BENUTZER@
+SupplementaryGroups=dialout
+WorkingDirectory=/opt/filamentwaage
+ExecStart=/usr/bin/python3 -m filamentwaage /etc/filamentwaage/config.toml
+StateDirectory=filamentwaage
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

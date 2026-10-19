@@ -11,10 +11,15 @@ zertifikat_pruefen = true
 
 [sensor]
 # usb  = Sensorplatine (ESP32-S3-Zero) per USB – empfohlen
+# wlan = Sensorplatine per WLAN (z. B. BTT Pad 7 als reiner Bildschirm)
 # gpio = HX711 und PN532 direkt am Pi (siehe docs/VERKABELUNG.md)
 # demo = ohne Hardware, mit Testdaten zum Ausprobieren
 art = "usb"
 usb_port = "/dev/ttyACM0"
+
+# nur für art = "wlan": Name oder IP-Adresse der Waage im Heimnetz
+wlan_adresse = "filamentwaage.local"
+wlan_port = 4711
 
 # nur für art = "gpio" (BCM-Nummern)
 hx711_dout = 23

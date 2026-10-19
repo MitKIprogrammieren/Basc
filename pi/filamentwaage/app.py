@@ -20,21 +20,24 @@ from urllib.parse import urlparse
 
 try:
     import tomllib
-except ModuleNotFoundError:  # Python < 3.11
-    tomllib = None
+except ModuleNotFoundError:  # Python < 3.11 (z. B. Debian 11 auf dem BTT CB1)
+    try:
+        import tomli as tomllib
+    except ModuleNotFoundError:
+        tomllib = None
 
 from . import modell
 from .ha import HaClient, HaFehler
-from .sensoren import SensorDemo, SensorGpio, SensorUsb
+from .sensoren import SensorDemo, SensorGpio, SensorUsb, SensorWlan
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 log = logging.getLogger("waage")
 
 STANDARD = {
     "home_assistant": {"url": "http://homeassistant.local:8123", "token": "", "todo": "todo.filament",
                        "zertifikat_pruefen": True},
-    "sensor": {"art": "usb", "usb_port": "/dev/ttyACM0", "hx711_dout": 23, "hx711_sck": 24,
+    "sensor": {"art": "usb", "usb_port": "/dev/ttyACM0", "wlan_adresse": "filamentwaage.local", "wlan_port": 4711, "hx711_dout": 23, "hx711_sck": 24,
                "nfc_links": "/dev/ttyAMA3", "nfc_rechts": "/dev/ttyAMA4",
                "kalibrierung": "/var/lib/filamentwaage/kalibrierung.json"},
     "waage": {"leerspule_g": 250, "lager_neu_laden_s": 60},
@@ -46,7 +49,7 @@ def config_laden(pfad):
     cfg = json.loads(json.dumps(STANDARD))
     if pfad and os.path.exists(pfad):
         if tomllib is None:
-            raise SystemExit("Python 3.11 oder neuer nötig (tomllib)")
+            raise SystemExit("Python 3.11 oder neuer nötig – oder Paket python3-tomli installieren")
         with open(pfad, "rb") as f:
             eigene = tomllib.load(f)
         for abschnitt, werte in eigene.items():
@@ -66,6 +69,8 @@ class Anwendung:
                                      s["kalibrierung"])
         elif art == "demo":
             self.sensor = SensorDemo()
+        elif art == "wlan":
+            self.sensor = SensorWlan(s["wlan_adresse"], s["wlan_port"])
         else:
             self.sensor = SensorUsb(s["usb_port"])
         self.sensor.rueckmeldung = lambda ok, text: self.meldung(text, ok)

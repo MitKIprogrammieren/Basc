@@ -2,6 +2,8 @@
 
 - SensorUsb:   Sensorplatine (ESP32-S3-Zero) per USB, gleiche Firmware wie beim 5"-Display.
                Empfohlen: genaue Messung, Pi muss nichts Zeitkritisches tun.
+- SensorWlan:  dieselbe Sensorplatine per WLAN (TCP-Port 4711) – z. B. für das BTT Pad 7,
+               das dann nur Bildschirm ist und kein Kabel zur Waage braucht.
 - SensorGpio:  HX711 und zwei PN532 direkt am Raspberry Pi.
 - SensorDemo:  ohne Hardware, zum Ausprobieren der Oberfläche.
 """
@@ -10,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import socket
 import threading
 import time
 from dataclasses import dataclass
@@ -111,21 +114,30 @@ class SensorUsb(Sensor):
             time.sleep(2)
 
     def _sitzung(self, ser):
+        self._abfragen(ser.write, lambda: ser.read(256))
+
+    def _abfragen(self, schreiben, lesen, still_s=None):
+        """Fragt alle 100 ms ab. lesen() liefert Bytes (b"" = gerade nichts).
+        Mit still_s endet die Sitzung, wenn so lange keine Antwort kam (für WLAN)."""
         puffer = b""
-        letzte_antwort = 0.0
+        letzte_antwort = time.monotonic()
         while True:
             with self._lock:
                 befehl = self._befehle.pop(0) if self._befehle else {"c": "p"}
-            ser.write((json.dumps(befehl) + "\n").encode())
+            schreiben((json.dumps(befehl) + "\n").encode())
             ende = time.monotonic() + 0.1
             while time.monotonic() < ende:
-                puffer += ser.read(256)
+                puffer += lesen()
+                if len(puffer) > 4096:
+                    puffer = b""
                 while b"\n" in puffer:
                     zeile, puffer = puffer.split(b"\n", 1)
                     if self._zeile(zeile.strip()):
                         letzte_antwort = time.monotonic()
             with self._lock:
                 self._wert.verbunden = time.monotonic() - letzte_antwort < 1.0
+            if still_s and time.monotonic() - letzte_antwort > still_s:
+                raise OSError(f"seit {still_s:.0f} s keine Antwort")
 
     def _zeile(self, z):
         if not z.startswith(b"{"):
@@ -149,6 +161,46 @@ class SensorUsb(Sensor):
             else:
                 self.rueckmeldung(True, {"tara": "Tara gesetzt", "kal": "Kalibriert"}.get(c, "OK"))
         return True
+
+
+# ---------------------------------------------------------------- WLAN
+class SensorWlan(SensorUsb):
+    """Sensorplatine per WLAN: dasselbe Zeilenprotokoll über eine TCP-Verbindung."""
+
+    def __init__(self, adresse="filamentwaage.local", port=4711):
+        super().__init__()
+        self.adresse, self.tcp_port = adresse, int(port)
+
+    def start(self):
+        threading.Thread(target=self._lauf, daemon=True, name="sensor-wlan").start()
+
+    def _lauf(self):
+        meldung = ""
+        while True:
+            try:
+                with socket.create_connection((self.adresse, self.tcp_port), timeout=5) as sock:
+                    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                    sock.settimeout(0.05)
+                    log.info("Waage per WLAN verbunden: %s:%s", self.adresse, self.tcp_port)
+                    meldung = ""
+                    self._abfragen(sock.sendall, lambda: self._lesen(sock), still_s=3.0)
+            except OSError as e:
+                if str(e) != meldung:  # nicht alle 2 s dieselbe Zeile ins Protokoll
+                    log.warning("Waage per WLAN nicht erreichbar (%s), neuer Versuch …", e)
+                    meldung = str(e)
+            with self._lock:
+                self._wert.verbunden = False
+            time.sleep(2)
+
+    @staticmethod
+    def _lesen(sock):
+        try:
+            daten = sock.recv(512)
+        except (socket.timeout, BlockingIOError):
+            return b""
+        if not daten:
+            raise OSError("Verbindung von der Waage beendet")
+        return daten
 
 
 # ---------------------------------------------------------------- GPIO

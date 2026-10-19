@@ -83,6 +83,12 @@ In `/etc/filamentwaage/config.toml`: `art = "usb"`. Den MAX3485 braucht man dann
 - Der HX711 ist zeitkritisch. Unter Linux gibt es gelegentlich Ausreißer, die der Median-Filter
   abfängt. Wer genaue Messungen will, nimmt Variante a.
 
+### c) Sensorplatine per WLAN (`art = "wlan"`)
+
+Keine Leitung zwischen Waage und Rechner. Die Sensorplatine braucht nur 5 V an USB-C (Netzteil ≥ 1 A).
+Verkabelung in der Waage wie oben unter *Sensorplatine*, ohne MAX3485. Für das BTT Pad 7 ist das der vorgesehene Weg,
+siehe [pi/pad7/ANLEITUNG.md](../pi/pad7/ANLEITUNG.md).
+
 ### BTT PI TFT50 V2
 
 Das TFT50 hängt am DSI-Anschluss. Normalerweise erkennt Raspberry Pi OS es von selbst.

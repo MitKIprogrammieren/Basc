@@ -7,14 +7,14 @@ trägt ihn mit einem Tipp ins Lager ein. Aufbau nach dem Vorbild der
 
 ![Bildschirme der Waage](docs/bilder/uebersicht.png)
 
-## Zwei Bauarten
+## Drei Bauarten
 
-| | ESP32-Variante | Pi-Variante |
-|---|---|---|
-| Display | Waveshare ESP32-S3-Touch-LCD-5 (5", 800×480) | Raspberry Pi 4 + BTT PI TFT50 V2 |
-| Oberfläche | LVGL, direkt auf dem ESP32 | Web-Oberfläche im Chromium-Kiosk |
-| Messung | Sensorplatine (ESP32-S3-Zero) per RS485 | Sensorplatine per USB oder HX711/PN532 am Pi |
-| Ordner | `firmware/display-5inch`, `firmware/sensor-s3zero` | `pi/` |
+| | ESP32-Variante | Pi-Variante | Pad-7-Variante |
+|---|---|---|---|
+| Display | Waveshare ESP32-S3-Touch-LCD-5 (5", 800×480) | Raspberry Pi 4 + BTT PI TFT50 V2 | BTT Pad 7 mit CB1 (7", 1024×600) |
+| Oberfläche | LVGL, direkt auf dem ESP32 | Web-Oberfläche im Chromium-Kiosk | wie Pi-Variante |
+| Messung | Sensorplatine (ESP32-S3-Zero) per RS485 | Sensorplatine per USB oder HX711/PN532 am Pi | Sensorplatine per **WLAN** – kein Kabel zum Display |
+| Ordner | `firmware/display-5inch`, `firmware/sensor-s3zero` | `pi/` | `pi/` + `pi/pad7/`, `firmware/sensor-s3zero` |
 
 Beide zeigen dieselben Bildschirme: **Wiegen**, **Lager** (Suche, Filter, angebrochene Rollen),
 **Sorte im Detail** und **Einstellungen** (Tara, Kalibrieren, Verbindung).
@@ -68,6 +68,17 @@ Die Oberfläche startet nach dem Anmelden im Vollbild. Ohne Hardware ausprobiere
 Auch am PC (Python 3.11+): `cd pi && python3 -m filamentwaage demo.toml`, dann
 http://127.0.0.1:8080 im Browser öffnen.
 
+## Pad-7-Variante einrichten
+
+Das Pad 7 ist nur Bildschirm, die Sensorplatine in der Waage funkt per WLAN.
+Schritt für Schritt: [pi/pad7/ANLEITUNG.md](pi/pad7/ANLEITUNG.md). Kurz:
+
+1. Sensorplatine flashen, über das WLAN **FilamentWaage-Setup** ins Heimnetz bringen.
+2. BTT-CB1-Image (Klipper-Version) auf die SD-Karte, WLAN in `system.cfg` eintragen.
+3. `tools/pad7_paket.sh` baut `filamentwaage-pad7.zip` – den Ordner daraus auf die Partition BOOT kopieren,
+   Token in `config.pad7.toml` eintragen.
+4. Am Pad 7 einmal `sudo bash /boot/filamentwaage/install-pad7.sh` – danach startet es direkt in die Waage.
+
 ## Home Assistant
 
 - Langlebiges Zugriffstoken anlegen: HA → Profil → Sicherheit → *Langlebige Zugriffstokens*.
@@ -99,7 +110,9 @@ Protokoll der Sensorplatine: [docs/PROTOKOLL.md](docs/PROTOKOLL.md)
 | Datenmodell C++ und Python | Tests mit echten Lagerdaten |
 | ESP32-Oberfläche | am PC mit LVGL 8.3 gerendert |
 | Pi-Dienst und Web-Oberfläche | im Demo-Modus und gegen nachgebautes Home Assistant |
+| WLAN-Verbindung Pi/Pad 7 ↔ Sensorplatine (Python) | Tests gegen nachgebaute Sensorplatine |
 | ESP32-Display-Treiber, Touch, WLAN, Sensor-Firmware | **noch nicht auf echter Hardware** – Pins und Display-Timing beim ersten Start prüfen |
+| Pad-7-Installation (CB1) | **noch nicht auf echter Hardware** |
 
 ## Schrift
 
