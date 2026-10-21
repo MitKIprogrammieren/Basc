@@ -2,7 +2,7 @@
   "name": "filamentlager-studio",
   "productName": "FilamentLager Studio",
   "version": "1.0.0",
-  "description": "Mac-App für die FilamentLager-Waage: Lager aus Home Assistant, Live-Waage, Bambu-Drucker mit AMS, Regal-Plan und Etiketten",
+  "description": "Mac-App für die FilamentLager-Waage: Lager aus Home Assistant, Live-Waage, Bambu-Drucker mit AMS und Etiketten",
   "main": "main.js",
   "license": "MIT",
   "author": "MitKIprogrammieren",

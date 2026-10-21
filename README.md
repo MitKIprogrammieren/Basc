@@ -93,7 +93,7 @@ Ohne fertiges Image:
 ## Mac-App: FilamentLager Studio
 
 Für den Schreibtisch gibt es die Mac-App in [`desktop/`](desktop/README.md): Lager aus Home Assistant, Live-Gewicht von der
-Waage, alle Bambu-Drucker mit AMS-Belegung, Regal-Plan und Etikettendruck (Phomemo M20Pro). Die fertige `.dmg` baut
+Waage, alle Bambu-Drucker mit AMS-Belegung und Etikettendruck (Phomemo M20Pro). Die fertige `.dmg` baut
 GitHub Actions bei jedem Push (*Actions → FilamentLager Studio (Mac)*).
 
 ## Entwicklung und Tests

@@ -204,31 +204,6 @@ select { -webkit-appearance: none; appearance: none; background-image: linear-gr
 .slot.leer .spule-klein { background: transparent !important; border-style: dashed; }
 .slot.leer b, .slot.leer small { opacity: .6; }
 
-/* Regale */
-.regale { display: grid; grid-template-columns: 250px minmax(0, 1fr) 280px; gap: 18px; height: 100%; min-height: 0; }
-.regal-liste { padding: 10px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
-.regal-eintrag { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; cursor: pointer; border: 0; background: transparent; text-align: left; width: 100%; }
-.regal-eintrag:hover { background: var(--kachel); }
-.regal-eintrag.an { background: var(--nav-akt); }
-.regal-eintrag b { font-size: 14px; display: block; } .regal-eintrag small { font-size: 12px; color: var(--sub); }
-.regal-ansicht { padding: 20px; display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow: auto; }
-.regal-gitter { display: flex; flex-direction: column; gap: 10px; }
-.ebene { display: grid; gap: 8px; padding: 10px; background: var(--bg); border-radius: 14px; border: 1px solid var(--linie); position: relative; }
-.ebene::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: -6px; height: 4px; border-radius: 2px; background: var(--rand2); }
-.platz { aspect-ratio: 1 / 1; border-radius: 50%; border: 2px dashed var(--rand2); display: grid; place-items: center; cursor: pointer; position: relative;
-  min-width: 0; background: transparent; padding: 0; color: var(--sub); font-size: 11px; transition: transform .08s; }
-.platz:hover { border-color: var(--rand); }
-.platz.voll { border-style: solid; border-color: rgba(255,255,255,.12); }
-.platz.voll::before { content: ""; width: 28%; height: 28%; border-radius: 50%; background: var(--bg); }
-.platz.drueber { border-color: var(--gruen) !important; transform: scale(1.04); }
-.platz.gesucht { box-shadow: 0 0 0 3px var(--orange); }
-.platz .nr { position: absolute; bottom: -2px; right: -2px; font-size: 10px; background: var(--panel); border-radius: 6px; padding: 1px 4px; color: var(--sub); }
-.ablage { padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-.ablage-liste { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; min-height: 0; flex: 1 1 auto; }
-.zieh { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 10px; cursor: grab; }
-.zieh:hover { background: var(--kachel); }
-.zieh:active { cursor: grabbing; }
-
 /* Etiketten */
 .etiketten { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; height: 100%; min-height: 0; }
 .wahl-liste { overflow-y: auto; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -265,7 +240,7 @@ select { -webkit-appearance: none; appearance: none; background-image: linear-gr
 @keyframes rein { from { transform: translateY(8px); opacity: 0; } }
 .vorschlag { background: var(--nav-akt); }
 
-.lager:not(.ohne-detail) .sp-hersteller, .lager:not(.ohne-detail) .sp-platz { display: none; }
+.lager:not(.ohne-detail) .sp-hersteller { display: none; }
 .lager.ohne-detail .nur-detail { display: none; }
 .temps > span { white-space: nowrap; }
 .temps { flex-wrap: wrap; row-gap: 2px; }

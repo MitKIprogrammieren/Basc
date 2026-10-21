@@ -141,7 +141,6 @@ SEITEN.wiegen = {
     if (sorte) {
       if (sorte.reste.length) chips.push(`<span class="chip o">Reste ${sorte.reste.map(gramm).join(', ')}</span>`);
       chips.push(`<span class="chip">${sorte.spulen} Spule${sorte.spulen === 1 ? '' : 'n'}</span>`);
-      for (const p of platzVon(sorte.uid).slice(0, 1)) chips.push(`<span class="chip">${esc(p.text)}</span>`);
     }
     $('#w-sorte').innerHTML = `<span class="ueber ellipse">${esc(kopf)}</span>
       <div class="reihe gap12 mitte"><div class="swatch s44" style="background:${sorte ? esc(sorte.hex) : 'var(--rand)'}"></div>

@@ -8,7 +8,6 @@ Lager **„Ernsthaft gelagert“** in Home Assistant statt der TigerTag-Cloud.
 | **Wiegen** | Live-Gewicht der Waage, Spule am NFC-Tag erkennen, Rest mit einem Klick ins Lager schreiben, neue Tags zuordnen (mit Vorschlag aus dem AMS) |
 | **Lager** | alle Sorten aus `todo.filament`: Suche, Filter, Sortierung; Spulen ±, Reste streichen, Leerspulengewicht, NFC-Tags verwalten |
 | **Drucker** | alle Bambu-Drucker aus Home Assistant mit Status, Fortschritt, Temperaturen und jedem AMS-Slot; Sorte aus dem Lager in einen Slot eintragen (`bambu_lab.set_filament`), Tag neu lesen |
-| **Regale** | eigene Regale mit Ebenen und Plätzen, Spulen per Ziehen einsortieren, „wo liegt …?“ |
 | **Etiketten** | Spulen-Etiketten mit QR-Code; Druck auf dem Phomemo M20Pro per Bluetooth, über den Mac-Druckdialog oder als PNG |
 
 ## Installieren
@@ -49,8 +48,6 @@ Genau dieselben Felder wie die Waage – `spulen`, `refills` (nur gekürzt), `re
 Regeln (siehe [../docs/LAGER.md](../docs/LAGER.md)). Vor jeder Änderung lädt die App den aktuellen Stand aus Home Assistant.
 Das Datenmodell `services/modell.js` ist die dritte Fassung neben `pi/filamentwaage/modell.py` und
 `firmware/display-5inch/src/model.cpp`; ein Vergleichstest mit 4000 Zufallsfällen ergab keine Abweichung zur Python-Fassung.
-
-Regale liegen nur auf dem Mac (`~/Library/Application Support/FilamentLager Studio/regale.json`) und lassen sich als Datei sichern.
 
 ## Entwickeln
 

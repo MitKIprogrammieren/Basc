@@ -9,7 +9,7 @@ const aufruf = (kanal) => async (d) => {
 const KANAELE = [
   'app:start', 'einst:speichern', 'ha:testen', 'lager:holen', 'lager:neu', 'lager:aendern',
   'drucker:holen', 'drucker:neu', 'drucker:filament', 'drucker:rfid', 'drucker:bild',
-  'waage:tara', 'waage:kal', 'waage:holen', 'regale:holen', 'regale:speichern', 'regale:export', 'regale:import',
+  'waage:tara', 'waage:kal', 'waage:holen',
   'etikett:png', 'etikett:drucken', 'extern:oeffnen', 'bt:waehlen',
 ];
 const api = {};

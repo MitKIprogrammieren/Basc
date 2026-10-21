@@ -1,7 +1,7 @@
 'use strict';
 /**
  * FilamentLager Studio – Mac-App zur FilamentLager-Waage.
- * Hauptprozess: Einstellungen, Home Assistant, Waage, Drucker, Regale, Etiketten.
+ * Hauptprozess: Einstellungen, Home Assistant, Waage, Drucker, Etiketten.
  */
 const { app, BrowserWindow, ipcMain, dialog, safeStorage, shell, nativeTheme } = require('electron');
 const path = require('node:path');
@@ -304,22 +304,6 @@ ipcMain.handle('drucker:bild', ok((d) => ha.bild(d.pfad)));
 ipcMain.handle('waage:tara', ok(() => waage.tara()));
 ipcMain.handle('waage:kal', ok((d) => waage.kalibrieren(d.g || 1000)));
 ipcMain.handle('waage:holen', ok(() => waage.wert));
-
-ipcMain.handle('regale:holen', ok(() => jsonLesen(daten('regale.json'), { regale: [], plaetze: {} })));
-ipcMain.handle('regale:speichern', ok((d) => { jsonSchreiben(daten('regale.json'), d); return true; }));
-ipcMain.handle('regale:export', ok(async (d) => {
-  const r = await dialog.showSaveDialog(fenster, { defaultPath: 'filamentlager-regale.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
-  if (r.canceled) return false;
-  fs.writeFileSync(r.filePath, JSON.stringify(d, null, 2));
-  return true;
-}));
-ipcMain.handle('regale:import', ok(async () => {
-  const r = await dialog.showOpenDialog(fenster, { filters: [{ name: 'JSON', extensions: ['json'] }], properties: ['openFile'] });
-  if (r.canceled || !r.filePaths[0]) return null;
-  const d = JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8'));
-  if (!Array.isArray(d.regale) || typeof d.plaetze !== 'object') throw new Error('Keine Regal-Datei');
-  return d;
-}));
 
 ipcMain.handle('etikett:png', ok(async (d) => {
   const r = await dialog.showSaveDialog(fenster, { defaultPath: d.name || 'etikett.png', filters: [{ name: 'PNG', extensions: ['png'] }] });

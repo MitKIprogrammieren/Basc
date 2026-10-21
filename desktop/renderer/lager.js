@@ -3,11 +3,11 @@
 
 const L = { q: '', filter: 'alle', material: '', spalte: 'name', auf: true, auswahl: '' };
 
-const FILTER = [['alle', 'Alle'], ['angebrochen', 'Angebrochen'], ['leer', 'Aufgebraucht'], ['nfc', 'Mit NFC'], ['ohneplatz', 'Ohne Regalplatz']];
+const FILTER = [['alle', 'Alle'], ['angebrochen', 'Angebrochen'], ['leer', 'Aufgebraucht'], ['nfc', 'Mit NFC']];
 const SPALTEN = [
   ['name', 'Sorte', (s) => s.kurzname.toLowerCase()], ['hersteller', 'Hersteller', (s) => s.hersteller.toLowerCase()],
   ['spulen', 'Spulen', (s) => s.spulen, true], ['reste', 'Angebrochen', (s) => s.reste.length, true],
-  ['bestand', 'Bestand', (s) => s.bestand_g, true], ['platz', 'Platz', (s) => (platzVon(s.uid)[0]?.text || '~')],
+  ['bestand', 'Bestand', (s) => s.bestand_g, true],
 ];
 
 function lagerGefiltert() {
@@ -16,7 +16,6 @@ function lagerGefiltert() {
   if (L.filter === 'angebrochen') l = l.filter((s) => s.reste.length);
   if (L.filter === 'leer') l = l.filter((s) => s.spulen === 0);
   if (L.filter === 'nfc') l = l.filter((s) => s.nfc.length);
-  if (L.filter === 'ohneplatz') l = l.filter((s) => s.spulen > 0 && !platzVon(s.uid).length);
   const sp = SPALTEN.find((x) => x[0] === L.spalte) || SPALTEN[0];
   l.sort((a, b) => {
     const x = sp[2](a), y = sp[2](b);
@@ -76,7 +75,6 @@ SEITEN.lager = {
     $('#l-anzahl').textContent = `${liste.length} von ${S.sorten.length} Sorten · ${kg(liste.reduce((a, s) => a + s.bestand_g, 0))}`;
     const kopf = SPALTEN.map(([id, n, , zahl]) => `<th data-sp="${id}" class="sp-${id} ${zahl ? 'zahl-sp' : ''}">${n}${L.spalte === id ? `<span class="pfeil"> ${L.auf ? '▲' : '▼'}</span>` : ''}</th>`).join('');
     const zeilen = liste.map((s) => {
-      const platz = platzVon(s.uid);
       return `<tr data-uid="${esc(s.uid)}" class="${s.uid === L.auswahl ? 'an' : ''}">
         <td><div class="reihe gap10 mitte"><div class="swatch s22" style="background:${esc(s.hex)}"></div><div class="spalte minw0">
           <span class="ellipse" style="font-weight:700;max-width:300px">${esc(s.kurzname)}</span>
@@ -85,11 +83,10 @@ SEITEN.lager = {
         <td class="sub13 sp-hersteller">${esc(s.hersteller)}</td>
         <td class="zahl-sp"><span class="anz${s.spulen === 0 ? ' leer' : ''}">${s.spulen}</span>${s.refills ? `<span class="sub12"> · ${s.refills} Refill</span>` : ''}</td>
         <td class="zahl-sp" style="white-space:nowrap">${s.reste.length ? s.reste.slice(0, 2).map((r) => `<span class="chip o" style="margin-left:4px">${r} g</span>`).join('') + (s.reste.length > 2 ? `<span class="sub12"> +${s.reste.length - 2}</span>` : '') : '<span class="sub12">–</span>'}</td>
-        <td class="zahl-sp anz">${kg(s.bestand_g)}</td>
-        <td class="sub12 ellipse sp-platz" style="max-width:170px">${platz.length ? esc(platz[0].text) + (platz.length > 1 ? ` +${platz.length - 1}` : '') : '–'}</td></tr>`;
+        <td class="zahl-sp anz">${kg(s.bestand_g)}</td></tr>`;
     }).join('');
     $('#l-tabelle').innerHTML = S.sorten.length
-      ? `<table><thead><tr>${kopf}</tr></thead><tbody>${zeilen || `<tr><td colspan="6" class="leer-hinweis">Keine Sorte passt zur Suche</td></tr>`}</tbody></table>`
+      ? `<table><thead><tr>${kopf}</tr></thead><tbody>${zeilen || `<tr><td colspan="5" class="leer-hinweis">Keine Sorte passt zur Suche</td></tr>`}</tbody></table>`
       : `<div class="leer-hinweis">${S.lagerOk ? 'Das Lager ist leer' : esc(S.lagerGrund || 'Lager wird geladen …')}</div>`;
   },
   detail() {
@@ -99,7 +96,6 @@ SEITEN.lager = {
     if (!s) { el.innerHTML = ''; return; }
     const zeile = (n, w) => (w === '' || w == null || w === -1 ? '' : `<div class="info-zeile"><span>${n}</span><span>${esc(w)}</span></div>`);
     const temp = (a, b) => (a > 0 && b > 0 ? `${a}–${b} °C` : a > 0 ? `ab ${a} °C` : '');
-    const platz = platzVon(s.uid);
     el.innerHTML = `
       <div class="detail-kopf"><div class="swatch s72" style="background:${esc(s.hex)}"></div>
         <div class="spalte gap4 minw0 wachsen"><span class="ueber">${esc(s.hersteller || 'Sorte')}</span><span class="name24">${esc(s.kurzname)}</span>
@@ -122,16 +118,13 @@ SEITEN.lager = {
       <div class="spalte gap6"><span class="ueber">NFC-Tags</span>
         ${s.nfc.length ? s.nfc.map((t) => `<div class="reihe mitte gap8"><span class="chip b">${icon('nfc', 12)} ${esc(t)}</span>${s.waage[t] ? `<span class="sub12">zuletzt ${gramm(s.waage[t])}</span>` : ''}
           <button class="x-knopf rechtsb" data-tag="${esc(t)}" title="Tag entfernen">✕</button></div>`).join('') : '<span class="sub13">Noch kein Tag – Spule auf die Waage legen und zuordnen</span>'}</div>
-      <div class="spalte gap6"><span class="ueber">Regalplatz</span>
-        ${platz.length ? platz.map((p) => `<span class="sub13">${esc(p.text)}</span>`).join('') : '<span class="sub13">Noch keinem Regal zugeordnet</span>'}</div>
       <div class="info-liste">${zeile('Düse', temp(s.duese_min, s.duese_max))}${zeile('Bett', temp(s.bett_min, s.bett_max))}
         ${zeile('Trocknen', s.trocknen_c > 0 ? `${s.trocknen_c} °C${s.trocknen_h > 0 ? ` · ${s.trocknen_h} h` : ''}` : '')}
         ${zeile('Durchmesser', `${String(s.durchmesser).replace('.', ',')} mm`)}${zeile('Bambu-ID', s.bambu_id)}${zeile('Farbcode', s.fcode)}
         ${zeile('Barcodes', s.codes.join(', '))}${zeile('Leerspule', gramm(leerG(s)))}${zeile('Name im Lager', s.summary)}</div>
       <div class="reihe gap8" style="flex-wrap:wrap">
         <button class="knopf primaer" id="d-ams">In AMS-Slot eintragen</button>
-        <button class="knopf rahmen" id="d-etikett">Etikett</button>
-        <button class="knopf rahmen" id="d-regal">Regalplatz</button></div>`;
+        <button class="knopf rahmen" id="d-etikett">Etikett</button></div>`;
     $('#d-zu').onclick = () => { L.auswahl = ''; this.tabelle(); this.detail(); };
     $('#d-minus').onclick = () => lagerAendern({ op: 'spulen', sorte: s.uid, delta: -1 });
     $('#d-plus').onclick = () => lagerAendern({ op: 'spulen', sorte: s.uid, delta: 1 });
@@ -146,7 +139,6 @@ SEITEN.lager = {
     $('#d-leer-ok').onclick = () => lagerAendern({ op: 'leer', sorte: s.uid, gramm: Number($('#d-leer').value) || -1 });
     $('#d-ams').onclick = () => slotWaehlenFuer(s);
     $('#d-etikett').onclick = () => { E.auswahl = new Set([s.uid]); zeigen('etiketten'); };
-    $('#d-regal').onclick = () => { R.suche = s.uid; zeigen('regale'); };
   },
 };
 

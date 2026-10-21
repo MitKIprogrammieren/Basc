@@ -8,7 +8,6 @@ const S = {
   drucker: [], ausgeblendet: [],
   waage: { gramm: 0, stabil: false, kalibriert: false, tagL: '', tagR: '', verbunden: false },
   ha: { verbunden: false, grund: '' },
-  regale: { regale: [], plaetze: {} },
   protokoll: [],
 };
 const SEITEN = {};
@@ -32,7 +31,6 @@ const ICON = {
   wiegen: '<path d="M4 20h16"/><path d="M6 20l2-9h8l2 9"/><path d="M12 11V5"/><path d="M8 5h8"/>',
   lager: '<rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01"/>',
   drucker: '<rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 8.5h16"/><path d="M10.2 8.5v2.2h3.6V8.5"/><path d="M7.5 16.5h9"/>',
-  regale: '<path d="M4 3v18M20 3v18M4 8h16M4 14h16M4 20h16"/><circle cx="9" cy="11" r="1.6"/><circle cx="14" cy="11" r="1.6"/><circle cx="11" cy="17" r="1.6"/>',
   etiketten: '<path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.5"/>',
   einst: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
   suche: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -134,7 +132,7 @@ function bestaetigen(titel, text, knopf = 'OK', gefaehrlich = false) {
 }
 
 // ------------------------------------------------------------ Rahmen
-const NAVI = [['wiegen', 'Wiegen'], ['lager', 'Lager'], ['drucker', 'Drucker'], ['regale', 'Regale'], ['etiketten', 'Etiketten'], ['einst', 'Einstellungen']];
+const NAVI = [['wiegen', 'Wiegen'], ['lager', 'Lager'], ['drucker', 'Drucker'], ['etiketten', 'Etiketten'], ['einst', 'Einstellungen']];
 
 function naviZeichnen() {
   const zahl = { lager: S.sorten.length || '', drucker: S.drucker.filter((d) => !S.ausgeblendet.includes(d.id)).length || '' };
@@ -183,13 +181,3 @@ function neuZeichnen(art) {
 // ------------------------------------------------------------ gemeinsame Lager-Aktionen
 const lagerAendern = (d) => aktion(() => window.fl.lager_aendern(d));
 
-async function regaleSpeichern() {
-  await aktion(() => window.fl.regale_speichern(S.regale), false);
-}
-function platzVon(uid) {
-  return Object.entries(S.regale.plaetze).filter(([, p]) => p.sorte === uid).map(([k]) => {
-    const [rid, e, pl] = k.split('/');
-    const r = S.regale.regale.find((x) => x.id === rid);
-    return r ? { key: k, regal: r, text: `${r.name} · Ebene ${Number(e) + 1} · Platz ${Number(pl) + 1}` } : null;
-  }).filter(Boolean);
-}

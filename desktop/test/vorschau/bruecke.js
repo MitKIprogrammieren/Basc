@@ -6,12 +6,6 @@
   const melden = (k, d) => (hoerer[k] || []).forEach((f) => f(d));
   let sorten = m.lagerAusAntwort(window.__testdaten, 'todo.filament');
   const drucker = window.__m.demo.demoDrucker(sorten);
-  let regale = {
-    regale: [{ id: 'r1', name: 'Regal Keller', unter: 'links an der Wand', ebenen: 4, plaetze: 6 }, { id: 'r2', name: 'Trockenbox', unter: '', ebenen: 1, plaetze: 4 }],
-    plaetze: {},
-  };
-  sorten.slice(0, 15).forEach((s, i) => { regale.plaetze[`r1/${Math.floor(i / 6)}/${i % 6}`] = { sorte: s.uid }; });
-  regale.plaetze['r2/0/1'] = { sorte: sorten[20].uid };
   let einst = {
     ha: { url: 'http://homeassistant.local:8123', todo: 'todo.filament', zertifikatPruefen: true, tokenGesetzt: false },
     waage: { art: 'demo', adresse: 'filamentwaage.local', port: 8080, leerspule_g: 250 }, drucker: { namen: {}, ausgeblendet: [] },
@@ -61,10 +55,6 @@
     waage_tara: async () => melden('meldung', { text: 'Tara gesetzt', fehler: false }),
     waage_kal: async () => {},
     waage_holen: async () => w,
-    regale_holen: async () => regale,
-    regale_speichern: async (d) => { regale = d; return true; },
-    regale_export: async () => true,
-    regale_import: async () => null,
     etikett_png: async () => true,
     etikett_drucken: async () => true,
     extern_oeffnen: async () => {},

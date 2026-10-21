@@ -44,7 +44,6 @@ SEITEN.einst = {
           <div class="info-zeile"><span>Version</span><span>${esc(S.version)}</span></div>
           <div class="info-zeile"><span>Lager</span><span>${S.sorten.length} Sorten${S.demo ? ' (Beispiel)' : ''}</span></div>
           <div class="info-zeile"><span>Drucker</span><span>${S.drucker.length}</span></div>
-          <div class="info-zeile"><span>Regale</span><span>${S.regale.regale.length} · auf diesem Mac gespeichert</span></div>
         </div>
         <span class="hinweis">Teil des Projekts bambu-scale. Aufbau angelehnt an Tiger Studio Manager (TigerTag-Projekt, MIT) – eigene App, nicht mit TigerTag verbunden.</span>
       </section></div>`;
@@ -55,7 +54,7 @@ SEITEN.einst = {
       $('#w-hinweis').innerHTML = art === 'pi'
         ? 'Liest das Gewicht von der Oberfläche der Pad-7-/Pi-Waage (Port 8080) – die Waage bleibt am Pad 7 bedienbar. Dafür auf dem Pad in <code>/etc/filamentwaage/config.toml</code> unter <code>[server]</code> <code>adresse = "0.0.0.0"</code> setzen und den Dienst neu starten.'
         : art === 'tcp' ? 'Verbindet sich direkt mit der Sensorplatine (Port 4711). Die Platine bedient nur eine Gegenstelle – ein verbundenes Pad 7 wird dabei getrennt.'
-          : art === 'demo' ? 'Beispielszenen ohne Hardware.' : 'Ohne Waage – Lager, Drucker, Regale und Etiketten gehen trotzdem.';
+          : art === 'demo' ? 'Beispielszenen ohne Hardware.' : 'Ohne Waage – Lager, Drucker und Etiketten gehen trotzdem.';
     };
     artHinweis();
     $('#w-art').addEventListener('click', (ev) => {
