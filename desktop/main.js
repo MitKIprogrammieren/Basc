@@ -228,6 +228,12 @@ function anwenden() {
     senden('ha-status', { verbunden: false, grund: '', demo: true });
   } else {
     dr.demo = null;
+    dr.karte = null;
+    lager.sorten = [];
+    lager.ok = false;
+    lager.grund = 'Verbinde mit Home Assistant …';
+    senden('lager', lagerFuerOberflaeche());
+    druckerSenden();
     ha.konfigurieren({ url: einst.ha.url, token: token(), zertifikatPruefen: einst.ha.zertifikatPruefen });
   }
   const w = einst.waage;
