@@ -46,4 +46,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/studio-v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.dmg --title "FilamentLager Studio ${GITHUB_REF_NAME#studio-v}" --notes "Mac-App zur FilamentLager-Waage. Erster Start: Rechtsklick auf die App → Öffnen."
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.dmg \
+            --title "FilamentLager Studio ${GITHUB_REF_NAME#studio-v}" \
+            --notes "Mac-App zur FilamentLager-Waage. Erster Start mit Rechtsklick auf die App und dann Öffnen."
