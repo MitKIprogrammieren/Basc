@@ -1,0 +1,69 @@
+{
+  "name": "filamentlager-studio",
+  "productName": "FilamentLager Studio",
+  "version": "1.0.0",
+  "description": "Mac-App für die FilamentLager-Waage: Lager aus Home Assistant, Live-Waage, Bambu-Drucker mit AMS, Regal-Plan und Etiketten",
+  "main": "main.js",
+  "license": "MIT",
+  "author": "MitKIprogrammieren",
+  "scripts": {
+    "start": "electron .",
+    "demo": "electron . --demo",
+    "test": "node --test test/*.test.js",
+    "build:mac": "electron-builder --mac --publish never",
+    "build:mac:unsigned": "electron-builder --mac --publish never -c.mac.identity=null",
+    "vorschau": "node test/vorschau/server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "de.mitkiprogrammieren.filamentlager-studio",
+    "productName": "FilamentLager Studio",
+    "files": [
+      "main.js",
+      "preload.js",
+      "services/**",
+      "renderer/**",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "extendInfo": {
+        "NSBluetoothAlwaysUsageDescription": "FilamentLager Studio druckt Etiketten auf deinem Phomemo-Drucker über Bluetooth.",
+        "NSLocalNetworkUsageDescription": "FilamentLager Studio verbindet sich mit Home Assistant und deiner Waage im Heimnetz."
+      },
+      "identity": "-",
+      "hardenedRuntime": false,
+      "notarize": false
+    },
+    "dmg": {
+      "title": "FilamentLager Studio"
+    },
+    "extraResources": [
+      {
+        "from": "../testdaten",
+        "to": "testdaten"
+      }
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "artifactName": "FilamentLager-Studio-${version}-${arch}.${ext}"
+  }
+}

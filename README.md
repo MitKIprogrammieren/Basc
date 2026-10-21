@@ -90,6 +90,12 @@ Ohne fertiges Image:
 - Die Waage braucht nur die Dienste `todo.get_items` und `todo.update_item` für `todo.filament`.
 - Was genau geschrieben wird: [docs/LAGER.md](docs/LAGER.md)
 
+## Mac-App: FilamentLager Studio
+
+Für den Schreibtisch gibt es die Mac-App in [`desktop/`](desktop/README.md): Lager aus Home Assistant, Live-Gewicht von der
+Waage, alle Bambu-Drucker mit AMS-Belegung, Regal-Plan und Etikettendruck (Phomemo M20Pro). Die fertige `.dmg` baut
+GitHub Actions bei jedem Push (*Actions → FilamentLager Studio (Mac)*).
+
 ## Entwicklung und Tests
 
 ```bash
@@ -118,6 +124,7 @@ Protokoll der Sensorplatine: [docs/PROTOKOLL.md](docs/PROTOKOLL.md)
 | WLAN-Verbindung Pi/Pad 7 ↔ Sensorplatine (Python) | Tests gegen nachgebaute Sensorplatine |
 | ESP32-Display-Treiber, Touch, WLAN, Sensor-Firmware | **noch nicht auf echter Hardware** – Pins und Display-Timing beim ersten Start prüfen |
 | Pad-7-Installation (CB1) | **noch nicht auf echter Hardware** |
+| Mac-App (desktop/) | Datenmodell gegen modell.py verglichen, HA und Waage gegen Nachbauten getestet, Oberfläche im Browser geprüft – **Phomemo-Bluetooth-Druck noch nicht am echten Gerät** |
 
 ## Schrift
 

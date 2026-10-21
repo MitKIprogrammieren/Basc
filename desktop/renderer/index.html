@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'">
+<title>FilamentLager Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="leiste">
+    <div class="marke">
+      <span class="logo" aria-hidden="true"><span></span></span>
+      <div><b>FilamentLager</b><small>Studio</small></div>
+    </div>
+    <nav class="navi" id="navi" aria-label="Bereiche"></nav>
+    <div class="status-block" id="status-block"></div>
+  </aside>
+  <section class="inhalt">
+    <header class="kopf">
+      <h1 id="titel">Wiegen</h1><span class="sub" id="titel-sub"></span>
+      <div class="rechts" id="kopf-rechts"></div>
+    </header>
+    <main class="seite" id="seite"></main>
+  </section>
+</div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<div id="dialog-ort"></div>
+<script src="lib/qrcode.min.js"></script>
+<script src="app.js"></script>
+<script src="wiegen.js"></script>
+<script src="lager.js"></script>
+<script src="drucker.js"></script>
+<script src="regale.js"></script>
+<script src="etiketten.js"></script>
+<script src="einstellungen.js"></script>
+<script src="start.js"></script>
+</body>
+</html>
