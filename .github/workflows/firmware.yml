@@ -10,6 +10,7 @@ on:
       - "firmware/display-5inch/src/model.*"
       - "firmware/display-5inch/src/ha_client.*"
       - "pi/filamentwaage/web/**"
+      - "pi/hersteller/**"
       - "tools/webflasher/**"
       - ".github/workflows/firmware.yml"
   workflow_dispatch:

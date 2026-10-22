@@ -304,6 +304,41 @@ void arbeiter(void*) {
     }
 }
 
+// ---------------------------------------------------------------- Herstellerbilder
+// Dateiname wie kurz() in etiketten.py: „Bambu Lab“ → „bambu-lab“. Die Bilder kommen aus pi/hersteller.
+String kurz(const std::string& name) {
+    std::string n;
+    for (size_t i = 0; i < name.size(); i++) {
+        unsigned char c = name[i];
+        if (c == 0xC3 && i + 1 < name.size()) {  // ä ö ü ß Ä Ö Ü in UTF-8
+            unsigned char d = name[++i];
+            if (d == 0xA4 || d == 0x84) n += "ae";
+            else if (d == 0xB6 || d == 0x96) n += "oe";
+            else if (d == 0xBC || d == 0x9C) n += "ue";
+            else if (d == 0x9F) n += "ss";
+            else n += '-';
+            continue;
+        }
+        if (isalnum(c) && c < 0x80) n += (char)tolower(c);
+        else n += '-';
+    }
+    std::string out;
+    for (char c : n)
+        if (c != '-' || (!out.empty() && out.back() != '-')) out += c;
+    while (!out.empty() && out.back() == '-') out.pop_back();
+    return String(out.substr(0, 60).c_str());
+}
+
+String bild_pfad(const std::string& hersteller) {
+    String k = kurz(hersteller);
+    if (!k.length() || !g_fs_ok) return "";
+    for (const char* e : {".png", ".jpg", ".webp"}) {
+        String p = "/hersteller/" + k + e;
+        if (LittleFS.exists(p)) return p;
+    }
+    return "";
+}
+
 // ---------------------------------------------------------------- JSON für die Oberfläche
 void sorte_json(JsonObject o, const Filament& f) {
     char hex[8];
@@ -489,15 +524,18 @@ void routen() {
     auto etikett = [](AsyncWebServerRequest* r) {
         JsonDocument d;
         drucker_einstellungen(d);
-        d["bilder"].to<JsonObject>();
-        d["bilder_eigen"].to<JsonArray>();
+        JsonObject bilder = d["bilder"].to<JsonObject>();
+        d["bilder_eigen"].to<JsonArray>();  // hochladen geht nur über das Repository (pi/hersteller)
         JsonArray h = d["hersteller"].to<JsonArray>();
         std::lock_guard<std::mutex> l(g_mx);
         std::vector<std::string> namen;
         for (const Filament& f : g_lager.sorten)
             if (!f.hersteller.empty() && std::find(namen.begin(), namen.end(), f.hersteller) == namen.end()) namen.push_back(f.hersteller);
         std::sort(namen.begin(), namen.end());
-        for (const auto& n : namen) h.add(n);
+        for (const auto& n : namen) {
+            h.add(n);
+            if (bild_pfad(n).length()) bilder[n] = 1;
+        }
         String url = g_ha.url;
         while (url.endsWith("/")) url.remove(url.length() - 1);
         d["lager_url"] = url + "/todo?entity_id=" + g_ha.todo;
@@ -518,8 +556,16 @@ void routen() {
         angenommen(r);
     }, 160 * 1024);
     post("/api/hersteller_bild/loeschen", [](AsyncWebServerRequest* r, JsonObject) { angenommen(r); });
+    g_server.on("/api/hersteller_bild", HTTP_GET, [](AsyncWebServerRequest* r) {
+        String p = bild_pfad(r->hasParam("name") ? r->getParam("name")->value().c_str() : "");
+        if (!p.length()) return r->send(404, "text/plain", "kein Bild");
+        const char* typ = p.endsWith(".png") ? "image/png" : p.endsWith(".jpg") ? "image/jpeg" : "image/webp";
+        AsyncWebServerResponse* res = r->beginResponse(LittleFS, p, typ);
+        res->addHeader("Cache-Control", "max-age=3600");
+        r->send(res);
+    });
     g_server.on("/api/hersteller_bild", HTTP_POST, [](AsyncWebServerRequest* r) {
-        ok_text(r, false, "Herstellerbilder gibt es nur in der Pi-Variante – das Etikett zeigt den Namen");
+        ok_text(r, false, "Auf der Sensorplatine: Bild im Repository unter pi/hersteller ablegen, dann neu flashen");
     });
 
     post("/api/tara", [](AsyncWebServerRequest* r, JsonObject) {

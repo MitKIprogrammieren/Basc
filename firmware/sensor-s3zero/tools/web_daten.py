@@ -12,6 +12,8 @@ except NameError:  # direkt aufgerufen: python3 tools/web_daten.py
     projekt = pathlib.Path(__file__).resolve().parent.parent
 
 quelle = projekt.parent.parent / "pi" / "filamentwaage" / "web"
+bilder = projekt.parent.parent / "pi" / "hersteller"  # Herstellerbilder für die Etiketten
+BILD_MAX = 150 * 1024
 ziel = projekt / "data"
 
 if not quelle.is_dir():
@@ -32,3 +34,23 @@ else:
             gz.write(datei.read_bytes())
         summe += aus.stat().st_size
     print(f"web_daten: Oberfläche nach data/ gelegt ({summe // 1024} KB)")
+
+    # Herstellerbilder (bambu-lab.png …) unverändert dazulegen – sie sind schon komprimiert
+    if bilder.is_dir():
+        ziel_b = ziel / "hersteller"
+        anzahl, groesse = 0, 0
+        for datei in sorted(bilder.iterdir()):
+            if datei.suffix.lower() not in (".png", ".jpg", ".webp") or not datei.is_file():
+                continue
+            if datei.stat().st_size > BILD_MAX:
+                print(f"web_daten: {datei.name} ist größer als {BILD_MAX // 1024} KB – nicht auf die Waage gelegt (bitte verkleinern)")
+                continue
+            ziel_b.mkdir(exist_ok=True)
+            name = datei.stem.lower() + (".jpg" if datei.suffix.lower() == ".jpeg" else datei.suffix.lower())
+            shutil.copyfile(datei, ziel_b / name)
+            anzahl += 1
+            groesse += datei.stat().st_size
+        if anzahl:
+            print(f"web_daten: {anzahl} Herstellerbilder ({groesse // 1024} KB)")
+        if summe + groesse > 1200 * 1024:
+            print("web_daten: WARNUNG – Oberfläche und Bilder sind zusammen größer als 1,2 MB, das Dateisystem hat 1,4 MB")

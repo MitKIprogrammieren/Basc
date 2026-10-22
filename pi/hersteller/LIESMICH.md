@@ -7,6 +7,10 @@ Bilder in diesem Ordner druckt die Waage oben aufs Etikett, statt des Hersteller
 - PNG, JPG oder WebP; am besten schwarz auf weiß oder transparent, querformatig, etwa 400 × 80 Punkte
 - Das Etikett wird schwarz-weiß gedruckt: Farben werden hell oder dunkel – kräftige Kontraste wirken am besten
 
+**Sensorplatine (ESP32):** Die Bilder kommen beim Build mit aufs Gerät – Bild hier ablegen, auf GitHub hochladen,
+den neuen Webflasher aus dem Branch `webflasher-bin` nehmen und flashen. Pro Bild höchstens 150 KB, zusammen
+am besten unter 500 KB (das Dateisystem der Platine hat 1,4 MB, die Oberfläche braucht davon 770 KB).
+
 `install.sh` kopiert den Ordner nach `/opt/filamentwaage/hersteller`. Ein Bild, das du in der Waage unter
 **Einstellungen → Etiketten** hochlädst, hat Vorrang vor dem Bild hier.
 
