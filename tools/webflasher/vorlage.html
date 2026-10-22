@@ -22,6 +22,8 @@ input{font:inherit;color:var(--text);background:var(--feld);border:1px solid var
 input:focus{outline:2px solid var(--gruen);outline-offset:1px;border-color:transparent}
 .zeile{display:flex;gap:8px;align-items:center}.zeile input{flex:1}
 .klein{font-size:13px;color:var(--sub);line-height:1.5}
+label.haken{flex-direction:row;align-items:center;gap:10px;color:var(--text);font-size:14px;cursor:pointer}
+label.haken input{width:18px;height:18px;margin:0;accent-color:var(--gruen)}
 button{font-family:inherit;font-size:16px;font-weight:600;border-radius:14px;height:50px;cursor:pointer;width:100%}
 button:disabled{opacity:.4;cursor:default}
 button:focus-visible{outline:2px solid var(--gruen-t);outline-offset:2px}
@@ -53,7 +55,8 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
   <label for="ssid">WLAN-Name<input id="ssid" autocomplete="off" spellcheck="false" placeholder="FRITZ!Box 7590 XY" maxlength="32"></label>
   <label for="pw">Passwort
    <span class="zeile"><input id="pw" type="password" autocomplete="off" maxlength="63"><button class="rahmen klein-k" id="zeigen" type="button">Zeigen</button></span></label>
-  <div class="klein">Nur 2,4 GHz – der ESP32 sieht kein 5-GHz-WLAN. Die Daten gehen nur per USB an die Waage, nirgendwo sonst hin.</div>
+  <label class="haken" for="merken"><input type="checkbox" id="merken"> Auf diesem Mac merken</label>
+  <div class="klein">Leer lassen, wenn die Waage schon im WLAN war – sie behält es beim Flashen. Nur 2,4 GHz – der ESP32 sieht kein 5-GHz-WLAN. Die Daten gehen nur per USB an die Waage, nirgendwo sonst hin.</div>
  </div>
  <div class="panel" id="pFlash">
   <div class="ueber">2 · Waage per USB anstecken</div>
@@ -91,16 +94,34 @@ function log(t){ const l=$('log'); l.textContent += t + "\n"; l.scrollTop = l.sc
 const terminal = { clean(){}, writeLine(d){ log(d); }, write(d){ log(d); } };
 function meldung(t, art){ $('meldung').textContent = t; $('meldung').className = art || ''; }
 function schritt(n, zustand){ $('s'+n).className = zustand; }
-function alleSchritte(){ for (let i=1;i<=5;i++) schritt(i,''); $('ipText').textContent='–'; }
+function alleSchritte(){ for (let i=1;i<=5;i++) schritt(i,''); $('ipText').textContent='–'; $('s4').textContent='WLAN übertragen'; }
 function sperren(an){ $('flashen').disabled = an; $('nurWlan').disabled = an; }
 
 if (!('serial' in navigator)) { $('keinSerial').hidden = false; sperren(true); }
 $('zeigen').onclick = () => { const p=$('pw'); p.type = p.type==='password' ? 'text' : 'password'; $('zeigen').textContent = p.type==='password' ? 'Zeigen' : 'Verbergen'; };
 
-function wlanDaten(){
+// WLAN-Daten auf diesem Mac merken (nur im Browser, nur wenn das Häkchen gesetzt ist)
+try {
+  const w = JSON.parse(localStorage.getItem('fl_wlan') || 'null');
+  if (w && w.ssid) { $('ssid').value = w.ssid; $('pw').value = w.pw || ''; $('merken').checked = true; }
+} catch (e) { /* ohne Speicher eben jedes Mal eintippen */ }
+function merken(){
+  try {
+    if ($('merken').checked && $('ssid').value.trim()) localStorage.setItem('fl_wlan', JSON.stringify({ ssid: $('ssid').value.trim(), pw: $('pw').value }));
+    else localStorage.removeItem('fl_wlan');
+  } catch (e) { /* egal */ }
+}
+$('merken').onchange = merken;
+
+// leerErlaubt: beim Flashen darf das WLAN leer bleiben – die Waage behält ihr gespeichertes
+function wlanDaten(leerErlaubt){
   const ssid = $('ssid').value.trim(), pw = $('pw').value;
-  if (!ssid) { meldung('Trag zuerst den WLAN-Namen ein.', 'fehler'); $('ssid').focus(); return null; }
+  if (!ssid) {
+    if (leerErlaubt) return { leer: true };
+    meldung('Trag zuerst den WLAN-Namen ein.', 'fehler'); $('ssid').focus(); return null;
+  }
   if (pw && pw.length < 8) { meldung('Das Passwort ist kürzer als 8 Zeichen – bitte prüfen.', 'fehler'); $('pw').focus(); return null; }
+  merken();
   return { ssid, pw };
 }
 $('ssid').oninput = $('pw').oninput = () => { if ($('meldung').className==='fehler') meldung(''); };
@@ -175,6 +196,17 @@ async function portWiederfinden(alt){
 }
 
 async function wlanUebertragen(l, daten){
+  if (daten.leer) {  // nichts übertragen, nur warten, bis die Waage mit ihrem gespeicherten WLAN im Netz ist
+    schritt(4, 'ok'); $('s4').textContent = 'WLAN übertragen – übersprungen, die Waage nutzt ihr gespeichertes';
+    schritt(5, 'laeuft'); meldung('Warte, bis die Waage im WLAN ist…');
+    for (let i=0;i<30;i++) {
+      await sleep(1000);
+      await l.senden({ c:'info' });
+      let info; try { info = await l.warten(o => o.t === 'info', 1500); } catch { continue; }
+      if (info.wlan && info.ip && info.ip !== '0.0.0.0') return info;
+    }
+    throw new Error('Die Waage hat kein WLAN gespeichert oder findet es nicht – WLAN-Name und Passwort eintragen und „Nur WLAN übertragen“.');
+  }
   schritt(4, 'laeuft'); meldung('Übertrage WLAN…');
   let antw = null;
   for (let v=0; v<5 && !antw; v++) {
@@ -207,7 +239,7 @@ function fehler(e, nr){
 }
 
 $('flashen').onclick = async () => {
-  const daten = wlanDaten(); if (!daten) return;
+  const daten = wlanDaten(true); if (!daten) return;
   let port; try { port = await navigator.serial.requestPort(); } catch { return; }
   sperren(true); alleSchritte(); $('pAblauf').classList.remove('aktiv'); $('balken').style.width='0';
   let nr = 1, transport;
