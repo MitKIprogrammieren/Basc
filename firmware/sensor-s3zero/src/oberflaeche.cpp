@@ -699,7 +699,7 @@ void routen() {
     }, 160 * 1024);
     post("/api/etikett/trennen", [](AsyncWebServerRequest* r, JsonObject) {
         drucker_trennen();
-        angenommen(r);
+        ok_text(r, true, "Drucker getrennt und entfernt – über „Drucker suchen“ neu einrichten");
     });
     post("/api/hersteller_bild/loeschen", [](AsyncWebServerRequest* r, JsonObject) { angenommen(r); });
     g_server.on("/api/hersteller_bild", HTTP_GET, [](AsyncWebServerRequest* r) {

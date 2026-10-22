@@ -331,11 +331,7 @@ void arbeiter(void*) {
                     NimBLEDevice::deleteClient(c);
                 }
                 NimBLEDevice::getScan()->stop();
-                meldung(n ? "Verbindung zum Drucker getrennt" : "Die Waage war nicht mit dem Drucker verbunden");
-                std::lock_guard<std::mutex> l(g_mx);
-                g_druck_bericht = n ? "von Hand getrennt" : "Trennen: keine offene Verbindung";
-            } else if (trennen) {
-                meldung("Bluetooth ist aus – keine Verbindung offen");
+                if (n) meldung("Offene Bluetooth-Verbindung zum Drucker gelöst");
             }
             if (los) {
                 g_ble_marke = BLE_LAEUFT;
@@ -453,6 +449,12 @@ const char* drucker_drucken(JsonObjectConst o) {
 void drucker_trennen() {
     std::lock_guard<std::mutex> l(g_mx);
     g_trennen_wunsch = true;
+    // Drucker auch vergessen – danach frisch über „Drucker suchen“ einrichten
+    g_w.adresse = "";
+    g_w.name = "";
+    g_w.adress_typ = 0;
+    speichern();
+    g_druck_bericht = "getrennt und entfernt";
 }
 
 bool drucker_suche(JsonDocument& d) {

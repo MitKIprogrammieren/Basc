@@ -777,7 +777,14 @@ async function etEinstKlick(d) {
   if (d.et === "dichte") return etSetzen({ dichte: Number(d.v) });
   if (d.et === "waehlen") { await etSetzen({ adresse: d.adresse, name: d.name }); return meldung(`${d.name} gewählt`); }
   if (d.et === "test") return etikettOeffnen(Etikett.TEST, 0);
-  if (d.et === "trennen") { await post("/api/etikett/trennen"); setTimeout(etLaden, 1500); return; }
+  if (d.et === "trennen") {
+    try {
+      const j = await (await fetch("/api/etikett/trennen", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).json();
+      meldung(j.text || "Getrennt", !j.ok);
+    } catch (e) { meldung("Waage nicht erreichbar", true); }
+    S.etGeraete = null;
+    return etLaden();
+  }
   if (d.et === "bild_weg") {
     await post("/api/hersteller_bild/loeschen", { name: d.name });
     return etLaden();
