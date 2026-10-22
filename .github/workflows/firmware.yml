@@ -1,0 +1,70 @@
+# Baut die Firmware der Sensorplatine und legt sie für den Webflasher bereit.
+# Ergebnis liegt im Branch "webflasher-bin": sensor-s3zero.bin (komplettes Image ab 0x0) + esptool-js.
+name: Firmware Sensorplatine
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firmware/sensor-s3zero/**"
+      - ".github/workflows/firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/sensor-s3zero/platformio.ini') }}
+
+      - name: PlatformIO installieren
+        run: pip install platformio
+
+      - name: Firmware bauen
+        working-directory: firmware/sensor-s3zero
+        run: pio run
+
+      - name: Ein Image für den Webflasher zusammenfügen
+        working-directory: firmware/sensor-s3zero
+        run: |
+          B=.pio/build/s3zero
+          APP0=$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -1)
+          pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32s3 merge_bin -o sensor-s3zero.bin \
+            --flash_mode keep --flash_freq keep --flash_size keep \
+            0x0 $B/bootloader.bin 0x8000 $B/partitions.bin 0xe000 "$APP0" 0x10000 $B/firmware.bin
+          ls -l sensor-s3zero.bin
+
+      - name: esptool-js holen
+        run: |
+          mkdir -p /tmp/ej && cd /tmp/ej
+          npm pack esptool-js@0.5 >/dev/null
+          tar xzf esptool-js-*.tgz
+          ls package
+          node -e "console.log(require('./package/package.json').version)" > version.txt
+
+      - name: In den Branch webflasher-bin legen
+        run: |
+          mkdir -p /tmp/aus
+          cp firmware/sensor-s3zero/sensor-s3zero.bin /tmp/aus/
+          cp /tmp/ej/package/bundle.js /tmp/aus/esptool-js.mjs
+          cp /tmp/ej/package/LICENSE /tmp/aus/esptool-js.LICENSE.txt 2>/dev/null || true
+          FW=$(grep -oP 'FW_VERSION "\K[^"]+' firmware/sensor-s3zero/include/config.h)
+          printf '{"fw":"%s","commit":"%s","esptool_js":"%s"}\n' "$FW" "${GITHUB_SHA::7}" "$(cat /tmp/ej/version.txt)" > /tmp/aus/version.json
+          cd /tmp/aus
+          git init -q -b webflasher-bin
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Firmware $FW (${GITHUB_SHA::7})"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" webflasher-bin

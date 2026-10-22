@@ -133,7 +133,7 @@ void nfc_task(void*) {
 struct Kanal {
     Stream* s;
     int de;  // RS485-Senderfreigabe, -1 = keine
-    char puf[160];
+    char puf[300];  // reicht auch für den WLAN-Befehl mit langem Passwort
     size_t n = 0;
 };
 
@@ -192,6 +192,10 @@ void status_senden(Stream* s) {
     senden(s, d);
 }
 
+#if WLAN_AKTIV
+void wlan_setzen(const char* ssid, const char* pw);
+#endif
+
 // Startet Tara oder Kalibrieren; Rückgabe = Fehlertext oder nullptr
 const char* vorgang_starten(bool kal, int gramm, Stream* s) {
     if (g_vorgang != Vorgang::KEINER) return "beschäftigt";
@@ -228,7 +232,26 @@ void befehl(Stream* s, const char* zeile) {
         d["roh"] = g_roh_median;
         d["offset"] = g_offset;
         d["faktor"] = g_faktor;
+#if WLAN_AKTIV
+        d["wlan"] = WiFi.status() == WL_CONNECTED;
+        d["ssid"] = WiFi.SSID();
+        d["ip"] = WiFi.localIP().toString();
+#endif
         senden(s, d);
+    } else if (!strcmp(c, "wlan")) {
+        // vom Webflasher: {"c":"wlan","ssid":"…","pw":"…"} – speichert das Heim-WLAN, kein Setup-WLAN nötig
+#if WLAN_AKTIV
+        const char* ssid = doc["ssid"] | "";
+        const char* pw = doc["pw"] | "";
+        if (!*ssid || strlen(ssid) > 32 || strlen(pw) > 63) {
+            antwort(s, false, c, "WLAN-Name oder Passwort ungültig");
+            return;
+        }
+        wlan_setzen(ssid, pw);
+        antwort(s, true, c);
+#else
+        antwort(s, false, c, "WLAN ist abgeschaltet");
+#endif
     }
 }
 
@@ -349,6 +372,14 @@ void wlan_start() {
     g_wm.autoConnect(WLAN_SETUP_NAME);
     g_server.begin();
     g_server.setNoDelay(true);
+}
+
+void wlan_setzen(const char* ssid, const char* pw) {
+    if (g_wm.getConfigPortalActive()) g_wm.stopConfigPortal();
+    WiFi.persistent(true);  // bleibt nach dem Neustart gespeichert, WiFiManager nutzt es beim nächsten Start
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+    WiFi.begin(ssid, pw);
 }
 
 void wlan_weiter() {
