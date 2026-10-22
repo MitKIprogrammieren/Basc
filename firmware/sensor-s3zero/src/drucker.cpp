@@ -153,7 +153,7 @@ String eigenschaften(NimBLERemoteCharacteristic* k) {
     return e;
 }
 
-String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_t typ) {
+String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_t typ, const String& name) {
     if (!adresse.length()) return "Kein Drucker eingestellt – unter Einstellungen → Etiketten suchen";
     if (g_ble_gesperrt) return GESPERRT;
     uint32_t t0 = millis();
@@ -165,14 +165,46 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
         }
         Serial.printf("# Druck: %s\n", t.c_str());
     };
-    stand("verbinde mit " + adresse);
+    // Viele Phomemo (z. B. M20 Pro) wechseln ihre Bluetooth-Adresse – deshalb vor jedem Druck kurz suchen
+    // und den Drucker am Namen wiedererkennen; die gemerkte Adresse ist nur der Notnagel.
+    stand("suche " + (name.length() ? name : adresse));
+    NimBLEAddress ziel_adresse(adresse.c_str(), typ);
+    bool gefunden = false;
+    {
+        NimBLEScan* scan = NimBLEDevice::getScan();
+        scan->setActiveScan(true);
+        scan->setInterval(100);
+        scan->setWindow(99);
+        NimBLEScanResults r = scan->start(4, false);
+        for (int i = 0; i < r.getCount() && !gefunden; i++) {
+            NimBLEAdvertisedDevice d = r.getDevice(i);
+            String n = d.getName().c_str();
+            n.trim();
+            String a = d.getAddress().toString().c_str();
+            if ((name.length() && n == name) || a.equalsIgnoreCase(adresse)) {
+                ziel_adresse = d.getAddress();
+                gefunden = true;
+            }
+        }
+        scan->clearResults();
+    }
+    if (gefunden && !String(ziel_adresse.toString().c_str()).equalsIgnoreCase(adresse)) {
+        // neue Adresse merken
+        std::lock_guard<std::mutex> l(g_mx);
+        g_w.adresse = ziel_adresse.toString().c_str();
+        g_w.adress_typ = ziel_adresse.getType();
+        speichern();
+    }
+    stand(String(gefunden ? "gefunden, " : "nicht gefunden, versuche trotzdem ") + "verbinde mit " + ziel_adresse.toString().c_str());
     NimBLEClient* c = NimBLEDevice::createClient();
     c->setConnectTimeout(10);
-    bool verbunden = c->connect(NimBLEAddress(adresse.c_str(), typ));
-    if (!verbunden) verbunden = c->connect(NimBLEAddress(adresse.c_str(), typ ? 0 : 1));  // anderer Adresstyp
+    bool verbunden = c->connect(ziel_adresse);
+    if (!verbunden && !gefunden) verbunden = c->connect(NimBLEAddress(adresse.c_str(), typ ? 0 : 1));  // anderer Adresstyp
     if (!verbunden) {
         NimBLEDevice::deleteClient(c);
-        return "Drucker nicht erreichbar – eingeschaltet? Phomemo-App am Handy trennen";
+        stand(String(gefunden ? "gefunden, aber Verbindung abgelehnt" : "Drucker nicht gefunden"));
+        return gefunden ? "Drucker gefunden, lässt aber keine Verbindung zu – Phomemo-App am Handy schließen"
+                        : "Drucker nicht gefunden – eingeschaltet und in der Nähe der Waage?";
     }
     stand("verbunden, lese Dienste");
     NimBLERemoteCharacteristic* ziel = nullptr;
@@ -285,7 +317,7 @@ void arbeiter(void*) {
         for (int i = 0; i < d->kopien; i++) befehle(auftrag, breite, d->hoehe, raster, w.dichte);
         meldung("Drucke Etikett …");
         g_ble_marke = BLE_LAEUFT;
-        String fehler = senden(auftrag, w.adresse, w.adress_typ);
+        String fehler = senden(auftrag, w.adresse, w.adress_typ, w.name);
         g_ble_marke = 0;
         if (fehler.length()) meldung(fehler, true);
         else meldung(d->kopien == 1 ? String("Etikett gedruckt") : String(d->kopien) + " Etiketten gedruckt");
