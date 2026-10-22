@@ -196,7 +196,9 @@ std::shared_ptr<const std::string> lager_als_json(const Lager& lager, int versio
         sorte_json(d.to<JsonObject>(), f);
         if (!erstes) *s += ',';
         erstes = false;
-        serializeJson(d, *s);
+        std::string teil;  // serializeJson überschreibt das Ziel – deshalb erst einzeln, dann anhängen
+        serializeJson(d, teil);
+        *s += teil;
     }
     *s += "]}";
     return s;
