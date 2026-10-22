@@ -32,7 +32,7 @@ button { font-family: inherit; color: inherit; }
 .status { display: flex; align-items: center; gap: 6px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rand); }
 .dot.an { background: var(--gruen); } .dot.aus { background: var(--rot); }
-#wlan.aus { color: var(--rot); }
+#wlan.aus { color: var(--rot); } #wlan.an svg { color: var(--gruen); }
 .uhr { font-weight: 600; font-size: 14px; color: var(--text); }
 
 /* Grundbausteine */

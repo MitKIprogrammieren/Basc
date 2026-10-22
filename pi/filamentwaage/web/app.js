@@ -114,6 +114,7 @@ function kopf() {
   $("st-drucker").classList.toggle("versteckt", z.drucker === undefined);
   if (z.drucker !== undefined) $("dot-drucker").className = "dot " + (z.drucker === 2 ? "aus" : z.drucker === 1 ? "an" : "");
   $("wlan").classList.toggle("aus", !z.ip);
+  $("wlan").classList.toggle("an", !!z.ip);
   $("uhr").textContent = z.uhrzeit || "--:--";
 }
 
