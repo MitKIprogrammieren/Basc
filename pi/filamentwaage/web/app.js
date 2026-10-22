@@ -540,7 +540,7 @@ function einst() {
         <div class="info-zeile"><span>Sorten im Lager</span><span>${S.sorten.length}</span></div>
         <div class="info-zeile"><span>IP-Adresse</span><span>${esc(z.ip || "–")}</span></div></div>
       ${e.update ? `<button class="knopf primaer h50" data-system="einspielen">Update einspielen …</button>
-        <input type="file" id="e-update" accept=".html,text/html" hidden>
+        <input type="file" id="e-update" hidden>
         <span class="hinweis">Datei FilamentLager-Webflasher.html wählen – die Waage nimmt sich Firmware und Oberfläche daraus und startet neu. Kalibrierung, WLAN und Einstellungen bleiben.</span>
         ${S.update ? `<div class="balken"><div style="width:${S.update.p}%;background:var(--gruen)"></div></div><span class="sub14">${esc(S.update.text)}</span>` : ""}` : ""}
       <div class="e-zeile"><button class="knopf rahmen h50 wachsen" data-system="neu_laden">Lager neu laden</button>
