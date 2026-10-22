@@ -170,23 +170,39 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
     stand("suche " + (name.length() ? name : adresse));
     NimBLEAddress ziel_adresse(adresse.c_str(), typ);
     bool gefunden = false;
+    String gesehen;
     {
+        // bis zu 10 s suchen, aufhören sobald er da ist
+        struct Suche : public NimBLEAdvertisedDeviceCallbacks {
+            String name, adresse, gesehen;
+            NimBLEAddress treffer;
+            volatile bool fertig = false;
+            void onResult(NimBLEAdvertisedDevice* d) override {
+                String n = d->getName().c_str();
+                n.trim();
+                String a = d->getAddress().toString().c_str();
+                if (n.length() && gesehen.length() < 300 && gesehen.indexOf(n) < 0) gesehen += (gesehen.length() ? ", " : "") + n;
+                bool name_passt = name.length() && n.length() && (n.equalsIgnoreCase(name) || n.startsWith(name.substring(0, 8)));
+                if (!fertig && (name_passt || a.equalsIgnoreCase(adresse))) {
+                    treffer = d->getAddress();
+                    fertig = true;
+                    NimBLEDevice::getScan()->stop();
+                }
+            }
+        } suche;
+        suche.name = name;
+        suche.adresse = adresse;
         NimBLEScan* scan = NimBLEDevice::getScan();
+        scan->setAdvertisedDeviceCallbacks(&suche, false);
         scan->setActiveScan(true);
         scan->setInterval(100);
         scan->setWindow(99);
-        NimBLEScanResults r = scan->start(4, false);
-        for (int i = 0; i < r.getCount() && !gefunden; i++) {
-            NimBLEAdvertisedDevice d = r.getDevice(i);
-            String n = d.getName().c_str();
-            n.trim();
-            String a = d.getAddress().toString().c_str();
-            if ((name.length() && n == name) || a.equalsIgnoreCase(adresse)) {
-                ziel_adresse = d.getAddress();
-                gefunden = true;
-            }
-        }
+        scan->start(10, false);
+        scan->setAdvertisedDeviceCallbacks(nullptr);
         scan->clearResults();
+        gefunden = suche.fertig;
+        if (gefunden) ziel_adresse = suche.treffer;
+        gesehen = suche.gesehen;
     }
     if (gefunden && !String(ziel_adresse.toString().c_str()).equalsIgnoreCase(adresse)) {
         // neue Adresse merken
@@ -202,9 +218,10 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
     if (!verbunden && !gefunden) verbunden = c->connect(NimBLEAddress(adresse.c_str(), typ ? 0 : 1));  // anderer Adresstyp
     if (!verbunden) {
         NimBLEDevice::deleteClient(c);
-        stand(String(gefunden ? "gefunden, aber Verbindung abgelehnt" : "Drucker nicht gefunden"));
+        stand(String(gefunden ? "gefunden, aber Verbindung abgelehnt" : "Drucker nicht gefunden") + "; gesehen: " +
+              (gesehen.length() ? gesehen : String("nichts mit Namen")));
         return gefunden ? "Drucker gefunden, lässt aber keine Verbindung zu – Phomemo-App am Handy schließen"
-                        : "Drucker nicht gefunden – eingeschaltet und in der Nähe der Waage?";
+                        : "Drucker nicht gefunden – ist er noch mit dem Handy oder Mac verbunden? Dort trennen, Drucker aus und ein";
     }
     stand("verbunden, lese Dienste");
     NimBLERemoteCharacteristic* ziel = nullptr;
