@@ -290,7 +290,9 @@ void vorgang_weiter(long roh) {
 void wlan_start() {
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(WLAN_HOSTNAME);
-    WiFi.setSleep(false);  // sonst kommen die Antworten mit Verzögerung
+    // Ohne Stromsparen antwortet das WLAN schneller – mit Bluetooth zusammen verlangt der ESP32 aber
+    // den Modem-Schlaf, sonst bricht er beim WLAN-Start ab („Should enable WiFi modem sleep“).
+    WiFi.setSleep(drucker_gesperrt() ? WIFI_PS_NONE : WIFI_PS_MIN_MODEM);
     g_wm.setConfigPortalBlocking(false);  // Waage misst weiter, während das Setup-WLAN offen ist
     g_wm.setConfigPortalTimeout(0);
     g_wm.setTitle("FilamentLager-Waage");
