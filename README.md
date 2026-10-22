@@ -52,7 +52,8 @@ cp include/secrets.example.h include/secrets.h   # WLAN, HA-Adresse und Token ei
 pio run -t upload
 ```
 
-Die Sensorplatine hat außerdem eine eigene Webseite: **http://filamentwaage.local** (Gewicht, NFC, Tara, Kalibrieren).
+Die Sensorplatine liefert außerdem die komplette Oberfläche aus: **http://filamentwaage.local** im Browser öffnen –
+am Mac, Handy oder Tablet, ganz ohne Display oder Pi.
 
 Danach am Display: **Einstellungen → Tara** bei leerem Teller, Gewicht auflegen, **Kalibrieren**.
 
@@ -104,6 +105,16 @@ Ohne fertiges Image:
 3. `tools/pad7_paket.sh` baut `filamentwaage-pad7.zip` – den Ordner daraus auf die Partition BOOT kopieren,
    Token in `config.pad7.toml` eintragen.
 4. Am Pad 7 einmal `sudo bash /boot/filamentwaage/install-pad7.sh` – danach startet es direkt in die Waage.
+
+## Nur Sensorplatine, Bedienung im Browser
+
+Ohne Display und ohne Pi: Die Sensorplatine (ESP32-S3-Zero) liefert die komplette Oberfläche selbst aus.
+
+1. `FilamentLager-Webflasher.html` (Branch `webflasher-bin`) in Chrome öffnen, WLAN eintragen, *Verbinden und flashen*.
+2. **http://filamentwaage.local** oder die angezeigte IP öffnen – am Mac, Handy oder Tablet.
+3. *Einstellungen → Home Assistant*: Adresse und Token eintragen, *Speichern*.
+
+Etiketten und die AMS-Anzeige gibt es in dieser Bauart nicht.
 
 ## Home Assistant
 
