@@ -19,5 +19,7 @@ const char* drucker_drucken(JsonObjectConst o);
 bool drucker_suche(JsonDocument& d);
 // alle Bluetooth-Verbindungen lösen (läuft im Drucker-Task)
 void drucker_trennen();
+// für die Kopfleiste: 0 = kein Drucker, 1 = eingerichtet, 2 = letzter Druck fehlgeschlagen
+int drucker_zustand();
 
 extern void (*g_drucker_meldung)(const String& text, bool fehler);

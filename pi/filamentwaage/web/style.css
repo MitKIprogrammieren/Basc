@@ -24,7 +24,7 @@ button { font-family: inherit; color: inherit; }
 .kopf { height: 46px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
   padding: 0 18px; border-bottom: 1px solid var(--linie); }
 .kopf-links, .kopf-rechts { display: flex; align-items: center; gap: 10px; }
-.kopf-rechts { gap: 14px; font-size: 12px; color: var(--sub); }
+.kopf-rechts { gap: 12px; font-size: 12px; color: var(--sub); }
 .logo { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--gruen); display: grid; place-items: center; }
 .logo span { width: 6px; height: 6px; border-radius: 50%; background: var(--gruen); }
 .titel { font-weight: 700; font-size: 17px; }

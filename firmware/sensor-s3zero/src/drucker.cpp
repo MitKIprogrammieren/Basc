@@ -53,6 +53,7 @@ bool g_suche_fertig = false, g_suche_laeuft = false, g_suche_wunsch = false;
 String g_suche_fehler;
 bool g_druckt = false;
 bool g_trennen_wunsch = false;
+int g_letzter_druck = -1;  // -1 = noch keiner, 0 = fehlgeschlagen, 1 = geklappt
 QueueHandle_t g_druecke = nullptr;
 Preferences g_prefs;
 bool g_ble_an = false;
@@ -354,6 +355,10 @@ void arbeiter(void*) {
         g_ble_marke = BLE_LAEUFT;
         String fehler = senden(auftrag, w.adresse, w.adress_typ, w.name);
         g_ble_marke = 0;
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            g_letzter_druck = fehler.length() ? 0 : 1;
+        }
         if (fehler.length()) meldung(fehler, true);
         else meldung(d->kopien == 1 ? String("Etikett gedruckt") : String(d->kopien) + " Etiketten gedruckt");
         {
@@ -446,8 +451,16 @@ const char* drucker_drucken(JsonObjectConst o) {
     return nullptr;
 }
 
+int drucker_zustand() {
+    std::lock_guard<std::mutex> l(g_mx);
+    if (g_ble_gesperrt && g_w.adresse.length()) return 2;
+    if (!g_w.adresse.length()) return 0;
+    return g_letzter_druck == 0 ? 2 : 1;
+}
+
 void drucker_trennen() {
     std::lock_guard<std::mutex> l(g_mx);
+    g_letzter_druck = -1;
     g_trennen_wunsch = true;
     // Drucker auch vergessen – danach frisch über „Drucker suchen“ einrichten
     g_w.adresse = "";

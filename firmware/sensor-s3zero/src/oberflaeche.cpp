@@ -506,6 +506,7 @@ String zustand_text() {
     d["uhrzeit"] = uhr;
     d["version"] = FW_VERSION;
     d["ip"] = ip_text();
+    d["drucker"] = drucker_zustand();
     String s;
     serializeJson(d, s);
     return s;

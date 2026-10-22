@@ -108,6 +108,11 @@ function kopf() {
   $("dot-l").className = "dot " + (z.tag_l ? "an" : aus);
   $("dot-r").className = "dot " + (z.tag_r ? "an" : aus);
   $("dot-ha").className = "dot " + (z.ha_ok ? "an" : "aus");
+  // Waage: grün = misst und ist kalibriert, rot = Wägezelle antwortet nicht, grau = nicht kalibriert
+  $("dot-waage").className = "dot " + (!z.sensor_ok ? "aus" : z.kalibriert ? "an" : "");
+  // Drucker (nur Sensorplatine): grün = eingerichtet, rot = letzter Druck fehlgeschlagen, grau = keiner
+  $("st-drucker").classList.toggle("versteckt", z.drucker === undefined);
+  if (z.drucker !== undefined) $("dot-drucker").className = "dot " + (z.drucker === 2 ? "aus" : z.drucker === 1 ? "an" : "");
   $("wlan").classList.toggle("aus", !z.ip);
   $("uhr").textContent = z.uhrzeit || "--:--";
 }
