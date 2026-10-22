@@ -17,5 +17,7 @@ void drucker_setzen(JsonObjectConst o);
 const char* drucker_drucken(JsonObjectConst o);
 // Bluetooth-Suche: startet sie bei Bedarf. true = fertig, Ergebnis in d ({ok, text, geraete})
 bool drucker_suche(JsonDocument& d);
+// alle Bluetooth-Verbindungen lösen (läuft im Drucker-Task)
+void drucker_trennen();
 
 extern void (*g_drucker_meldung)(const String& text, bool fehler);

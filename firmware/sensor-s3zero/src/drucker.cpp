@@ -9,6 +9,7 @@
 #include <mbedtls/base64.h>
 
 #include <algorithm>
+#include <list>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -51,6 +52,7 @@ std::vector<Geraet> g_geraete;
 bool g_suche_fertig = false, g_suche_laeuft = false, g_suche_wunsch = false;
 String g_suche_fehler;
 bool g_druckt = false;
+bool g_trennen_wunsch = false;
 QueueHandle_t g_druecke = nullptr;
 Preferences g_prefs;
 bool g_ble_an = false;
@@ -309,11 +311,31 @@ void arbeiter(void*) {
     for (;;) {
         Druck* d = nullptr;
         if (xQueueReceive(g_druecke, &d, pdMS_TO_TICKS(200)) != pdTRUE) {
-            bool los;
+            bool los, trennen;
             {
                 std::lock_guard<std::mutex> l(g_mx);
                 los = g_suche_wunsch;
                 g_suche_wunsch = false;
+                trennen = g_trennen_wunsch;
+                g_trennen_wunsch = false;
+            }
+            if (trennen && g_ble_an) {
+                // alle Bluetooth-Verbindungen der Waage lösen – auch hängende von früheren Druckversuchen
+                int n = 0;
+                std::list<NimBLEClient*> liste = *NimBLEDevice::getClientList();
+                for (NimBLEClient* c : liste) {
+                    if (c->isConnected()) {
+                        c->disconnect();
+                        n++;
+                    }
+                    NimBLEDevice::deleteClient(c);
+                }
+                NimBLEDevice::getScan()->stop();
+                meldung(n ? "Verbindung zum Drucker getrennt" : "Die Waage war nicht mit dem Drucker verbunden");
+                std::lock_guard<std::mutex> l(g_mx);
+                g_druck_bericht = n ? "von Hand getrennt" : "Trennen: keine offene Verbindung";
+            } else if (trennen) {
+                meldung("Bluetooth ist aus – keine Verbindung offen");
             }
             if (los) {
                 g_ble_marke = BLE_LAEUFT;
@@ -385,6 +407,10 @@ void drucker_einstellungen(JsonDocument& d) {
     JsonArray f = d["formate"].to<JsonArray>();
     for (const char* x : {"classic", "expanded", "compact", "vertikal"}) f.add(x);
     d["druckt"] = g_druckt;
+    bool verbunden = false;
+    if (g_ble_an)
+        for (NimBLEClient* c : *NimBLEDevice::getClientList()) verbunden |= c->isConnected();
+    d["verbunden"] = verbunden;
 }
 
 void drucker_setzen(JsonObjectConst o) {
@@ -422,6 +448,11 @@ const char* drucker_drucken(JsonObjectConst o) {
     std::lock_guard<std::mutex> l(g_mx);
     g_druck_bericht = "Auftrag angenommen: " + String(breite) + "×" + String(hoehe) + " Punkte, wartet auf den Drucker";
     return nullptr;
+}
+
+void drucker_trennen() {
+    std::lock_guard<std::mutex> l(g_mx);
+    g_trennen_wunsch = true;
 }
 
 bool drucker_suche(JsonDocument& d) {

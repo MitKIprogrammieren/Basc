@@ -697,6 +697,10 @@ void routen() {
         if (const char* f = drucker_drucken(o)) return ok_text(r, false, f, 400);
         angenommen(r);
     }, 160 * 1024);
+    post("/api/etikett/trennen", [](AsyncWebServerRequest* r, JsonObject) {
+        drucker_trennen();
+        angenommen(r);
+    });
     post("/api/hersteller_bild/loeschen", [](AsyncWebServerRequest* r, JsonObject) { angenommen(r); });
     g_server.on("/api/hersteller_bild", HTTP_GET, [](AsyncWebServerRequest* r) {
         std::string name = r->hasParam("name") ? r->getParam("name")->value().c_str() : "";
