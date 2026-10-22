@@ -23,3 +23,4 @@ extern void (*g_vorgang_fertig)(bool ok, const String& text);
 void wlan_setzen(const char* ssid, const char* pw);
 void alles_zuruecksetzen();  // Kalibrierung und WLAN löschen (Werkseinstellungen)
 bool pad_verbunden();        // gerade hängt ein Pad 7 / Pi an Port 4711
+String start_bericht();  // Grund des letzten Neustarts, für /api/diagnose

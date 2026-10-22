@@ -132,7 +132,7 @@ class Leitung {
         let i;
         while ((i = this.puffer.indexOf('\n')) >= 0) {
           const z = this.puffer.slice(0, i).trim(); this.puffer = this.puffer.slice(i+1);
-          if (!z.startsWith('{')) continue;
+          if (!z.startsWith('{')) { if (z) log('· ' + z); continue; }
           let o; try { o = JSON.parse(z); } catch { continue; }
           log('← ' + z);
           const w = this.warter.findIndex(w => w.passt(o));

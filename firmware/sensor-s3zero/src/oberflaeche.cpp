@@ -601,6 +601,7 @@ void routen() {
         int g = (int)esp_reset_reason();
         d["neustart_grund"] = g >= 0 && g < 11 ? GRUND[g] : "unbekannt";
         d["bluetooth_gesperrt"] = drucker_gesperrt();
+        d["start"] = start_bericht();
         senden(r, 200, d);
     });
     g_server.on("/api/einstellungen", HTTP_GET, [](AsyncWebServerRequest* r) {

@@ -12,6 +12,7 @@
 #include <HX711.h>
 #include <Preferences.h>
 #include <esp_heap_caps.h>
+#include <esp_system.h>
 #if WLAN_AKTIV
 #include <ESPmDNS.h>
 #include <WiFi.h>
@@ -369,6 +370,40 @@ void led() {
 
 }  // namespace
 
+// ---------------------------------------------------------------- Startprotokoll
+// Überlebt Neustarts (nicht das Abschalten): welcher Startschritt zuletzt lief und wie oft die Waage
+// kurz hintereinander neu gestartet ist. Ab dem zweiten schnellen Neustart startet sie ohne Bluetooth.
+RTC_NOINIT_ATTR uint32_t g_rtc_marke, g_rtc_schritt, g_rtc_neustarts;
+constexpr uint32_t RTC_GUELTIG = 0x57414147;  // "WAAG"
+const char* const SCHRITTE[] = {"–", "Start", "Bluetooth", "Speicher", "USB/RS485", "Waage", "NFC", "WLAN", "läuft"};
+uint32_t g_vorher_schritt = 0, g_neustarts = 0;
+bool g_sicherer_start = false;
+String g_start_grund;
+
+void schritt(uint32_t n) {
+    g_rtc_schritt = n;
+    if (n >= 4) Serial.printf("# Start: %s\n", SCHRITTE[n]);
+}
+
+const char* grund_text(esp_reset_reason_t g) {
+    switch (g) {
+        case ESP_RST_POWERON: return "eingeschaltet";
+        case ESP_RST_SW: return "neu gestartet";
+        case ESP_RST_PANIC: return "Absturz";
+        case ESP_RST_INT_WDT: return "Watchdog (Interrupt)";
+        case ESP_RST_TASK_WDT: return "Watchdog (Task)";
+        case ESP_RST_WDT: return "Watchdog";
+        case ESP_RST_BROWNOUT: return "Unterspannung";
+        case ESP_RST_USB: return "USB";
+        default: return "anderer Grund";
+    }
+}
+
+String start_bericht() {
+    return "grund=" + g_start_grund + ", letzter Schritt davor=" + SCHRITTE[g_vorher_schritt < 9 ? g_vorher_schritt : 0] +
+           ", schnelle Neustarts=" + String(g_neustarts) + (g_sicherer_start ? ", ohne Bluetooth gestartet" : "");
+}
+
 // ---------------------------------------------------------------- für die Oberfläche (sensor.h)
 void (*g_vorgang_fertig)(bool ok, const String& text) = nullptr;
 
@@ -429,12 +464,33 @@ void alles_zuruecksetzen() {
 #endif
 
 void setup() {
-    // Bluetooth zuerst, solange alles im internen Speicher landet
-    drucker_frueh();
+    esp_reset_reason_t grund = esp_reset_reason();
+    g_start_grund = grund_text(grund);
+    if (g_rtc_marke != RTC_GUELTIG || grund == ESP_RST_POWERON) {
+        g_rtc_marke = RTC_GUELTIG;
+        g_rtc_neustarts = 0;
+        g_rtc_schritt = 0;
+    } else if (g_rtc_schritt != 8) {
+        g_rtc_neustarts++;  // die letzte Runde kam nie bis „läuft“
+    }
+    g_vorher_schritt = g_rtc_schritt;
+    g_neustarts = g_rtc_neustarts;
+    g_sicherer_start = g_neustarts >= 2;
+
+    Serial.setTxTimeoutMs(0);  // ohne angeschlossenen Rechner nicht warten
+    Serial.begin(115200);
+    schritt(1);
+    Serial.printf("# FilamentLager-Waage %s: %s\n", FW_VERSION, start_bericht().c_str());
+    // Bluetooth zuerst, solange alles im internen Speicher landet – aber nicht, wenn die Waage gerade
+    // mehrmals hintereinander beim Start neu gestartet ist
+    schritt(2);
+    drucker_frueh(!g_sicherer_start);
+    delay(300);  // Strom nach dem Bluetooth-Start erst beruhigen lassen, dann WLAN
     // Danach alles ab 256 Byte ins PSRAM: Das Lager (Hunderte Sorten) würde sonst den internen
     // Speicher füllen, den WLAN und der Webserver brauchen.
+    schritt(3);
     if (psramFound()) heap_caps_malloc_extmem_enable(256);
-    Serial.begin(115200);
+    schritt(4);
     Serial0.setRxBufferSize(512);
     Serial0.begin(RS485_BAUD, SERIAL_8N1, RS485_RX, RS485_TX);
     if (RS485_DE >= 0) {
@@ -442,14 +498,17 @@ void setup() {
         digitalWrite(RS485_DE, LOW);
     }
 
+    schritt(5);
     kal_laden();
     g_hx.begin(HX711_DOUT, HX711_SCK);
+    schritt(6);
 
     bool r = g_nfc_r.begin(Serial1, NFC_R_RX, NFC_R_TX, NFC_R_RST);
     bool l = g_nfc_l.begin(Serial2, NFC_L_RX, NFC_L_TX, NFC_L_RST);
     xTaskCreatePinnedToCore(nfc_task, "nfc", 4096, nullptr, 1, nullptr, 0);
 #if WLAN_AKTIV
     pinMode(BOOT_TASTE, INPUT_PULLUP);
+    schritt(7);
     wlan_start();
 #endif
 
@@ -463,6 +522,12 @@ void setup() {
 }
 
 void loop() {
+    // 15 s ohne Neustart: gilt als gut gestartet
+    if (g_rtc_schritt != 8 && millis() > 15000) {
+        g_rtc_schritt = 8;
+        g_rtc_neustarts = 0;
+        Serial.println("# Start: läuft");
+    }
     if (g_hx.is_ready()) {
         long roh = g_hx.read();
         messen(roh);

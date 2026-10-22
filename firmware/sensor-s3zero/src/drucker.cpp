@@ -245,9 +245,10 @@ void arbeiter(void*) {
 
 }  // namespace
 
-void drucker_frueh() {
+void drucker_frueh(bool erlaubt) {
     // Nach einem Absturz mitten in einer Bluetooth-Aktion Bluetooth sperren
-    if (esp_reset_reason() == ESP_RST_PANIC && g_ble_marke == BLE_LAEUFT) g_ble_gesperrt = true;
+    if (esp_reset_reason() != ESP_RST_POWERON && g_ble_marke == BLE_LAEUFT) g_ble_gesperrt = true;
+    if (!erlaubt) g_ble_gesperrt = true;
     g_ble_marke = 0;
     // Bluetooth gleich beim Start einschalten, solange der interne Speicher noch frei ist und bevor
     // große Speicherblöcke ins PSRAM umgeleitet werden – der Bluetooth-Teil braucht internen Speicher.

@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 
 // Ganz am Anfang von setup(): Bluetooth einschalten (oder nach Absturz sperren)
-void drucker_frueh();
+void drucker_frueh(bool erlaubt);
 bool drucker_gesperrt();
 void drucker_start();
 // Einstellungen für /api/etikett/einstellungen (ohne Hersteller und Lager-Adresse)
