@@ -17,11 +17,13 @@
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <esp_heap_caps.h>
 #include <time.h>
 
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 
 #include "config.h"
@@ -38,6 +40,9 @@ std::mutex g_mx;  // schützt alles darunter
 
 Lager g_lager;
 int g_lager_version = 0;
+// Fertiges JSON für /api/lager – einmal nach jedem Laden gebaut, liegt im PSRAM und wird
+// stückweise ausgeliefert. 236 Sorten sind gut 150 KB, das passt nicht in den internen Speicher.
+std::shared_ptr<const std::string> g_lager_json = std::make_shared<const std::string>("{\"version\":0,\"sorten\":[]}");
 bool g_ha_ok = false;
 bool g_fs_ok = false;
 
@@ -174,14 +179,39 @@ HaCfg ha_cfg() {
     return g_ha;
 }
 
+void sorte_json(JsonObject o, const Filament& f);
+
+std::shared_ptr<const std::string> lager_als_json(const Lager& lager, int version) {
+    auto s = std::make_shared<std::string>();
+    s->reserve(lager.sorten.size() * 700 + 64);
+    *s += "{\"version\":" + std::to_string(version) + ",\"sorten\":[";
+    bool erstes = true;
+    for (const Filament& f : lager.sorten) {  // Sorte für Sorte, damit nie das ganze Lager als JsonDocument im Speicher liegt
+        JsonDocument d;
+        sorte_json(d.to<JsonObject>(), f);
+        if (!erstes) *s += ',';
+        erstes = false;
+        serializeJson(d, *s);
+    }
+    *s += "]}";
+    return s;
+}
+
 bool laden(std::string& fehler) {
     HaClient ha;
     if (!client_fuer(ha_cfg(), ha, fehler)) return false;
     Lager neu;
     if (!ha.lager_laden(neu, fehler)) return false;
+    int version;
+    {
+        std::lock_guard<std::mutex> l(g_mx);
+        version = g_lager_version + 1;
+    }
+    auto json = lager_als_json(neu, version);
     std::lock_guard<std::mutex> l(g_mx);
     g_lager = std::move(neu);
-    g_lager_version++;
+    g_lager_json = json;
+    g_lager_version = version;
     g_ha_ok = true;
     return true;
 }
@@ -387,13 +417,38 @@ void routen() {
         r->send(200, "application/json", zustand_text());
     });
     g_server.on("/api/lager", HTTP_GET, [](AsyncWebServerRequest* r) {
-        JsonDocument d;
+        std::shared_ptr<const std::string> json;
         {
             std::lock_guard<std::mutex> l(g_mx);
-            d["version"] = g_lager_version;
-            JsonArray a = d["sorten"].to<JsonArray>();
-            for (const Filament& f : g_lager.sorten) sorte_json(a.add<JsonObject>(), f);
+            json = g_lager_json;
         }
+        AsyncWebServerResponse* res = r->beginResponse(
+            "application/json; charset=utf-8", json->size(), [json](uint8_t* puf, size_t max, size_t index) -> size_t {
+                size_t n = std::min(max, json->size() - index);
+                memcpy(puf, json->data() + index, n);
+                return n;
+            });
+        res->addHeader("Cache-Control", "no-store");
+        r->send(res);
+    });
+    // Zum Nachsehen, wenn etwas klemmt: Speicher und Lager
+    g_server.on("/api/diagnose", HTTP_GET, [](AsyncWebServerRequest* r) {
+        JsonDocument d;
+        d["version"] = FW_VERSION;
+        d["laufzeit_s"] = millis() / 1000;
+        d["intern_frei"] = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+        d["intern_groesster_block"] = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        d["psram_gesamt"] = ESP.getPsramSize();
+        d["psram_frei"] = ESP.getFreePsram();
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            d["sorten"] = g_lager.sorten.size();
+            d["lager_version"] = g_lager_version;
+            d["lager_json_bytes"] = g_lager_json->size();
+            d["ha_ok"] = g_ha_ok;
+            d["ha_url"] = g_ha.url;
+        }
+        d["wlan_rssi"] = WiFi.RSSI();
         senden(r, 200, d);
     });
     g_server.on("/api/einstellungen", HTTP_GET, [](AsyncWebServerRequest* r) {

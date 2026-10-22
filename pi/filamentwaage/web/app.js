@@ -786,8 +786,15 @@ async function bildHochladen(input) {
 
 // ------------------------------------------------------------ Daten vom Dienst
 async function lagerLaden() {
-  const r = await fetch("/api/lager");
-  const d = await r.json();
+  let d;
+  try {
+    const r = await fetch("/api/lager", { signal: AbortSignal.timeout(20000) });
+    d = await r.json();
+  } catch (e) {
+    // nochmal versuchen: zustand() lädt neu, sobald die Version nicht mehr passt
+    setTimeout(() => { S.lagerVersion = -1; }, 3000);
+    return;
+  }
   S.sorten = d.sorten;
   S.lagerVersion = d.version;
   S.karteSchluessel = "";

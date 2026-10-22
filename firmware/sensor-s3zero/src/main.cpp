@@ -11,6 +11,7 @@
 #include <ArduinoJson.h>
 #include <HX711.h>
 #include <Preferences.h>
+#include <esp_heap_caps.h>
 #if WLAN_AKTIV
 #include <ESPmDNS.h>
 #include <WiFi.h>
@@ -427,6 +428,9 @@ void alles_zuruecksetzen() {
 #endif
 
 void setup() {
+    // Alles ab 64 Byte ins PSRAM: Das Lager (Hunderte Sorten) würde den internen Speicher füllen,
+    // den WLAN, Bluetooth und der Webserver brauchen.
+    if (psramFound()) heap_caps_malloc_extmem_enable(64);
     Serial.begin(115200);
     Serial0.setRxBufferSize(512);
     Serial0.begin(RS485_BAUD, SERIAL_8N1, RS485_RX, RS485_TX);
