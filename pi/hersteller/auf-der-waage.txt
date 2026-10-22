@@ -1,0 +1,27 @@
+# Diese Hersteller kommen mit Bild auf die Sensorplatine (ESP32) – dort ist nur Platz für eine Auswahl.
+# Ein Name pro Zeile, so geschrieben wie im Lager. Stand: Hersteller aus todo.filament am 22.10.2026.
+Bambu Lab
+Jayo
+Nobufil
+Polymaker
+Filaxix
+Sunlu
+eSUN
+CR3D
+Devil Design
+TINMORRY
+Extrudr
+iFilament
+Material4Print
+ColorFabb
+Creality
+Das Filament
+3DJAKE
+Princore
+QIDI TECH
+Spectrum
+3dk.Berlin
+Fiberlogy
+Siraya Tech
+ERYONE
+Geeetech
