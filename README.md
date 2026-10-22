@@ -47,6 +47,8 @@ cp include/secrets.example.h include/secrets.h   # WLAN, HA-Adresse und Token ei
 pio run -t upload
 ```
 
+Die Sensorplatine hat außerdem eine eigene Webseite: **http://filamentwaage.local** (Gewicht, NFC, Tara, Kalibrieren).
+
 Danach am Display: **Einstellungen → Tara** bei leerem Teller, Gewicht auflegen, **Kalibrieren**.
 
 ## Pi-Variante einrichten
@@ -92,7 +94,7 @@ beim ersten Start selbst ein. Gebaut mit `tools/pad7_image.sh` (braucht [pyfatfs
 
 Ohne fertiges Image:
 
-1. Sensorplatine flashen, über das WLAN **FilamentWaage-Setup** ins Heimnetz bringen.
+1. Sensorplatine flashen, über das WLAN **FilamentWaage-Setup** ins Heimnetz bringen. Test: http://filamentwaage.local im Browser.
 2. BTT-CB1-Image (Klipper-Version) auf die SD-Karte, WLAN in `system.cfg` eintragen.
 3. `tools/pad7_paket.sh` baut `filamentwaage-pad7.zip` – den Ordner daraus auf die Partition BOOT kopieren,
    Token in `config.pad7.toml` eintragen.

@@ -52,6 +52,23 @@ die nicht mit `{` beginnen, werden ignoriert.
 
 Zum Ausprobieren am PC: `nc filamentwaage.local 4711`, dann `{"c":"p"}` eingeben.
 
+## Webseite (ab FW 1.2.0)
+
+Sobald die Platine im Heim-WLAN ist, zeigt sie unter **http://filamentwaage.local** (oder ihrer IP aus der FritzBox)
+eine eigene Seite: Live-Gewicht, NFC links/rechts, Tara, Kalibrieren, Zustand der Sensoren, WLAN neu einrichten, Neustart.
+Die Seite liegt im Flash der Platine und läuft parallel zur Verbindung auf Port 4711.
+
+| Adresse | Methode | Antwort |
+|---|---|---|
+| `/api/status` | GET | `{"g":812.4,"st":1,"cal":1,"L":"","R":"04…","fw":"1.2.0","hx711":true,"nfc_l":true,"nfc_r":true,"ip":"…","rssi":-58,"pad":true,"vorgang":"","meldung":""}` |
+| `/api/tara` | POST | `{"ok":true,"msg":"Tara läuft…"}`, Ergebnis danach in `meldung` |
+| `/api/kal?g=1000` | POST | wie Tara |
+| `/api/wlan-reset` | POST | löscht die WLAN-Daten und startet neu |
+| `/api/neustart` | POST | startet neu |
+
+`pad` = gerade ist ein Pad 7/Pi über Port 4711 verbunden. Während das Setup-WLAN offen ist, gibt es die Seite noch nicht
+(dort läuft die WLAN-Einrichtung auf Port 80).
+
 ## Ausprobieren
 
 Mit angeschlossener Platine am PC, z. B. mit `pio device monitor` oder einem Terminal:
