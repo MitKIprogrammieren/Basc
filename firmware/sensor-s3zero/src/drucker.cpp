@@ -5,6 +5,7 @@
 
 #include <NimBLEDevice.h>
 #include <Preferences.h>
+#include <esp_system.h>
 #include <mbedtls/base64.h>
 
 #include <algorithm>
@@ -15,6 +16,12 @@
 #include "config.h"
 
 void (*g_drucker_meldung)(const String& text, bool fehler) = nullptr;
+
+// Überlebt einen Absturz (nicht aber das Abschalten): Lief beim Absturz gerade Bluetooth,
+// bleibt Bluetooth bis zum nächsten Einschalten aus – sonst startet die Waage in einer Schleife neu.
+RTC_NOINIT_ATTR uint32_t g_ble_marke;
+constexpr uint32_t BLE_LAEUFT = 0x424C4531;  // "BLE1"
+bool g_ble_gesperrt = false;
 
 namespace {
 
@@ -86,6 +93,9 @@ void ble_an() {
     g_ble_an = true;
 }
 
+const char* const GESPERRT = "Die Waage ist bei der letzten Bluetooth-Aktion abgestürzt – Bluetooth bleibt bis zum "
+                             "nächsten Aus- und Einschalten aus. Bitte /api/diagnose an den Entwickler schicken.";
+
 // ---------------------------------------------------------------- Druckbefehle
 std::vector<uint8_t> auf_kopfbreite(int breite, int hoehe, const std::vector<uint8_t>& d, int kopf, int& neu_breite) {
     kopf -= kopf % 8;
@@ -119,7 +129,7 @@ void befehle(std::vector<uint8_t>& out, int breite, int hoehe, const std::vector
 // ---------------------------------------------------------------- Bluetooth
 String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_t typ) {
     if (!adresse.length()) return "Kein Drucker eingestellt – unter Einstellungen → Etiketten suchen";
-    ble_an();
+    if (g_ble_gesperrt) return GESPERRT;
     NimBLEClient* c = NimBLEDevice::createClient();
     c->setConnectTimeout(10);
     bool verbunden = c->connect(NimBLEAddress(adresse.c_str(), typ));
@@ -158,7 +168,13 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
 }
 
 void suchen() {
-    ble_an();
+    if (g_ble_gesperrt) {
+        std::lock_guard<std::mutex> l(g_mx);
+        g_suche_fehler = GESPERRT;
+        g_suche_fertig = true;
+        g_suche_laeuft = false;
+        return;
+    }
     NimBLEScan* s = NimBLEDevice::getScan();
     s->setActiveScan(true);
     s->setInterval(100);
@@ -196,7 +212,11 @@ void arbeiter(void*) {
                 los = g_suche_wunsch;
                 g_suche_wunsch = false;
             }
-            if (los) suchen();
+            if (los) {
+                g_ble_marke = BLE_LAEUFT;
+                suchen();
+                g_ble_marke = 0;
+            }
             continue;
         }
         Werte w;
@@ -210,7 +230,9 @@ void arbeiter(void*) {
         std::vector<uint8_t> auftrag;
         for (int i = 0; i < d->kopien; i++) befehle(auftrag, breite, d->hoehe, raster, w.dichte);
         meldung("Drucke Etikett …");
+        g_ble_marke = BLE_LAEUFT;
         String fehler = senden(auftrag, w.adresse, w.adress_typ);
+        g_ble_marke = 0;
         if (fehler.length()) meldung(fehler, true);
         else meldung(d->kopien == 1 ? String("Etikett gedruckt") : String(d->kopien) + " Etiketten gedruckt");
         {
@@ -222,6 +244,21 @@ void arbeiter(void*) {
 }
 
 }  // namespace
+
+void drucker_frueh() {
+    // Nach einem Absturz mitten in einer Bluetooth-Aktion Bluetooth sperren
+    if (esp_reset_reason() == ESP_RST_PANIC && g_ble_marke == BLE_LAEUFT) g_ble_gesperrt = true;
+    g_ble_marke = 0;
+    // Bluetooth gleich beim Start einschalten, solange der interne Speicher noch frei ist und bevor
+    // große Speicherblöcke ins PSRAM umgeleitet werden – der Bluetooth-Teil braucht internen Speicher.
+    if (!g_ble_gesperrt) {
+        g_ble_marke = BLE_LAEUFT;
+        ble_an();
+        g_ble_marke = 0;
+    }
+}
+
+bool drucker_gesperrt() { return g_ble_gesperrt; }
 
 void drucker_start() {
     laden();
@@ -281,7 +318,8 @@ bool drucker_suche(JsonDocument& d) {
     std::lock_guard<std::mutex> l(g_mx);
     if (g_suche_fertig) {
         g_suche_fertig = false;
-        d["ok"] = true;
+        d["ok"] = !g_suche_fehler.length();
+        if (g_suche_fehler.length()) d["text"] = g_suche_fehler;
         JsonArray a = d["geraete"].to<JsonArray>();
         for (const Geraet& g : g_geraete) {
             JsonObject o = a.add<JsonObject>();
@@ -294,6 +332,7 @@ bool drucker_suche(JsonDocument& d) {
     if (!g_suche_laeuft) {
         g_suche_laeuft = true;
         g_suche_wunsch = true;
+        g_suche_fehler = "";
     }
     d["laeuft"] = true;
     return false;

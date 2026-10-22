@@ -26,6 +26,7 @@
 
 #include "pn532_hsu.h"
 #include "sensor.h"
+#include "drucker.h"
 
 namespace {
 
@@ -428,9 +429,11 @@ void alles_zuruecksetzen() {
 #endif
 
 void setup() {
-    // Alles ab 64 Byte ins PSRAM: Das Lager (Hunderte Sorten) würde den internen Speicher füllen,
-    // den WLAN, Bluetooth und der Webserver brauchen.
-    if (psramFound()) heap_caps_malloc_extmem_enable(64);
+    // Bluetooth zuerst, solange alles im internen Speicher landet
+    drucker_frueh();
+    // Danach alles ab 256 Byte ins PSRAM: Das Lager (Hunderte Sorten) würde sonst den internen
+    // Speicher füllen, den WLAN und der Webserver brauchen.
+    if (psramFound()) heap_caps_malloc_extmem_enable(256);
     Serial.begin(115200);
     Serial0.setRxBufferSize(512);
     Serial0.begin(RS485_BAUD, SERIAL_8N1, RS485_RX, RS485_TX);

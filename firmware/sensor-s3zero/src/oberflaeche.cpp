@@ -20,6 +20,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <esp_heap_caps.h>
+#include <esp_system.h>
 #include <time.h>
 
 #include <algorithm>
@@ -588,6 +589,12 @@ void routen() {
             d["ha_url"] = g_ha.url;
         }
         d["wlan_rssi"] = WiFi.RSSI();
+        static const char* const GRUND[] = {"unbekannt", "eingeschaltet", "extern", "neu gestartet", "Absturz",
+                                            "Watchdog (Interrupt)", "Watchdog (Task)", "Watchdog", "Tiefschlaf",
+                                            "Unterspannung", "SDIO"};
+        int g = (int)esp_reset_reason();
+        d["neustart_grund"] = g >= 0 && g < 11 ? GRUND[g] : "unbekannt";
+        d["bluetooth_gesperrt"] = drucker_gesperrt();
         senden(r, 200, d);
     });
     g_server.on("/api/einstellungen", HTTP_GET, [](AsyncWebServerRequest* r) {

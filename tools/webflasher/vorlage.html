@@ -60,6 +60,7 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
   <div class="klein">USB-C-Datenkabel an den ESP32-S3-Zero. Klappt das Verbinden nicht: <b>BOOT</b> gedrückt halten, einstecken, loslassen, nochmal versuchen.</div>
   <button class="primaer" id="flashen">Verbinden und flashen</button>
   <button class="rahmen" id="nurWlan">Nur WLAN übertragen (ohne Flashen)</button>
+  <button class="rahmen" id="ausgabe">Ausgabe der Waage ansehen</button>
   <div class="balken" aria-hidden="true"><div id="balken"></div></div>
   <div id="meldung" role="status"></div>
  </div>
@@ -237,6 +238,24 @@ $('flashen').onclick = async () => {
     fehler(e, nr === 4 ? ($('s4').className==='ok' ? 5 : 4) : nr);
     try { await transport?.disconnect(); } catch {}
   } finally { sperren(false); }
+};
+
+// Zeigt alles, was die Waage über USB schreibt – bei einem Absturz steht hier der Grund (Backtrace)
+let ausgabePort = null;
+$('ausgabe').onclick = async () => {
+  if (ausgabePort) { try { await ausgabePort.close(); } catch {} ausgabePort = null; $('ausgabe').textContent = 'Ausgabe der Waage ansehen'; return; }
+  let port; try { port = await navigator.serial.requestPort(); } catch { return; }
+  try { await port.open({ baudRate: 115200 }); } catch (e) { meldung('Port lässt sich nicht öffnen – ist er noch in einem anderen Programm offen?', 'fehler'); return; }
+  ausgabePort = port;
+  $('ausgabe').textContent = 'Ausgabe beenden';
+  document.querySelector('details').open = true;
+  meldung('Zeige die Ausgabe der Waage im Protokoll. Jetzt in der Oberfläche die Drucker-Suche starten.');
+  const w = port.writable.getWriter();
+  await w.write(enc.encode('{"c":"info"}\n')); w.releaseLock();
+  const r = port.readable.getReader(), dec = new TextDecoder();
+  try { for (;;) { const { value, done } = await r.read(); if (done) break; const t = dec.decode(value, { stream: true }); const l = $('log'); l.textContent += t; l.scrollTop = l.scrollHeight; } }
+  catch (e) { log('— Verbindung zur Waage getrennt (Neustart?) —'); }
+  finally { try { r.releaseLock(); } catch {} }
 };
 
 $('nurWlan').onclick = async () => {
