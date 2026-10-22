@@ -25,6 +25,7 @@
 #include <mutex>
 
 #include "config.h"
+#include "drucker.h"
 #include "ha_client.h"
 #include "model.h"
 #include "sensor.h"
@@ -356,13 +357,13 @@ void angenommen(AsyncWebServerRequest* r) {
 }
 
 // POST mit JSON-Körper
-void post(const char* pfad, std::function<void(AsyncWebServerRequest*, JsonObject)> fn) {
+void post(const char* pfad, std::function<void(AsyncWebServerRequest*, JsonObject)> fn, size_t max = 4096) {
     auto* h = new AsyncCallbackJsonWebHandler(pfad, [fn](AsyncWebServerRequest* r, JsonVariant& j) {
         JsonObject o = j.is<JsonObject>() ? j.as<JsonObject>() : JsonObject();
         fn(r, o);
     });
     h->setMethod(HTTP_POST);
-    h->setMaxContentLength(4096);
+    h->setMaxContentLength(max);
     g_server.addHandler(h);
 }
 
@@ -425,17 +426,14 @@ void routen() {
         senden(r, 200, d);
     });
 
-    // Etiketten und AMS gibt es nur in der Pi-Variante – die Oberfläche bekommt leere Antworten
+    // AMS gibt es nur in der Pi-Variante – die Oberfläche bekommt eine leere Antwort
     g_server.on("/api/ams", HTTP_GET, [](AsyncWebServerRequest* r) {
         r->send(200, "application/json", "{\"drucker\":[],\"abbuchungen\":[]}");
     });
+    // Etiketten: Phomemo per Bluetooth (drucker.cpp)
     auto etikett = [](AsyncWebServerRequest* r) {
         JsonDocument d;
-        d["verbindung"] = "nur Pi-Variante";
-        d["adresse"] = "";
-        d["name"] = "";
-        d["format"] = "expanded";
-        d["dichte"] = 10;
+        drucker_einstellungen(d);
         d["bilder"].to<JsonObject>();
         d["bilder_eigen"].to<JsonArray>();
         JsonArray h = d["hersteller"].to<JsonArray>();
@@ -451,13 +449,22 @@ void routen() {
         senden(r, 200, d);
     };
     g_server.on("/api/etikett/einstellungen", HTTP_GET, etikett);
-    post("/api/etikett/einstellungen", [etikett](AsyncWebServerRequest* r, JsonObject) { etikett(r); });
-    g_server.on("/api/etikett/suchen", HTTP_GET, [](AsyncWebServerRequest* r) {
-        r->send(200, "application/json",
-                "{\"ok\":false,\"text\":\"Etiketten druckt nur die Pi-Variante\",\"geraete\":[]}");
+    post("/api/etikett/einstellungen", [etikett](AsyncWebServerRequest* r, JsonObject o) {
+        drucker_setzen(o);
+        etikett(r);
     });
-    post("/api/etikett/drucken", [](AsyncWebServerRequest* r, JsonObject) {
-        ok_text(r, false, "Etiketten druckt nur die Pi-Variante (Bluetooth zum Phomemo)");
+    g_server.on("/api/etikett/suchen", HTTP_GET, [](AsyncWebServerRequest* r) {
+        JsonDocument d;
+        bool fertig = drucker_suche(d);
+        senden(r, fertig ? 200 : 202, d);
+    });
+    post("/api/etikett/drucken", [](AsyncWebServerRequest* r, JsonObject o) {
+        if (const char* f = drucker_drucken(o)) return ok_text(r, false, f, 400);
+        angenommen(r);
+    }, 160 * 1024);
+    post("/api/hersteller_bild/loeschen", [](AsyncWebServerRequest* r, JsonObject) { angenommen(r); });
+    g_server.on("/api/hersteller_bild", HTTP_POST, [](AsyncWebServerRequest* r) {
+        ok_text(r, false, "Herstellerbilder gibt es nur in der Pi-Variante – das Etikett zeigt den Namen");
     });
 
     post("/api/tara", [](AsyncWebServerRequest* r, JsonObject) {
@@ -579,6 +586,8 @@ void oberflaeche_start() {
     g_fs_ok = LittleFS.begin(false);  // nicht formatieren: sonst wäre die Oberfläche weg
     configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "fritz.box", "pool.ntp.org");
     g_vorgang_fertig = [](bool ok, const String& text) { meldung(text, !ok); };
+    g_drucker_meldung = [](const String& text, bool fehler) { meldung(text, fehler); };
+    drucker_start();
     g_auftraege = xQueueCreate(16, sizeof(Auftrag*));
     xTaskCreatePinnedToCore(arbeiter, "ha", 16384, nullptr, 1, nullptr, 1);
     routen();

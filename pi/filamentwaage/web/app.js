@@ -758,7 +758,12 @@ async function etEinstKlick(d) {
     S.etSucht = true;
     einst();
     try {
-      const r = await (await fetch("/api/etikett/suchen")).json();
+      // Die Sensorplatine sucht im Hintergrund und meldet {laeuft: true}, bis die Liste fertig ist
+      let r = { laeuft: true };
+      for (let i = 0; i < 25 && r.laeuft; i++) {
+        if (i) await new Promise((ok) => setTimeout(ok, 700));
+        r = await (await fetch("/api/etikett/suchen")).json();
+      }
       S.etGeraete = r.geraete || [];
       if (!r.ok) meldung(r.text, true);
     } catch (e) { S.etGeraete = []; meldung("Suche fehlgeschlagen", true); }

@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.0.0"
+#define FW_VERSION "2.1.0"
 
 // Wägezelle über HX711
 #define HX711_DOUT 1
@@ -40,5 +40,6 @@
 #define WLAN_HOSTNAME "filamentwaage"   // erreichbar als filamentwaage.local
 #define WLAN_PORT 4711
 #define WEB_PORT 80                 // Oberfläche: http://filamentwaage.local
-#define LAGER_NEU_LADEN_S 60        // so oft holt die Oberfläche das Lager aus Home Assistant
+#define LAGER_NEU_LADEN_S 60
+#define ETIKETT_KOPF_PX 384         // Druckbreite des Phomemo in Punkten (48 mm bei 203 dpi)        // so oft holt die Oberfläche das Lager aus Home Assistant
 #define BOOT_TASTE 0
