@@ -602,7 +602,15 @@ $("e-inhalt").onclick = async (e) => {
 async function wlanSuchen() {
   S.netze = null;
   if (S.seite === "einst" && S.eSeite === "wlan") einst();
-  try { S.netze = await (await fetch("/api/wlan/netze")).json(); } catch (e) { S.netze = []; }
+  try {
+    // Die Sensorplatine sucht im Hintergrund und meldet {laeuft: true}, bis die Liste fertig ist
+    for (let i = 0; i < 20; i++) {
+      const r = await (await fetch("/api/wlan/netze")).json();
+      if (Array.isArray(r)) { S.netze = r; break; }
+      await new Promise((ok) => setTimeout(ok, 700));
+    }
+    if (!S.netze) S.netze = [];
+  } catch (e) { S.netze = []; }
   if (S.seite === "einst" && S.eSeite === "wlan") einst();
 }
 

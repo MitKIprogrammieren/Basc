@@ -67,7 +67,7 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
   <div class="ueber">Ablauf</div>
   <ul class="schritte">
    <li id="s1">ESP32-S3 erkennen</li>
-   <li id="s2">Firmware schreiben</li>
+   <li id="s2">Firmware und Oberfläche schreiben</li>
    <li id="s3">Neustart und wieder verbinden</li>
    <li id="s4">WLAN übertragen</li>
    <li id="s5">Waage im Netz: <span id="ipText">–</span></li>
@@ -80,7 +80,7 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
 /*ESPTOOL_JS*/
 </script>
 <script type="module">
-const FIRMWARE_B64 = "__FIRMWARE_B64__";
+const TEILE = "__TEILE__";  // [{adresse, name, b64}] – Bootloader, Partitionen, Firmware, Oberfläche
 const { ESPLoader, Transport } = window.__esptool;
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -172,7 +172,7 @@ async function wlanUebertragen(l, daten){
     await l.senden({ c:'wlan', ssid: daten.ssid, pw: daten.pw }, JSON.stringify({ c:'wlan', ssid: daten.ssid, pw: '••••' }));
     try { antw = await l.warten(o => o.c === 'wlan', 1500); } catch { await sleep(500); }
   }
-  if (!antw) throw new Error('Die Waage antwortet nicht. Ist FW 1.3.0 oder neuer drauf?');
+  if (!antw) throw new Error('Die Waage antwortet nicht. Ist Firmware 1.3.0 oder neuer drauf?');
   if (antw.t !== 'ok') throw new Error(antw.msg || 'Die Waage hat das WLAN abgelehnt.');
   schritt(4, 'ok'); schritt(5, 'laeuft'); meldung('Waage verbindet sich mit „' + daten.ssid + '“…');
   for (let i=0;i<30;i++) {
@@ -188,7 +188,7 @@ function fertig(info){
   schritt(5, 'ok');
   const url = 'http://' + info.ip;
   $('ipText').innerHTML = '<span class="ip">' + url + '</span>';
-  meldung('Fertig. Webseite der Waage: ' + url + '  oder  http://filamentwaage.local', 'ok');
+  meldung('Fertig. Die Waage läuft unter ' + url + ' oder http://filamentwaage.local', 'ok');
   $('pAblauf').classList.add('aktiv');
 }
 function fehler(e, nr){
@@ -211,12 +211,16 @@ $('flashen').onclick = async () => {
     if (!/S3/i.test(chip)) throw new Error('Das ist kein ESP32-S3 (' + chip + '). Falsches Board angesteckt?');
     schritt(1,'ok');
     nr = 2; schritt(2,'laeuft'); meldung('Schreibe Firmware…');
+    const gesamt = TEILE.reduce((s, t) => s + t.b64.length, 0);
     await loader.writeFlash({
-      fileArray: [{ data: atob(FIRMWARE_B64), address: 0 }],  // esptool-js 0.5 erwartet einen Binärstring
+      fileArray: TEILE.map((t) => ({ data: atob(t.b64), address: t.adresse })),  // esptool-js 0.5 erwartet Binärstrings
       flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep', eraseAll: false, compress: true,
-      reportProgress: (i, geschrieben, gesamt) => {
-        const p = Math.round(geschrieben / gesamt * 100);
-        $('balken').style.width = p + '%'; meldung('Schreibe Firmware… ' + p + ' %');
+      reportProgress: (i, geschrieben, groesse) => {
+        // Fortschritt über alle Teile, gewichtet nach Größe
+        const vorher = TEILE.slice(0, i).reduce((s, t) => s + t.b64.length, 0);
+        const p = Math.round((vorher + TEILE[i].b64.length * geschrieben / groesse) / gesamt * 100);
+        $('balken').style.width = p + '%';
+        meldung((TEILE[i].name.startsWith('littlefs') ? 'Schreibe Oberfläche… ' : 'Schreibe Firmware… ') + p + ' %');
       },
     });
     schritt(2,'ok');

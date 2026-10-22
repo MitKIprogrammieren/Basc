@@ -2,7 +2,7 @@
 //
 // Misst das Gewicht (HX711) und liest NFC-Tags mit zwei PN532 im HSU-Modus.
 // Antwortet auf Anfragen über USB (Raspberry Pi), RS485 (5"-Display) und WLAN (Pad 7).
-// Zusätzlich eigene Webseite unter http://filamentwaage.local (Gewicht, NFC, Tara, Kalibrieren).
+// Zusätzlich die komplette Waagen-Oberfläche unter http://filamentwaage.local (oberflaeche.cpp).
 // Protokoll: eine JSON-Zeile pro Nachricht, siehe docs/PROTOKOLL.md.
 
 #include <Arduino.h>
@@ -14,10 +14,9 @@
 #if WLAN_AKTIV
 #include <ESPmDNS.h>
 #include <WiFi.h>
-#include <WebServer.h>
 #include <WiFiManager.h>
 
-#include "web_seite.h"
+#include "oberflaeche.h"
 #endif
 
 #include <algorithm>
@@ -25,6 +24,7 @@
 #include <utility>
 
 #include "pn532_hsu.h"
+#include "sensor.h"
 
 namespace {
 
@@ -70,7 +70,10 @@ long median() {
     return t[n / 2];
 }
 
+uint32_t g_letzte_messung = 0;
+
 void messen(long roh) {
+    g_letzte_messung = millis();
     g_roh[g_roh_pos] = roh;
     g_roh_pos = (g_roh_pos + 1) % MEDIAN_N;
     if (g_roh_anzahl < MEDIAN_N) g_roh_anzahl++;
@@ -101,9 +104,8 @@ enum class Vorgang { KEINER, TARA, KAL } g_vorgang = Vorgang::KEINER;
 int g_kal_gramm = 0;
 int64_t g_summe = 0;
 int g_proben = 0;
-Stream* g_antwort_an = nullptr;  // nullptr = von der Webseite gestartet
+Stream* g_antwort_an = nullptr;  // nullptr = von der Oberfläche gestartet
 constexpr int PROBEN = 15;
-String g_meldung;  // Ergebnis des letzten Vorgangs für die Webseite
 
 // ---------------------------------------------------------------- NFC (eigene Task)
 std::mutex g_nfc_mx;
@@ -144,8 +146,7 @@ WiFiServer g_server(WLAN_PORT);
 WiFiClient g_client;  // immer nur eine Gegenstelle; eine neue löst die alte ab
 Kanal g_wlan{&g_client, -1, {}, 0};
 WiFiManager g_wm;
-WebServer g_web(WEB_PORT);
-bool g_web_laeuft = false;
+bool g_oberflaeche_laeuft = false;
 #endif
 
 void senden(Stream* s, const JsonDocument& doc) {
@@ -190,27 +191,6 @@ void status_senden(Stream* s) {
         d["R"] = g_tag[1];
     }
     senden(s, d);
-}
-
-#if WLAN_AKTIV
-void wlan_setzen(const char* ssid, const char* pw);
-#endif
-
-// Startet Tara oder Kalibrieren; Rückgabe = Fehlertext oder nullptr
-const char* vorgang_starten(bool kal, int gramm, Stream* s) {
-    if (g_vorgang != Vorgang::KEINER) return "beschäftigt";
-    if (kal) {
-        if (gramm < 50) return "Kalibriergewicht fehlt";
-        g_kal_gramm = gramm;
-        g_vorgang = Vorgang::KAL;
-    } else {
-        g_vorgang = Vorgang::TARA;
-    }
-    g_summe = 0;
-    g_proben = 0;
-    g_antwort_an = s;
-    g_meldung = "";
-    return nullptr;
 }
 
 void befehl(Stream* s, const char* zeile) {
@@ -284,19 +264,19 @@ void vorgang_weiter(long roh) {
         g_verlauf_anzahl = 0;
         kal_speichern();
         antwort(g_antwort_an, true, "tara");
-        g_meldung = "Tara gesetzt.";
+        if (g_vorgang_fertig) g_vorgang_fertig(true, "Tara gesetzt");
     } else {
         float f = (float)(mittel - g_offset) / (float)g_kal_gramm;
         if (fabsf(f) < 1.0f) {
             antwort(g_antwort_an, false, "kal", "kein Gewicht erkannt – Tara gesetzt?");
-            g_meldung = "Kein Gewicht erkannt – erst Tara bei leerem Teller, dann Prüfgewicht auflegen.";
+            if (g_vorgang_fertig) g_vorgang_fertig(false, "Kein Gewicht erkannt – erst Tara bei leerem Teller, dann Gewicht auflegen");
         } else {
             g_faktor = f;
             g_gramm_gueltig = false;
             g_verlauf_anzahl = 0;
             kal_speichern();
             antwort(g_antwort_an, true, "kal");
-            g_meldung = "Kalibriert auf " + String(g_kal_gramm) + " g.";
+            if (g_vorgang_fertig) g_vorgang_fertig(true, "Kalibriert mit " + String(g_kal_gramm) + " g");
         }
     }
     g_vorgang = Vorgang::KEINER;
@@ -304,63 +284,6 @@ void vorgang_weiter(long roh) {
 
 // ---------------------------------------------------------------- WLAN
 #if WLAN_AKTIV
-void web_json(int code, const JsonDocument& d) {
-    String z;
-    serializeJson(d, z);
-    g_web.sendHeader("Cache-Control", "no-store");
-    g_web.send(code, "application/json", z);
-}
-
-void web_ergebnis(const char* fehler, const char* ok_text) {
-    JsonDocument d;
-    d["ok"] = fehler == nullptr;
-    d["msg"] = fehler ? fehler : ok_text;
-    web_json(fehler ? 409 : 200, d);
-}
-
-void web_start() {
-    g_web.on("/", HTTP_GET, [] { g_web.send_P(200, "text/html; charset=utf-8", WEB_SEITE); });
-    g_web.on("/api/status", HTTP_GET, [] {
-        JsonDocument d;
-        d["g"] = roundf(g_gramm * 10) / 10;
-        d["st"] = g_stabil ? 1 : 0;
-        d["cal"] = g_faktor != 0 ? 1 : 0;
-        {
-            std::lock_guard<std::mutex> l(g_nfc_mx);
-            d["L"] = g_tag[0];
-            d["R"] = g_tag[1];
-        }
-        d["fw"] = FW_VERSION;
-        d["hx711"] = g_roh_anzahl > 0;
-        d["nfc_l"] = g_nfc_l.bereit();
-        d["nfc_r"] = g_nfc_r.bereit();
-        d["ip"] = WiFi.localIP().toString();
-        d["rssi"] = WiFi.RSSI();
-        d["pad"] = (bool)g_client && g_client.connected();
-        d["vorgang"] = g_vorgang == Vorgang::TARA ? "tara" : g_vorgang == Vorgang::KAL ? "kal" : "";
-        d["meldung"] = g_meldung;
-        web_json(200, d);
-    });
-    g_web.on("/api/tara", HTTP_POST, [] { web_ergebnis(vorgang_starten(false, 0, nullptr), "Tara läuft…"); });
-    g_web.on("/api/kal", HTTP_POST, [] {
-        web_ergebnis(vorgang_starten(true, g_web.arg("g").toInt(), nullptr), "Kalibrieren läuft…");
-    });
-    g_web.on("/api/neustart", HTTP_POST, [] {
-        web_ergebnis(nullptr, "Waage startet neu…");
-        delay(300);
-        ESP.restart();
-    });
-    g_web.on("/api/wlan-reset", HTTP_POST, [] {
-        web_ergebnis(nullptr, "WLAN-Daten gelöscht – Waage öffnet „FilamentWaage-Setup“.");
-        delay(300);
-        g_wm.resetSettings();
-        ESP.restart();
-    });
-    g_web.onNotFound([] { g_web.send(404, "text/plain", "nicht gefunden"); });
-    g_web.begin();
-    g_web_laeuft = true;
-}
-
 void wlan_start() {
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(WLAN_HOSTNAME);
@@ -374,14 +297,6 @@ void wlan_start() {
     g_server.setNoDelay(true);
 }
 
-void wlan_setzen(const char* ssid, const char* pw) {
-    if (g_wm.getConfigPortalActive()) g_wm.stopConfigPortal();
-    WiFi.persistent(true);  // bleibt nach dem Neustart gespeichert, WiFiManager nutzt es beim nächsten Start
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    WiFi.begin(ssid, pw);
-}
-
 void wlan_weiter() {
     g_wm.process();
     static bool mdns = false;
@@ -390,9 +305,12 @@ void wlan_weiter() {
         MDNS.addService("http", "tcp", WEB_PORT);
         mdns = true;
     }
-    // Webseite erst starten, wenn das Setup-WLAN zu ist (WiFiManager belegt dort selbst Port 80)
-    if (!g_web_laeuft && WiFi.status() == WL_CONNECTED && !g_wm.getConfigPortalActive()) web_start();
-    if (g_web_laeuft) g_web.handleClient();
+    // Oberfläche erst starten, wenn das Setup-WLAN zu ist (WiFiManager belegt dort selbst Port 80)
+    if (!g_oberflaeche_laeuft && WiFi.status() == WL_CONNECTED && !g_wm.getConfigPortalActive()) {
+        oberflaeche_start();
+        g_oberflaeche_laeuft = true;
+    }
+    if (g_oberflaeche_laeuft) oberflaeche_weiter();
     WiFiClient neu = g_server.available();
     if (neu) {
         if (g_client) g_client.stop();
@@ -448,6 +366,65 @@ void led() {
 }
 
 }  // namespace
+
+// ---------------------------------------------------------------- für die Oberfläche (sensor.h)
+void (*g_vorgang_fertig)(bool ok, const String& text) = nullptr;
+
+Messwert messwert() {
+    Messwert m;
+    m.gramm = roundf(g_gramm * 10) / 10;
+    m.stabil = g_stabil;
+    m.kalibriert = g_faktor != 0;
+    m.hx711_ok = g_letzte_messung && millis() - g_letzte_messung < 1000;
+    std::lock_guard<std::mutex> l(g_nfc_mx);
+    m.tag_l = g_tag[0];
+    m.tag_r = g_tag[1];
+    return m;
+}
+
+bool nfc_leser_bereit(int seite) { return seite == 0 ? g_nfc_l.bereit() : g_nfc_r.bereit(); }
+
+const char* vorgang_starten(bool kal, int gramm, Stream* s) {
+    if (g_vorgang != Vorgang::KEINER) return "beschäftigt";
+    if (kal) {
+        if (gramm < 50) return "Kalibriergewicht fehlt";
+        g_kal_gramm = gramm;
+        g_vorgang = Vorgang::KAL;
+    } else {
+        g_vorgang = Vorgang::TARA;
+    }
+    g_summe = 0;
+    g_proben = 0;
+    g_antwort_an = s;
+    return nullptr;
+}
+
+#if WLAN_AKTIV
+void wlan_setzen(const char* ssid, const char* pw) {
+    if (g_wm.getConfigPortalActive()) g_wm.stopConfigPortal();
+    WiFi.persistent(true);  // bleibt nach dem Neustart gespeichert, WiFiManager nutzt es beim nächsten Start
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+    WiFi.begin(ssid, pw);
+}
+
+bool pad_verbunden() { return (bool)g_client && g_client.connected(); }
+
+void alles_zuruecksetzen() {
+    g_offset = 0;
+    g_faktor = 0;
+    kal_speichern();
+    g_wm.resetSettings();
+}
+#else
+void wlan_setzen(const char*, const char*) {}
+bool pad_verbunden() { return false; }
+void alles_zuruecksetzen() {
+    g_offset = 0;
+    g_faktor = 0;
+    kal_speichern();
+}
+#endif
 
 void setup() {
     Serial.begin(115200);

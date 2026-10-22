@@ -1,0 +1,8 @@
+# 4 MB: Firmware 2,5 MB, Oberfläche (LittleFS) 1,4 MB. NVS bleibt an derselben Stelle wie vorher,
+# damit Kalibrierung und WLAN beim Umstieg erhalten bleiben.
+# Name,    Type, SubType,  Offset,   Size
+nvs,       data, nvs,      0x9000,   0x5000
+otadata,   data, ota,      0xe000,   0x2000
+app0,      app,  ota_0,    0x10000,  0x280000
+spiffs,    data, spiffs,   0x290000, 0x160000
+coredump,  data, coredump, 0x3F0000, 0x10000
