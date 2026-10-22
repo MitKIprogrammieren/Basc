@@ -156,6 +156,12 @@ String eigenschaften(NimBLERemoteCharacteristic* k) {
 String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_t typ) {
     if (!adresse.length()) return "Kein Drucker eingestellt – unter Einstellungen → Etiketten suchen";
     if (g_ble_gesperrt) return GESPERRT;
+    uint32_t t0 = millis();
+    auto stand = [&](const String& was) {  // jeder Schritt sofort sichtbar, falls es hängt
+        g_druck_bericht = String((millis() - t0) / 1000.0f, 1) + " s: " + was;
+        Serial.printf("# Druck: %s\n", g_druck_bericht.c_str());
+    };
+    stand("verbinde mit " + adresse);
     NimBLEClient* c = NimBLEDevice::createClient();
     c->setConnectTimeout(10);
     bool verbunden = c->connect(NimBLEAddress(adresse.c_str(), typ));
@@ -164,6 +170,7 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
         NimBLEDevice::deleteClient(c);
         return "Drucker nicht erreichbar – eingeschaltet? Phomemo-App am Handy trennen";
     }
+    stand("verbunden, lese Dienste");
     NimBLERemoteCharacteristic* ziel = nullptr;
     String bericht = "MTU " + String(c->getMTU()) + "; Dienste:";
     g_antworten = "";
@@ -171,7 +178,7 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
         bericht += " [" + String(s->getUUID().toString().c_str()) + ":";
         for (NimBLERemoteCharacteristic* k : *s->getCharacteristics(true)) {
             bericht += " " + String(k->getUUID().toString().c_str()) + "(" + eigenschaften(k) + ")";
-            if (k->canNotify()) k->subscribe(true, antwort_merken);  // Antworten des Druckers mitlesen
+            if (k->canNotify() && bericht.length() < 900) k->subscribe(true, antwort_merken);  // Antworten mitlesen
         }
         bericht += "]";
     }
@@ -189,6 +196,7 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
     if (!ziel) {
         fehler = "Drucker bietet keinen Schreibkanal an";
     } else {
+        stand(bericht + "; sende");
         size_t stueck = constrain((int)c->getMTU() - 3, 20, 180);
         for (size_t i = 0; i < auftrag.size(); i += stueck) {
             size_t n = std::min(stueck, auftrag.size() - i);
@@ -197,14 +205,13 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
                 break;
             }
             gesendet += n;
+            if ((gesendet / stueck) % 50 == 0) stand(bericht + "; gesendet " + String(gesendet) + "/" + String(auftrag.size()));
             vTaskDelay(pdMS_TO_TICKS(15));
         }
         if (!fehler.length()) vTaskDelay(pdMS_TO_TICKS(1500));  // Drucker erst fertig empfangen lassen
     }
-    bericht += "; gesendet " + String(gesendet) + "/" + String(auftrag.size()) + " Bytes; Antworten: " +
-               (g_antworten.length() ? g_antworten : String("keine"));
-    g_druck_bericht = bericht;
-    Serial.printf("# Druck: %s\n", bericht.c_str());
+    stand(bericht + "; gesendet " + String(gesendet) + "/" + String(auftrag.size()) + " Bytes; Antworten: " +
+          (g_antworten.length() ? g_antworten : String("keine")) + (fehler.length() ? "; Fehler: " + fehler : String("")));
     c->disconnect();
     NimBLEDevice::deleteClient(c);
     return fehler;
@@ -354,8 +361,9 @@ const char* drucker_drucken(JsonObjectConst o) {
     d->daten.resize(soll);
     if (xQueueSend(g_druecke, &d, 0) != pdTRUE) {
         delete d;
-        return "Drucker ist noch beschäftigt";
+        return "Drucker ist noch beschäftigt – der letzte Auftrag hängt, Waage neu starten";
     }
+    g_druck_bericht = "Auftrag angenommen: " + String(breite) + "×" + String(hoehe) + " Punkte, wartet auf den Drucker";
     return nullptr;
 }
 
