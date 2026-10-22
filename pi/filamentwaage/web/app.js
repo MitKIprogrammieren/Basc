@@ -37,11 +37,20 @@ async function post(pfad, daten = {}) {
 }
 
 // ------------------------------------------------------------ Skalierung (Test im Browser)
+// Textgröße gilt nur für diesen Browser (am Mac klein, am Pad 7 normal): größere virtuelle Fläche, dann skaliert
+const TEXTGROESSEN = [["gross", "Groß", 1.15], ["normal", "Normal", 1], ["klein", "Klein", 0.85], ["sehrklein", "Sehr klein", 0.72]];
+function textGroesse() {
+  try { return localStorage.getItem("fl_textgroesse") || "normal"; } catch (e) { return "normal"; }
+}
+function textFaktor() { return (TEXTGROESSEN.find((t) => t[0] === textGroesse()) || TEXTGROESSEN[1])[2]; }
 function skalieren() {
-  const f = Math.min(innerWidth / 800, innerHeight / 480);
+  const t = textFaktor(), W = Math.round(800 / t), H = Math.round(480 / t);
+  const f = Math.min(innerWidth / W, innerHeight / H);
   const app = $("app");
+  app.style.width = `${W}px`;
+  app.style.height = `${H}px`;
   app.style.transform = f > 1.01 || f < 0.99 ? `scale(${f})` : "";
-  app.style.left = f !== 1 ? `${(innerWidth - 800 * f) / 2}px` : "0";
+  app.style.left = f > 1.01 || f < 0.99 ? `${(innerWidth - W * f) / 2}px` : "0";
 }
 addEventListener("resize", skalieren);
 addEventListener("mousemove", () => document.body.classList.add("maus"), { once: true });
@@ -461,6 +470,9 @@ function einst() {
       <div class="e-block"><span class="ueber">Helligkeit</span>
         <div class="e-zeile"><input type="range" class="regler" id="e-hell" min="10" max="100" step="5" value="${e.helligkeit}" aria-label="Helligkeit"><span class="e-wert" id="e-hell-w">${e.helligkeit} %</span></div></div>
       <div class="e-block"><span class="ueber">Display ausschalten</span>${seg("display_aus_min", e.display_aus_min, [[0, "Nie"], [5, "5 min"], [15, "15 min"], [30, "30 min"]])}</div>
+      <div class="e-block"><span class="ueber">Textgröße</span><div class="seg">${TEXTGROESSEN.map(([k, t]) =>
+        `<button class="${k === textGroesse() ? "an" : ""}" data-text="${k}">${t}</button>`).join("")}</div>
+        <span class="hinweis">Kleiner zeigt mehr auf einmal – praktisch im Browser am Mac. Gilt nur für dieses Gerät.</span></div>
       <div class="e-block"><span class="ueber">Lagerliste</span>${seg("kompakt", e.kompakt, [[false, "Normal"], [true, "Kompakt"]])}</div>`;
   } else if (S.eSeite === "wlan") {
     const w = e.wlan || {};
@@ -527,8 +539,12 @@ function einst() {
         <div class="info-zeile"><span>Sensor</span><span>${z.sensor_ok ? "verbunden" : "antwortet nicht"}</span></div>
         <div class="info-zeile"><span>Sorten im Lager</span><span>${S.sorten.length}</span></div>
         <div class="info-zeile"><span>IP-Adresse</span><span>${esc(z.ip || "–")}</span></div></div>
+      ${e.update ? `<button class="knopf primaer h50" data-system="einspielen">Update einspielen …</button>
+        <input type="file" id="e-update" accept=".html,text/html" hidden>
+        <span class="hinweis">Datei FilamentLager-Webflasher.html wählen – die Waage nimmt sich Firmware und Oberfläche daraus und startet neu. Kalibrierung, WLAN und Einstellungen bleiben.</span>
+        ${S.update ? `<div class="balken"><div style="width:${S.update.p}%;background:var(--gruen)"></div></div><span class="sub14">${esc(S.update.text)}</span>` : ""}` : ""}
       <div class="e-zeile"><button class="knopf rahmen h50 wachsen" data-system="neu_laden">Lager neu laden</button>
-        <button class="knopf rahmen h50 wachsen" data-system="update">Nach Update suchen</button></div>
+        ${e.update ? "" : '<button class="knopf rahmen h50 wachsen" data-system="update">Nach Update suchen</button>'}</div>
       <button class="knopf rahmen h50" data-system="neustart">Neu starten</button>
       <button class="knopf rahmen rot h50" data-system="werk">${S.resetFrage ? "Wirklich alles zurücksetzen? Nochmal tippen" : "Werkseinstellungen"}</button>`;
   }
@@ -544,6 +560,7 @@ $("e-inhalt").addEventListener("input", (e) => {
 });
 $("e-inhalt").addEventListener("change", (e) => {
   if (e.target.dataset.hersteller !== undefined) return bildHochladen(e.target);
+  if (e.target.id === "e-update" && e.target.files[0]) return updateEinspielen(e.target.files[0]);
   if (e.target.id === "e-hell") einstSetzen({ helligkeit: Number(e.target.value) });
 });
 $("e-inhalt").onclick = async (e) => {
@@ -552,6 +569,7 @@ $("e-inhalt").onclick = async (e) => {
   const d = b.dataset;
   if (d.et) return etEinstKlick(d);
   if (d.akzent) return einstSetzen({ akzent: d.akzent });
+  if (d.text) { try { localStorage.setItem("fl_textgroesse", d.text); } catch (e) { /* ohne Speicher nur bis zum Neuladen */ } skalieren(); return einst(); }
   if (d.seg) { let v = d.v; v = v === "true" ? true : v === "false" ? false : isNaN(Number(v)) ? v : Number(v); return einstSetzen({ [d.seg]: v }); }
   if (d.schalter) {
     if (d.schalter.startsWith("drucker:")) {
@@ -569,6 +587,7 @@ $("e-inhalt").onclick = async (e) => {
     if (d.system === "werk" && !S.resetFrage) { S.resetFrage = true; return einst(); }
     S.resetFrage = false;
     if (d.system === "neu_laden") return post("/api/neu_laden");
+    if (d.system === "einspielen") return $("e-update").click();
     post("/api/system", { aktion: d.system });
     return einst();
   }
@@ -789,6 +808,55 @@ async function bildHochladen(input) {
     meldung(j.text, !j.ok);
   } catch (e) { meldung("Hochladen fehlgeschlagen", true); }
   etLaden();
+}
+
+// ------------------------------------------------------------ Update über WLAN (Sensorplatine)
+// Nimmt Firmware und Oberfläche aus der Webflasher-Datei und lädt sie auf die Waage – kein USB nötig.
+S.update = null;
+function updateStand(p, text) { S.update = { p, text }; if (S.seite === "einst" && S.eSeite === "system") einst(); }
+function hochladen(ziel, teil, von, bis) {
+  return new Promise((ok, fehl) => {
+    const bin = atob(teil.b64), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    const fd = new FormData();
+    fd.append("datei", new Blob([u], { type: "application/octet-stream" }), teil.name);
+    const x = new XMLHttpRequest();
+    x.open("POST", `/api/update?ziel=${ziel}`);
+    x.upload.onprogress = (e) => {
+      if (e.lengthComputable) updateStand(Math.round(von + (bis - von) * e.loaded / e.total),
+        `${ziel === "firmware" ? "Übertrage Firmware" : "Übertrage Oberfläche"} … ${Math.round(e.loaded / e.total * 100)} %`);
+    };
+    x.onload = () => { let j = {}; try { j = JSON.parse(x.responseText); } catch (e) { /* leer */ } x.status < 300 && j.ok ? ok(j) : fehl(new Error(j.text || `Fehler ${x.status}`)); };
+    x.onerror = () => fehl(new Error("Verbindung zur Waage abgebrochen"));
+    x.send(fd);
+  });
+}
+async function updateEinspielen(datei) {
+  $("e-update").value = "";
+  try {
+    updateStand(0, "Lese Datei …");
+    const text = await datei.text();
+    const i = text.indexOf("const TEILE = [");
+    if (i < 0) throw new Error("Das ist keine FilamentLager-Webflasher.html");
+    const start = i + "const TEILE = ".length, ende = text.indexOf("];", start) + 1;
+    const teile = JSON.parse(text.slice(start, ende));
+    const version = (text.match(/FW ([0-9][0-9.]*)/) || [])[1] || "?";
+    const fw = teile.find((t) => t.name === "firmware.bin"), fs = teile.find((t) => t.name.startsWith("littlefs"));
+    const info = await (await fetch("/api/update/info")).json();
+    if (!fw) throw new Error("In der Datei fehlt die Firmware");
+    if (!info.ota) throw new Error("Diese Waage kann sich noch nicht selbst aktualisieren – einmal per USB mit dem Webflasher flashen");
+    if (fs && fs.adresse !== info.fs_offset) throw new Error(`Version ${version} teilt den Speicher anders auf – bitte einmal per USB mit dem Webflasher flashen`);
+    if (fw.b64.length * 3 / 4 > info.app_max) throw new Error("Die Firmware ist zu groß für diese Waage");
+    meldung(`Spiele Version ${version} ein …`);
+    if (fs) await hochladen("oberflaeche", fs, 0, 30);
+    await hochladen("firmware", fw, fs ? 30 : 0, 100);
+    updateStand(100, `Version ${version} eingespielt – die Waage startet neu, die Seite lädt gleich neu`);
+    setTimeout(() => location.reload(), 15000);
+  } catch (e) {
+    S.update = null;
+    meldung(e.message, true);
+    if (S.seite === "einst") einst();
+  }
 }
 
 // ------------------------------------------------------------ Daten vom Dienst

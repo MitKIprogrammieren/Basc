@@ -34,7 +34,7 @@ jobs:
           key: pio-${{ hashFiles('firmware/sensor-s3zero/platformio.ini') }}
 
       - name: PlatformIO installieren
-        run: pip install platformio
+        run: pip install platformio fonttools
 
       - name: Firmware und Oberfläche bauen
         working-directory: firmware/sensor-s3zero

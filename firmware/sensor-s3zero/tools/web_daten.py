@@ -23,6 +23,36 @@ def kurz(name):
     return re.sub(r"[^a-z0-9]+", "-", n).strip("-")[:60]
 ziel = projekt / "data"
 
+# Zeichen, die die Oberfläche braucht: Latein mit Umlauten, Satzzeichen, Pfeile, Symbole wie ✓ ⌫ ⇧ °
+ZEICHEN = ("U+0020-007E,U+00A0-00FF,U+0152-0153,U+2010-2027,U+2030-205E,U+20AC,U+2122,"
+           "U+2190-21FF,U+2212,U+2713,U+2715,U+232B,U+25CB,U+25CF")
+
+
+def schrift_verkleinern(datei):
+    """Montserrat auf die gebrauchten Zeichen kürzen (450 KB → gut 30 KB je Schnitt)."""
+    try:
+        from fontTools import subset
+    except ModuleNotFoundError:
+        import subprocess
+        import sys
+        print("web_daten: installiere fonttools (einmalig) …")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "fonttools"])
+        from fontTools import subset
+    import io
+    opt = subset.Options()
+    opt.layout_features = ["kern", "liga", "tnum", "lnum"]
+    opt.name_IDs = ["*"]
+    opt.notdef_outline = True
+    opt.glyph_names = False
+    schrift = subset.load_font(str(datei), opt)
+    s = subset.Subsetter(opt)
+    s.populate(unicodes=subset.parse_unicodes(ZEICHEN))
+    s.subset(schrift)
+    puffer = io.BytesIO()
+    subset.save_font(schrift, puffer, opt)
+    return puffer.getvalue()
+
+
 if not quelle.is_dir():
     print(f"web_daten: {quelle} fehlt – Oberfläche wird nicht aktualisiert")
 else:
@@ -36,9 +66,10 @@ else:
         rel = datei.relative_to(quelle)
         aus = ziel / (str(rel) + ".gz")
         aus.parent.mkdir(parents=True, exist_ok=True)
+        inhalt = schrift_verkleinern(datei) if datei.suffix.lower() == ".ttf" else datei.read_bytes()
         # mtime=0: gleiche Eingabe ergibt gleiches Abbild
         with open(aus, "wb") as f, gzip.GzipFile(fileobj=f, mode="wb", compresslevel=9, mtime=0) as gz:
-            gz.write(datei.read_bytes())
+            gz.write(inhalt)
         summe += aus.stat().st_size
     print(f"web_daten: Oberfläche nach data/ gelegt ({summe // 1024} KB)")
 
@@ -71,6 +102,6 @@ else:
             groesse += datei.stat().st_size
         if anzahl:
             print(f"web_daten: {anzahl} Herstellerbilder ({groesse // 1024} KB)")
-        if summe + groesse > 1200 * 1024:
-            raise SystemExit("web_daten: Oberfläche und Bilder sind zusammen größer als 1,2 MB – das Dateisystem hat 1,4 MB. "
-                             "Weniger Hersteller in pi/hersteller/auf-der-waage.txt eintragen.")
+        if summe + groesse > 330 * 1024:
+            raise SystemExit("web_daten: Oberfläche und Bilder sind zusammen größer als 330 KB – das Dateisystem hat 384 KB. "
+                             "Weniger Hersteller in pi/hersteller/auf-der-waage.txt eintragen (die übrigen lädt die Waage bei Bedarf).")

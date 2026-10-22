@@ -19,7 +19,10 @@
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <Update.h>
 #include <esp_heap_caps.h>
+#include <esp_ota_ops.h>
+#include <esp_partition.h>
 #include <esp_system.h>
 #include <time.h>
 
@@ -127,6 +130,7 @@ void einst_json(JsonDocument& d) {
     ha["token_gesetzt"] = g_ha.token.length() > 0;
     ha["token_ende"] = g_ha.token.length() > 4 ? g_ha.token.substring(g_ha.token.length() - 4) : String("");
     d["einrichten_url"] = "http://" + ip_text() + "/";
+    d["update"] = true;  // Oberfläche zeigt „Update einspielen“
 }
 
 // ---------------------------------------------------------------- Home Assistant (eigener Task)
@@ -851,10 +855,64 @@ void routen() {
             alles_zuruecksetzen();
             g_neustart_um = millis() + 800;
         } else if (aktion == "update") {
-            meldung("Updates kommen über den Webflasher (FilamentLager-Webflasher.html)");
+            meldung("Neue Version: FilamentLager-Webflasher.html unter „Update einspielen“ wählen");
         }
         angenommen(r);
     });
+
+    // ------------------------------------------------ Update über WLAN
+    // Die Oberfläche nimmt Firmware und Oberfläche aus FilamentLager-Webflasher.html und lädt sie hier hoch:
+    // erst ?ziel=oberflaeche (LittleFS), dann ?ziel=firmware (freier OTA-Platz), danach Neustart.
+    g_server.on("/api/update/info", HTTP_GET, [](AsyncWebServerRequest* r) {
+        JsonDocument d;
+        const esp_partition_t* fs = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, nullptr);
+        const esp_partition_t* frei = esp_ota_get_next_update_partition(nullptr);
+        d["version"] = FW_VERSION;
+        d["fs_offset"] = fs ? fs->address : 0;
+        d["fs_groesse"] = fs ? fs->size : 0;
+        d["app_max"] = frei ? frei->size : 0;
+        d["ota"] = frei != nullptr && frei != esp_ota_get_running_partition();
+        senden(r, 200, d);
+    });
+    static bool s_update_ok = false;
+    static String s_update_fehler;
+    g_server.on(
+        "/api/update", HTTP_POST,
+        [](AsyncWebServerRequest* r) {
+            bool fs = r->hasParam("ziel") && r->getParam("ziel")->value() == "oberflaeche";
+            if (!s_update_ok) {
+                if (fs) g_fs_ok = LittleFS.begin(false);
+                return ok_text(r, false, s_update_fehler.length() ? s_update_fehler : String("Update fehlgeschlagen"), 400);
+            }
+            if (fs) {
+                g_fs_ok = LittleFS.begin(false);
+                return ok_text(r, true, "Oberfläche aktualisiert");
+            }
+            meldung("Firmware aktualisiert – Waage startet neu …");
+            g_neustart_um = millis() + 1500;
+            ok_text(r, true, "Firmware aktualisiert – Waage startet neu");
+        },
+        [](AsyncWebServerRequest* r, const String&, size_t index, uint8_t* daten, size_t laenge, bool fertig) {
+            bool fs = r->hasParam("ziel") && r->getParam("ziel")->value() == "oberflaeche";
+            if (index == 0) {
+                s_update_fehler = "";
+                if (fs) {
+                    LittleFS.end();
+                    g_fs_ok = false;
+                }
+                s_update_ok = Update.begin(UPDATE_SIZE_UNKNOWN, fs ? U_SPIFFS : U_FLASH);
+                if (!s_update_ok) s_update_fehler = String("Update lässt sich nicht starten: ") + Update.errorString();
+            }
+            if (s_update_ok && laenge && Update.write(daten, laenge) != laenge) {
+                s_update_ok = false;
+                s_update_fehler = String("Schreiben fehlgeschlagen: ") + Update.errorString();
+                Update.abort();
+            }
+            if (fertig && s_update_ok && !Update.end(true)) {
+                s_update_ok = false;
+                s_update_fehler = String("Update unvollständig: ") + Update.errorString();
+            }
+        });
 
     g_server.onNotFound([](AsyncWebServerRequest* r) { r->send(404, "text/plain", "nicht gefunden"); });
 
@@ -885,7 +943,15 @@ void oberflaeche_weiter() {
     if (jetzt - zuletzt >= 150) {
         zuletzt = jetzt;
         if (g_events.count()) {
-            g_events.send(zustand_text().c_str(), "zustand", jetzt);
+            // nur senden, wenn sich etwas geändert hat (die Uhrzeit zählt mit), sonst alle 2 s als Lebenszeichen
+            static String zuletzt_text;
+            static uint32_t zuletzt_gesendet = 0;
+            String z = zustand_text();
+            if (z != zuletzt_text || jetzt - zuletzt_gesendet > 2000) {
+                g_events.send(z.c_str(), "zustand", jetzt);
+                zuletzt_text = z;
+                zuletzt_gesendet = jetzt;
+            }
             std::deque<Meldung> neu;
             {
                 std::lock_guard<std::mutex> l(g_mx);

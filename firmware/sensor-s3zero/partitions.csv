@@ -1,8 +1,10 @@
-# 4 MB: Firmware 2,5 MB, Oberfläche (LittleFS) 1,4 MB. NVS bleibt an derselben Stelle wie vorher,
-# damit Kalibrierung und WLAN beim Umstieg erhalten bleiben.
+# 4 MB mit Update über WLAN: zwei Plätze für die Firmware (je 1,75 MB), Oberfläche (LittleFS) 384 KB.
+# NVS bleibt an derselben Stelle, damit Kalibrierung, WLAN und Einstellungen erhalten bleiben.
+# Die Schriften werden beim Build auf die gebrauchten Zeichen verkleinert (tools/web_daten.py).
 # Name,    Type, SubType,  Offset,   Size
 nvs,       data, nvs,      0x9000,   0x5000
 otadata,   data, ota,      0xe000,   0x2000
-app0,      app,  ota_0,    0x10000,  0x280000
-spiffs,    data, spiffs,   0x290000, 0x160000
+app0,      app,  ota_0,    0x10000,  0x1C0000
+app1,      app,  ota_1,    0x1D0000, 0x1C0000
+spiffs,    data, spiffs,   0x390000, 0x60000
 coredump,  data, coredump, 0x3F0000, 0x10000
