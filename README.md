@@ -67,6 +67,20 @@ Die Oberfläche startet nach dem Anmelden im Vollbild. Ohne Hardware ausprobiere
 Auch am PC (Python 3.11+): `cd pi && python3 -m filamentwaage demo.toml`, dann
 http://127.0.0.1:8080 im Browser öffnen.
 
+## Etiketten drucken (Phomemo)
+
+Pi- und Pad-7-Variante drucken Etiketten auf einem Phomemo-Etikettendrucker (M110/M220/M20-Familie)
+per Bluetooth: in der Sorte **Etikett drucken** oder beim Wiegen das Drucker-Symbol – dann steht der
+gewogene Rest mit auf dem Etikett.
+
+- Formate: Classic 40×30, Expanded 50×30, Compact 40×25, Vertikal 30×40 mm, gedruckt mit 203 dpi in Schwarz-Weiß
+- Inhalt: Hersteller, Material, Farbe mit Farbcode und Hex-Wert, Düse/Bett/Flow/TD, Rest und ein QR-Code zum Lager in Home Assistant
+- Einrichten: **Einstellungen → Etiketten → Drucker suchen**, Drucker antippen, **Testdruck**
+- Herstellerbild statt Name: pro Hersteller in der Waage hochladen oder in [`pi/hersteller/`](pi/hersteller/LIESMICH.md) ablegen
+
+Das Etikett wird in der Oberfläche gezeichnet (`web/etikett.js`), der Dienst schickt das Raster an den
+Drucker (`phomemo.py`). Ohne Drucker testen: `verbindung = "datei"` in `[etikett]`.
+
 ## Pad-7-Variante einrichten
 
 Das Pad 7 ist nur Bildschirm, die Sensorplatine in der Waage funkt per WLAN.

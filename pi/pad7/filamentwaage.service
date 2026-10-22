@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 User=@BENUTZER@
-SupplementaryGroups=dialout
+SupplementaryGroups=dialout bluetooth
 WorkingDirectory=/opt/filamentwaage
 # Einstellungen von der SD-Karte (BOOT/filamentwaage/config.pad7.toml) bei jedem Start übernehmen
 ExecStartPre=+/bin/sh -c 'for d in /boot /boot/firmware; do f=$$d/filamentwaage/config.pad7.toml; if [ -f $$f ]; then install -m 600 -o @BENUTZER@ $$f /etc/filamentwaage/config.toml; break; fi; done; true'

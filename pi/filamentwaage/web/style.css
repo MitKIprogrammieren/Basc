@@ -205,3 +205,27 @@ input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
 .qr-url { font-weight: 700; font-size: 15px; color: var(--gruen-t); word-break: break-all; }
 .chip.ams { background: var(--chip-b); color: var(--blau-t); }
 .vorschlag { background: var(--nav-akt); border-radius: 10px; }
+
+/* Etiketten */
+.rechts270 > .reihe > .knopf.quadrat { flex: 0 0 auto; width: 54px; height: 50px; }
+.rechts270 > .reihe > #btn-tara { flex: 0 0 72px; }
+#seite-detail .info-zeile { padding: 8px 0; }
+#d-etikett { height: 46px; flex: 0 0 auto; }
+.etikett-box { max-width: 720px; width: 720px; align-items: stretch; }
+.et-vorschau { width: 380px; height: 300px; flex: 0 0 auto; display: grid; place-items: center; background: var(--kachel);
+  border-radius: 14px; }
+#et-canvas { max-width: 350px; max-height: 270px; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 0 0 1px var(--rand); }
+.et-formate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.et-format { height: 58px; border-radius: 12px; border: 1px solid var(--rand); background: transparent; color: var(--text);
+  text-align: left; padding: 0 12px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.et-format b { font-weight: 700; font-size: 14px; } .et-format small { font-size: 12px; color: var(--sub); }
+.et-format.an { background: var(--nav-akt); border: 2px solid var(--gruen); }
+.et-format.an b { color: var(--gruen-t); }
+.hersteller-zeile { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--linie); }
+.hersteller-zeile:last-child { border-bottom: 0; }
+.h-bild { width: 92px; height: 30px; flex: 0 0 auto; border-radius: 6px; background: #fff; display: grid; place-items: center; overflow: hidden; }
+.h-bild img { max-width: 86px; max-height: 26px; }
+.h-bild span { font-size: 11px; color: #6b7280; }
+.knopf.klein { height: 38px; padding: 0 12px; font-size: 13px; }
+label.knopf { position: relative; }
+label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }

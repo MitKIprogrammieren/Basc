@@ -9,6 +9,7 @@ trap 'rm -rf "$TMP"' EXIT
 P="$TMP/filamentwaage"
 mkdir -p "$P/testdaten"
 cp -r "$WURZEL/pi/filamentwaage" "$P/"
+[ -d "$WURZEL/pi/hersteller" ] && cp -r "$WURZEL/pi/hersteller" "$P/"
 find "$P" -name __pycache__ -prune -exec rm -rf {} +
 cp "$WURZEL/pi/pad7/install-pad7.sh" "$WURZEL/pi/pad7/kiosk-pad7.sh" \
    "$WURZEL/pi/pad7/filamentwaage-kiosk.service" "$WURZEL/pi/pad7/config.pad7.toml" \

@@ -20,13 +20,15 @@ done
 
 echo "== Pakete"
 sudo apt-get update -qq
-sudo apt-get install -y python3 python3-serial python3-lgpio curl
+sudo apt-get install -y python3 python3-serial python3-lgpio python3-bleak bluez curl
 command -v chromium-browser >/dev/null || command -v chromium >/dev/null || sudo apt-get install -y chromium-browser
 
 echo "== Programm nach $ZIEL"
 sudo mkdir -p "$ZIEL"
 sudo rm -rf "$ZIEL/filamentwaage"
 sudo cp -r "$HIER/filamentwaage" "$ZIEL/"
+sudo rm -rf "$ZIEL/hersteller"
+[ -d "$HIER/hersteller" ] && sudo cp -r "$HIER/hersteller" "$ZIEL/"
 sudo mkdir -p "$ZIEL/testdaten"
 sudo cp "$HIER/../testdaten/todo_filament.json" "$ZIEL/testdaten/" 2>/dev/null || true
 sudo install -m 755 "$HIER/kiosk.sh" "$ZIEL/kiosk.sh"
@@ -41,7 +43,7 @@ else
 fi
 
 echo "== Dienst"
-sudo usermod -aG dialout,gpio "$BENUTZER" || true
+sudo usermod -aG dialout,gpio,bluetooth "$BENUTZER" || true
 sed "s/@BENUTZER@/$BENUTZER/" "$HIER/filamentwaage.service" | sudo tee /etc/systemd/system/filamentwaage.service >/dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable --now filamentwaage.service

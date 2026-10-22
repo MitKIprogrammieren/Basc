@@ -123,7 +123,7 @@ function wiegen() {
   const netto = Math.max(0, brutto - leer);
   const soll = sorte ? sorte.gewicht : 1000;
   const proz = da ? Math.min(100, Math.floor((netto * 100) / Math.max(1, soll))) : 0;
-  S.aktiv = { sorte, tag, netto };
+  S.aktiv = { sorte, tag, netto, da };
 
   const farbe = proz < 15 && da ? "var(--rot)" : "var(--gruen)";
   $("ring").style.background = `conic-gradient(${farbe} 0 ${proz}%, var(--rand2) ${proz}% 100%)`;
@@ -176,6 +176,7 @@ function wiegen() {
     $("btn-wahl").textContent = "Sorte wählen";
   }
   haupt.disabled = S.haupt === "nichts";
+  $("btn-etikett").disabled = !sorte;
 }
 
 function auswahlStarten() {
@@ -198,6 +199,10 @@ $("btn-haupt").onclick = () => {
 };
 $("btn-tara").onclick = () => post("/api/tara");
 $("btn-wahl").onclick = auswahlStarten;
+$("btn-etikett").onclick = () => {
+  const a = S.aktiv;
+  if (a.sorte) etikettOeffnen(a.sorte, a.da && S.z && S.z.stabil ? a.netto : 0);
+};
 
 // ------------------------------------------------------------ Lager
 function filterLeiste() {
@@ -337,9 +342,14 @@ function detail() {
         <div class="wert-kachel"><span class="ueber">Trocknen</span><b>${trocknen}</b></div></div>
       <div class="info-liste">${zeile("Reste", s.reste.map(gramm).join(", "))}${zeile("Bambu-ID", s.bambu_id)}${zeile("Farbcode", s.fcode)}
         ${zeile("EAN", s.codes[0])}${zeile("NFC-Tags", s.nfc.length ? `${s.nfc.length} zugeordnet` : "")}</div>
+      <button class="knopf rahmen h50" id="d-etikett">${icon("etikett")}Etikett drucken</button>
     </section>`;
   $("d-zurueck").onclick = () => zeige("lager");
   $("d-wiegen").onclick = () => { S.auswahlUid = s.uid; zeige("wiegen"); };
+  $("d-etikett").onclick = () => {
+    const a = S.aktiv;
+    etikettOeffnen(s, a.sorte && a.sorte.uid === s.uid && a.da && S.z && S.z.stabil ? a.netto : 0);
+  };
   ziel.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => post("/api/spulen", { sorte: s.uid, delta: Number(b.dataset.d) })));
 }
 
@@ -352,10 +362,11 @@ const ICONS = {
   ha: '<path d="M3 11 12 4l9 7v9H3z"/><path d="M9 20v-6h6v6"/>',
   bambu: '<rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 8.5h16"/><path d="M10.2 8.5v2.2h3.6V8.5"/><path d="M7.5 16.5h9"/>',
   waage: '<path d="M4 20h16"/><path d="M6 20l2-9h8l2 9"/><path d="M12 11V5"/><path d="M8 5h8"/>',
+  etikett: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   system: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
 };
 const MENUE = [
-  ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["system", "System"],
+  ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["etikett", "Etiketten"], ["system", "System"],
 ];
 S.e = null;          // Einstellungen vom Dienst
 S.eSeite = "design";
@@ -410,6 +421,11 @@ function menueText(n) {
   if (n === "wlan") return e.wlan?.ssid ? `${e.wlan.ssid}` : "nicht verbunden";
   if (n === "ha") return z.ha_ok ? `verbunden · ${e.ha?.todo || ""}` : "keine Verbindung";
   if (n === "bambu") { const n2 = (S.ams.drucker || []).filter((d) => (e.drucker || []).includes(d.id)).length; return `${n2} Drucker über Home Assistant`; }
+  if (n === "etikett") {
+    if (!S.et) return "wird geladen …";
+    const f = (Etikett.FORMATE[S.et.format] || {}).name || "";
+    return `${S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker"} · ${f}`;
+  }
   if (n === "waage") return `Leerspule ${e.leerspule_g ?? 250} g · NFC Stufe ${e.nfc_stufe ?? 3}`;
   return `Version ${z.version || ""}`;
 }
@@ -426,6 +442,7 @@ $("e-menue").onclick = (e) => {
   tastatur(false);
   if (S.eSeite === "wlan" && !S.netze) wlanSuchen();
   if (S.eSeite === "bambu") amsLaden();
+  if (S.eSeite === "etikett") etLaden();
   einst();
 };
 
@@ -434,6 +451,7 @@ function einst() {
   const e = S.e;
   const z = S.z || {};
   const ziel = $("e-inhalt");
+  if (S.eSeite === "etikett") { ziel.innerHTML = etEinstHtml(); return; }
   if (!e) { ziel.innerHTML = '<span class="sub14">Einstellungen werden geladen …</span>'; return; }
   let h = "";
   if (S.eSeite === "design") {
@@ -525,12 +543,14 @@ $("e-inhalt").addEventListener("input", (e) => {
   }
 });
 $("e-inhalt").addEventListener("change", (e) => {
+  if (e.target.dataset.hersteller !== undefined) return bildHochladen(e.target);
   if (e.target.id === "e-hell") einstSetzen({ helligkeit: Number(e.target.value) });
 });
 $("e-inhalt").onclick = async (e) => {
   const b = e.target.closest("button, .netz");
   if (!b) return;
   const d = b.dataset;
+  if (d.et) return etEinstKlick(d);
   if (d.akzent) return einstSetzen({ akzent: d.akzent });
   if (d.seg) { let v = d.v; v = v === "true" ? true : v === "false" ? false : isNaN(Number(v)) ? v : Number(v); return einstSetzen({ [d.seg]: v }); }
   if (d.schalter) {
@@ -628,6 +648,129 @@ function vorschlagFuerSlot(sl) {
 
 document.querySelectorAll(".nav-knopf").forEach((b) => (b.onclick = () => { S.auswahlModus = false; zeige(b.dataset.seite); }));
 
+// ------------------------------------------------------------ Etiketten (Phomemo)
+S.et = null;          // Etiketten-Einstellungen vom Dienst
+S.etDialog = null;    // { sorte, rest, format }
+S.etGeraete = null;   // gefundene Bluetooth-Geräte
+S.etSucht = false;
+
+async function etLaden() {
+  try {
+    S.et = await (await fetch("/api/etikett/einstellungen")).json();
+    if (S.seite === "einst") einst();
+  } catch (e) { /* Dienst noch nicht bereit */ }
+}
+async function etSetzen(teil) {
+  try {
+    const r = await fetch("/api/etikett/einstellungen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(teil) });
+    S.et = await r.json();
+  } catch (e) { meldung("Speichern fehlgeschlagen", true); }
+  if (S.seite === "einst") einst();
+}
+
+function etikettOeffnen(sorte, rest) {
+  S.etDialog = { sorte, rest: rest || 0, format: (S.et && S.et.format) || "expanded" };
+  $("etikett").classList.remove("versteckt");
+  etikettZeichnen();
+}
+async function etikettZeichnen() {
+  const d = S.etDialog;
+  if (!d) return;
+  const f = Etikett.FORMATE[d.format];
+  $("et-titel").textContent = d.sorte === Etikett.TEST ? "Testdruck" : kurzname(d.sorte);
+  $("et-info").textContent = [`${f.b} × ${f.h} mm`, d.rest ? `Rest ${gramm(d.rest)}` : "",
+    !S.et ? "" : S.et.verbindung === "datei" ? "Testmodus ohne Drucker" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker eingestellt"].filter(Boolean).join(" · ");
+  $("et-formate").innerHTML = Object.entries(Etikett.FORMATE).map(([k, v]) =>
+    `<button class="et-format${k === d.format ? " an" : ""}" data-format="${k}"><b>${v.name}</b><small>${v.b} × ${v.h} mm</small></button>`).join("");
+  await Etikett.zeichnen($("et-canvas"), d.sorte, {
+    format: d.format, rest: d.rest, qr: S.et ? S.et.lager_url : "",
+    bildVersion: S.et && S.et.bilder ? S.et.bilder[d.sorte.hersteller] || 0 : 0,
+  });
+}
+$("et-formate").onclick = (e) => {
+  const b = e.target.closest("[data-format]");
+  if (!b || !S.etDialog) return;
+  S.etDialog.format = b.dataset.format;
+  etikettZeichnen();
+};
+$("et-zu").onclick = () => { $("etikett").classList.add("versteckt"); S.etDialog = null; };
+$("et-druck").onclick = async () => {
+  if (!S.etDialog) return;
+  const r = Etikett.raster($("et-canvas"));
+  try {
+    const a = await fetch("/api/etikett/drucken", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(r) });
+    const j = await a.json();
+    if (!j.ok) meldung(j.text || "Druck fehlgeschlagen", true);
+  } catch (e) { meldung("Dienst nicht erreichbar", true); }
+};
+
+function etEinstHtml() {
+  const et = S.et;
+  if (!et) return '<span class="sub14">Etiketten werden geladen …</span>';
+  const verb = { ble: "Bluetooth LE", rfcomm: "Bluetooth (klassisch)", datei: "Datei (ohne Drucker)" }[et.verbindung] || et.verbindung;
+  const geraete = S.etGeraete === null ? "" : S.etGeraete.length ? S.etGeraete.map((g) => `<div class="netz" data-et="waehlen" data-adresse="${esc(g.adresse)}" data-name="${esc(g.name)}">
+      <span class="wachsen">${esc(g.name)}<br><span class="sub14">${esc(g.adresse)}</span></span>
+      ${g.adresse === et.adresse ? pill(true, "gewählt") : g.phomemo ? pill(null, "Phomemo?") : ""}</div>`).join("")
+    : '<span class="sub14">Kein Gerät gefunden – Drucker einschalten und nochmal suchen.</span>';
+  const her = et.hersteller || [];
+  return `<div class="e-zeile"><span class="e-titel wachsen">Etiketten</span>${pill(et.adresse || et.verbindung === "datei" ? true : null, et.adresse || et.verbindung === "datei" ? "eingerichtet" : "kein Drucker")}</div>
+    <div class="e-block"><span class="ueber">Drucker</span>
+      <div class="info-liste" style="flex:0 0 auto">
+        <div class="info-zeile"><span>Drucker</span><span>${esc(et.name || (et.adresse ? "Phomemo" : "–"))}</span></div>
+        <div class="info-zeile"><span>Adresse</span><span>${esc(et.adresse || "–")}</span></div>
+        <div class="info-zeile"><span>Verbindung</span><span>${esc(verb)}</span></div></div>
+      <div class="e-zeile"><button class="knopf rahmen h50 wachsen" data-et="suchen">${S.etSucht ? "Suche …" : "Drucker suchen"}</button>
+        <button class="knopf primaer h50 wachsen" data-et="test" style="font-size:15px">Testdruck</button></div>
+      <div>${geraete}</div></div>
+    <div class="e-block"><span class="ueber">Standardformat</span>
+      <div class="seg">${Object.entries(Etikett.FORMATE).map(([k, v]) => `<button class="${k === et.format ? "an" : ""}" data-et="format" data-v="${k}">${v.name}</button>`).join("")}</div></div>
+    <div class="e-block"><span class="ueber">Schwärzung</span>
+      <div class="seg">${[[6, "Hell"], [10, "Normal"], [14, "Dunkel"]].map(([v, t]) => `<button class="${v === et.dichte ? "an" : ""}" data-et="dichte" data-v="${v}">${t}</button>`).join("")}</div></div>
+    <div class="e-block"><span class="ueber">Herstellerbilder</span>
+      <span class="hinweis">Statt des Namens druckt das Etikett oben ein Bild, das du pro Hersteller hinterlegst (PNG, JPG oder WebP). Am bequemsten am Handy oder Mac: Oberfläche im Heimnetz öffnen und hier das Bild wählen – oder im Repository unter pi/hersteller ablegen.</span>
+      <div>${her.length ? her.map((h) => {
+        const v = (et.bilder || {})[h];
+        return `<div class="hersteller-zeile"><div class="h-bild">${v ? `<img src="/api/hersteller_bild?name=${encodeURIComponent(h)}&v=${v}" alt="">` : "<span>nur Name</span>"}</div>
+          <span class="e-name ellipse">${esc(h)}</span>
+          <label class="knopf rahmen klein">${v ? "Ändern" : "Bild wählen"}<input type="file" accept="image/png,image/jpeg,image/webp" data-hersteller="${esc(h)}" aria-label="Bild für ${esc(h)}"></label>
+          ${(et.bilder_eigen || []).includes(h) ? `<button class="knopf rahmen rot klein" data-et="bild_weg" data-name="${esc(h)}">Entfernen</button>` : ""}</div>`;
+      }).join("") : '<span class="sub14">Noch keine Hersteller im Lager</span>'}</div></div>`;
+}
+
+async function etEinstKlick(d) {
+  if (d.et === "format") return etSetzen({ format: d.v });
+  if (d.et === "dichte") return etSetzen({ dichte: Number(d.v) });
+  if (d.et === "waehlen") { await etSetzen({ adresse: d.adresse, name: d.name }); return meldung(`${d.name} gewählt`); }
+  if (d.et === "test") return etikettOeffnen(Etikett.TEST, 0);
+  if (d.et === "bild_weg") {
+    await post("/api/hersteller_bild/loeschen", { name: d.name });
+    return etLaden();
+  }
+  if (d.et === "suchen" && !S.etSucht) {
+    S.etSucht = true;
+    einst();
+    try {
+      const r = await (await fetch("/api/etikett/suchen")).json();
+      S.etGeraete = r.geraete || [];
+      if (!r.ok) meldung(r.text, true);
+    } catch (e) { S.etGeraete = []; meldung("Suche fehlgeschlagen", true); }
+    S.etSucht = false;
+    if (S.seite === "einst") einst();
+  }
+}
+
+async function bildHochladen(input) {
+  const datei = input.files && input.files[0];
+  if (!datei) return;
+  const name = input.dataset.hersteller;
+  try {
+    const r = await fetch(`/api/hersteller_bild?name=${encodeURIComponent(name)}`, { method: "POST", headers: { "Content-Type": datei.type || "application/octet-stream" }, body: datei });
+    const j = await r.json();
+    meldung(j.text, !j.ok);
+  } catch (e) { meldung("Hochladen fehlgeschlagen", true); }
+  etLaden();
+}
+
 // ------------------------------------------------------------ Daten vom Dienst
 async function lagerLaden() {
   const r = await fetch("/api/lager");
@@ -635,6 +778,7 @@ async function lagerLaden() {
   S.sorten = d.sorten;
   S.lagerVersion = d.version;
   S.karteSchluessel = "";
+  etLaden();
   if (S.seite === "lager") { kopfLager(); liste(); reste(); }
   else if (S.seite === "detail") detail();
 }
@@ -662,5 +806,6 @@ filterLeiste();
 zeige("wiegen");
 verbinden();
 einstLaden();
+etLaden();
 amsLaden();
 setInterval(amsLaden, 30000);

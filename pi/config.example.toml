@@ -35,3 +35,13 @@ lager_neu_laden_s = 60
 [server]
 adresse = "127.0.0.1"      # "0.0.0.0", um die Oberfläche auch im Heimnetz zu öffnen
 port = 8080
+
+[etikett]
+# Phomemo-Etikettendrucker per Bluetooth (M110/M220/M20-Familie)
+# ble = Bluetooth Low Energy (Standard), rfcomm = klassisches Bluetooth, datei = ohne Drucker testen
+verbindung = "ble"
+# leer lassen und in der Waage unter Einstellungen → Etiketten „Drucker suchen“ tippen
+adresse = ""
+kopf_px = 384              # Druckbreite in Punkten (48 mm bei 203 dpi)
+dichte = 10                # Schwärzung 1–15
+format = "expanded"        # classic 40×30, expanded 50×30, compact 40×25, vertikal 30×40

@@ -38,6 +38,19 @@ def _reste(v, gewicht):
     return out
 
 
+def _zahl(v, standard=-1.0):
+    if isinstance(v, bool):
+        return standard
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str) and v.strip():
+        try:
+            return float(v.replace(",", "."))
+        except ValueError:
+            return standard
+    return standard
+
+
 def hex_zu_rgb(h, standard="#888888"):
     if isinstance(h, str) and len(h) == 7 and h[0] == "#":
         try:
@@ -64,6 +77,10 @@ class Sorte:
     reste: list = field(default_factory=list)
     duese_min: int = -1
     duese_max: int = -1
+    bett_min: int = -1
+    bett_max: int = -1
+    flow: float = -1.0
+    td: float = -1.0
     trocknen_c: int = -1
     trocknen_h: int = -1
     durchmesser: float = 1.75
@@ -89,6 +106,7 @@ class Sorte:
             "kurzname": self.kurzname, "besonderheiten": self.besonderheiten,
             "gewicht": self.gewicht, "spulen": self.spulen, "refills": self.refills,
             "reste": self.reste, "duese_min": self.duese_min, "duese_max": self.duese_max,
+            "bett_min": self.bett_min, "bett_max": self.bett_max, "flow": self.flow, "td": self.td,
             "trocknen_c": self.trocknen_c, "trocknen_h": self.trocknen_h,
             "durchmesser": self.durchmesser, "leer_g": self.leer_g, "fcode": self.fcode,
             "bambu_id": self.bambu_id, "codes": self.codes, "nfc": self.nfc,
@@ -135,6 +153,10 @@ def sorte_aus_eintrag(uid, summary, beschreibung):
     s.refills = max(0, min(_int(d.get("refills"), 0), spulen))
     s.duese_min = _int(d.get("duese_min"), -1)
     s.duese_max = _int(d.get("duese_max"), -1)
+    s.bett_min = _int(d.get("bett_min"), -1)
+    s.bett_max = _int(d.get("bett_max"), -1)
+    s.flow = _zahl(d.get("flow"))
+    s.td = _zahl(d.get("td"))
     s.trocknen_c = _int(d.get("trocknen_c"), -1)
     s.trocknen_h = _int(d.get("trocknen_h"), -1)
     s.leer_g = _int(d.get("leer_g"), -1)

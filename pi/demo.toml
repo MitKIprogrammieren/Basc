@@ -5,3 +5,7 @@ art = "demo"
 
 [server]
 port = 8080
+
+[etikett]
+# ohne Drucker: Druckaufträge landen in einer Datei
+verbindung = "datei"

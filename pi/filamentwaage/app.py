@@ -16,7 +16,7 @@ import threading
 import time
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 try:
     import tomllib
@@ -27,10 +27,11 @@ except ModuleNotFoundError:  # Python < 3.11 (z. B. Debian 11 auf dem BTT CB1)
         tomllib = None
 
 from . import modell
+from .etiketten import EtikettDienst
 from .ha import HaClient, HaFehler
 from .sensoren import SensorDemo, SensorGpio, SensorUsb, SensorWlan
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 log = logging.getLogger("waage")
 
@@ -42,6 +43,8 @@ STANDARD = {
                "kalibrierung": "/var/lib/filamentwaage/kalibrierung.json"},
     "waage": {"leerspule_g": 250, "lager_neu_laden_s": 60},
     "server": {"adresse": "127.0.0.1", "port": 8080},
+    "etikett": {"verbindung": "ble", "adresse": "", "kanal": 1, "kopf_px": 384, "dichte": 10,
+                "format": "expanded", "ordner": "/var/lib/filamentwaage", "datei": ""},
 }
 
 
@@ -83,6 +86,7 @@ class Anwendung:
         self.meldungen = deque(maxlen=20)
         self.meldung_id = 0
         self.auftraege: queue.Queue = queue.Queue()
+        self.etikett = EtikettDienst(cfg["etikett"], self.meldung)
 
     # ------------------------------------------------------------ Meldungen
     def meldung(self, text, ok=True):
@@ -176,6 +180,16 @@ class Anwendung:
         self.sensor.start()
         threading.Thread(target=self._arbeiter, daemon=True, name="ha").start()
         threading.Thread(target=self._zyklisch_laden, daemon=True, name="laden").start()
+        self.etikett.start()
+
+    def etikett_einstellungen(self):
+        with self.lock:
+            hersteller = sorted({s.hersteller for s in self.sorten if s.hersteller}, key=str.lower)
+        w = self.etikett.einstellungen(hersteller)
+        w["hersteller"] = hersteller
+        ha = self.cfg["home_assistant"]
+        w["lager_url"] = f"{ha['url'].rstrip('/')}/todo?entity_id={ha['todo']}"
+        return w
 
     # ------------------------------------------------------------ Zustand für die Oberfläche
     def zustand(self):
@@ -253,6 +267,27 @@ def handler_fuer(app: Anwendung):
                 return self._json(app.lager())
             if pfad == "/api/ereignisse":
                 return self._ereignisse()
+            if pfad == "/api/etikett/einstellungen":
+                return self._json(app.etikett_einstellungen())
+            if pfad == "/api/etikett/suchen":
+                try:
+                    return self._json({"ok": True, "geraete": app.etikett.suchen()})
+                except Exception as e:  # noqa: BLE001
+                    return self._json({"ok": False, "text": str(e), "geraete": []})
+            if pfad == "/api/hersteller_bild":
+                name = parse_qs(urlparse(self.path).query).get("name", [""])[0]
+                bild = app.etikett.bild_pfad(name)
+                if not bild:
+                    return self.send_error(404)
+                with open(bild, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", mimetypes.guess_type(bild)[0] or "application/octet-stream")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(body)
+                return
             self.send_error(404)
 
         def _ereignisse(self):
@@ -278,6 +313,15 @@ def handler_fuer(app: Anwendung):
         def do_POST(self):
             pfad = urlparse(self.path).path
             laenge = int(self.headers.get("Content-Length") or 0)
+            if pfad == "/api/hersteller_bild":
+                name = parse_qs(urlparse(self.path).query).get("name", [""])[0]
+                if laenge > 4 * 1024 * 1024:
+                    return self._json({"ok": False, "text": "Bild ist größer als 4 MB"}, 413)
+                try:
+                    app.etikett.bild_speichern(name, self.rfile.read(laenge))
+                except ValueError as e:
+                    return self._json({"ok": False, "text": str(e)}, 400)
+                return self._json({"ok": True, "text": f"Bild für {name} gespeichert"})
             try:
                 d = json.loads(self.rfile.read(laenge) or b"{}")
             except ValueError:
@@ -299,6 +343,17 @@ def handler_fuer(app: Anwendung):
                 app.auftrag("zuordnen", sorte=d["sorte"], tag=d["tag"])
             elif pfad == "/api/spulen":
                 app.auftrag("spulen", sorte=d["sorte"], delta=int(d["delta"]))
+            elif pfad == "/api/etikett/drucken":
+                try:
+                    app.etikett.drucken(d)
+                except (KeyError, ValueError, TypeError) as e:
+                    return self._json({"ok": False, "text": f"Etikett ungültig ({e})"}, 400)
+            elif pfad == "/api/etikett/einstellungen":
+                app.etikett.setzen(d)
+                return self._json(app.etikett_einstellungen())
+            elif pfad == "/api/hersteller_bild/loeschen":
+                app.etikett.bild_loeschen(str(d.get("name", "")))
+                return self._json({"ok": True, "text": "Bild entfernt"})
             elif pfad == "/api/neu_laden":
                 app.meldung("Lade Lager …")
                 app.auftrag("laden")

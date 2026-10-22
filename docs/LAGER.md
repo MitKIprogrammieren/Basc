@@ -42,3 +42,8 @@ Gemessen wird **netto** = Gewicht auf dem Teller − Leerspule.
   ihn bei der alten Sorte.
 - Jede Spule hat ihre eigene UID. Eine Bambu-Spule mit zwei Tags muss nur mit einer Seite zugeordnet
   werden, wenn sie immer gleich herum aufgelegt wird – sonst beide Seiten einmal zuordnen.
+
+## Etiketten
+
+Fürs Etikett liest die Waage zusätzlich – wenn vorhanden – `bett_min`, `bett_max`, `flow` und `td`
+(Transmission Distance). Fehlen sie, bleiben die Zeilen einfach weg. Geschrieben wird dabei nichts.

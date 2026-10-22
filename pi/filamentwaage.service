@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 User=@BENUTZER@
-SupplementaryGroups=dialout gpio
+SupplementaryGroups=dialout gpio bluetooth
 WorkingDirectory=/opt/filamentwaage
 ExecStart=/usr/bin/python3 -m filamentwaage /etc/filamentwaage/config.toml
 StateDirectory=filamentwaage

@@ -33,10 +33,15 @@ if ! python3 -c "import tomllib" 2>/dev/null; then
   apt-get install -y python3-tomli || { apt-get install -y python3-pip && pip3 install tomli; }
 fi
 
+# Bluetooth für den Etikettendrucker (optional)
+apt-get install -y --no-install-recommends bluez python3-bleak || echo "   python3-bleak nicht verfügbar – Etiketten nur per klassischem Bluetooth"
+
 echo "== Programm nach $ZIEL"
 mkdir -p "$ZIEL"
 rm -rf "$ZIEL/filamentwaage"
 cp -r "$HIER/filamentwaage" "$ZIEL/"
+rm -rf "$ZIEL/hersteller"
+[ -d "$HIER/hersteller" ] && cp -r "$HIER/hersteller" "$ZIEL/"
 mkdir -p "$ZIEL/testdaten"
 cp "$HIER/testdaten/"*.json "$ZIEL/testdaten/" 2>/dev/null || true
 install -m 755 "$HIER/kiosk-pad7.sh" "$ZIEL/kiosk-pad7.sh"

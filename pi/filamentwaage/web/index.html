@@ -56,6 +56,7 @@
       <div class="reihe gap10">
         <button id="btn-tara" class="knopf rahmen">Tara</button>
         <button id="btn-wahl" class="knopf rahmen">Sorte wählen</button>
+        <button id="btn-etikett" class="knopf rahmen quadrat" aria-label="Etikett drucken" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></button>
       </div>
     </aside>
   </main>
@@ -104,7 +105,19 @@
         <button id="qr-zu" class="knopf rahmen h50">Schließen</button></div></div>
   </div>
 </div>
+  <div id="etikett" class="qr versteckt" role="dialog" aria-label="Etikett drucken">
+    <div class="qr-box etikett-box">
+      <div class="et-vorschau"><canvas id="et-canvas"></canvas></div>
+      <div class="spalte gap10 wachsen minw0">
+        <div class="spalte gap2"><span id="et-titel" class="name20 ellipse">Etikett</span><span id="et-info" class="sub14 ellipse"></span></div>
+        <div id="et-formate" class="et-formate"></div>
+        <div class="reihe gap8"><button id="et-zu" class="knopf rahmen h50 wachsen">Schließen</button>
+          <button id="et-druck" class="knopf primaer h50 wachsen" style="font-size:15px">Drucken</button></div>
+      </div>
+    </div>
+  </div>
 <script src="/static/qrcode.min.js"></script>
+<script src="/static/etikett.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>
