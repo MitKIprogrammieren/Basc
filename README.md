@@ -34,7 +34,12 @@ Verkabelung: [docs/VERKABELUNG.md](docs/VERKABELUNG.md)
 
 ## ESP32-Variante einrichten
 
-Voraussetzung: [PlatformIO](https://platformio.org/install/cli).
+**Sensorplatine ohne Installation flashen:** `FilamentLager-Webflasher.html` aus dem Branch
+[`webflasher-bin`](../../tree/webflasher-bin) laden, in Chrome oder Edge öffnen, WLAN-Name und Passwort eintragen,
+Platine per USB anstecken, *Verbinden und flashen*. Die Datei enthält die aktuelle Firmware und läuft offline;
+GitHub Actions baut sie bei jeder Änderung an `firmware/sensor-s3zero` neu.
+
+Voraussetzung für den Weg per Kommandozeile: [PlatformIO](https://platformio.org/install/cli).
 
 ```bash
 # Sensorplatine: BOOT gedrückt halten, USB einstecken

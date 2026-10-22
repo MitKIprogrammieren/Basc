@@ -1,5 +1,6 @@
 # Baut die Firmware der Sensorplatine und legt sie für den Webflasher bereit.
-# Ergebnis liegt im Branch "webflasher-bin": sensor-s3zero.bin (komplettes Image ab 0x0) + esptool-js.
+# Ergebnis liegt im Branch "webflasher-bin": FilamentLager-Webflasher.html (alles drin, offline),
+# dazu sensor-s3zero.bin (komplettes Image ab 0x0) und esptool-js.
 name: Firmware Sensorplatine
 
 on:
@@ -8,6 +9,7 @@ on:
     paths:
       - "firmware/sensor-s3zero/**"
       - ".github/workflows/firmware.yml"
+      - "tools/webflasher/**"
   workflow_dispatch:
 
 permissions:
@@ -61,6 +63,7 @@ jobs:
           cp /tmp/ej/package/LICENSE /tmp/aus/esptool-js.LICENSE.txt 2>/dev/null || true
           FW=$(grep -oP 'FW_VERSION "\K[^"]+' firmware/sensor-s3zero/include/config.h)
           printf '{"fw":"%s","commit":"%s","esptool_js":"%s"}\n' "$FW" "${GITHUB_SHA::7}" "$(cat /tmp/ej/version.txt)" > /tmp/aus/version.json
+          python3 tools/webflasher/bauen.py /tmp/aus/sensor-s3zero.bin /tmp/aus/esptool-js.mjs "$FW" /tmp/aus/FilamentLager-Webflasher.html
           cd /tmp/aus
           git init -q -b webflasher-bin
           git config user.name "github-actions"
