@@ -602,6 +602,7 @@ void routen() {
         d["neustart_grund"] = g >= 0 && g < 11 ? GRUND[g] : "unbekannt";
         d["bluetooth_gesperrt"] = drucker_gesperrt();
         d["start"] = start_bericht();
+        d["druck"] = drucker_bericht();
         senden(r, 200, d);
     });
     g_server.on("/api/einstellungen", HTTP_GET, [](AsyncWebServerRequest* r) {

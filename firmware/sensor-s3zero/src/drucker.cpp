@@ -127,6 +127,32 @@ void befehle(std::vector<uint8_t>& out, int breite, int hoehe, const std::vector
 }
 
 // ---------------------------------------------------------------- Bluetooth
+// Bericht des letzten Drucks: welche Dienste der Drucker anbietet, was die Waage benutzt und was er
+// geantwortet hat. Steht in /api/diagnose und geht als #-Zeile über USB.
+String g_druck_bericht = "noch nichts gedruckt";
+String g_antworten;  // Benachrichtigungen des Druckers als Hex
+
+void antwort_merken(NimBLERemoteCharacteristic* k, uint8_t* d, size_t n, bool) {
+    if (g_antworten.length() > 600) return;
+    g_antworten += String(k->getUUID().toString().c_str()) + ":";
+    for (size_t i = 0; i < n && i < 32; i++) {
+        char h[4];
+        snprintf(h, sizeof(h), "%02x", d[i]);
+        g_antworten += h;
+    }
+    g_antworten += " ";
+}
+
+String eigenschaften(NimBLERemoteCharacteristic* k) {
+    String e;
+    if (k->canRead()) e += "r";
+    if (k->canWrite()) e += "w";
+    if (k->canWriteNoResponse()) e += "W";
+    if (k->canNotify()) e += "n";
+    if (k->canIndicate()) e += "i";
+    return e;
+}
+
 String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_t typ) {
     if (!adresse.length()) return "Kein Drucker eingestellt – unter Einstellungen → Etiketten suchen";
     if (g_ble_gesperrt) return GESPERRT;
@@ -139,15 +165,27 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
         return "Drucker nicht erreichbar – eingeschaltet? Phomemo-App am Handy trennen";
     }
     NimBLERemoteCharacteristic* ziel = nullptr;
+    String bericht = "MTU " + String(c->getMTU()) + "; Dienste:";
+    g_antworten = "";
+    for (NimBLERemoteService* s : *c->getServices(true)) {
+        bericht += " [" + String(s->getUUID().toString().c_str()) + ":";
+        for (NimBLERemoteCharacteristic* k : *s->getCharacteristics(true)) {
+            bericht += " " + String(k->getUUID().toString().c_str()) + "(" + eigenschaften(k) + ")";
+            if (k->canNotify()) k->subscribe(true, antwort_merken);  // Antworten des Druckers mitlesen
+        }
+        bericht += "]";
+    }
     if (NimBLERemoteService* s = c->getService(DIENST)) ziel = s->getCharacteristic(SCHREIBEN);
     if (!ziel) {  // andere Firmware: erste Kennung, die ohne Antwort schreiben kann
-        for (NimBLERemoteService* s : *c->getServices(true)) {
-            for (NimBLERemoteCharacteristic* k : *s->getCharacteristics(true))
+        for (NimBLERemoteService* s : *c->getServices(false)) {
+            for (NimBLERemoteCharacteristic* k : *s->getCharacteristics(false))
                 if (k->canWriteNoResponse()) { ziel = k; break; }
             if (ziel) break;
         }
     }
+    bericht += "; benutzt " + (ziel ? String(ziel->getUUID().toString().c_str()) : String("keinen"));
     String fehler;
+    size_t gesendet = 0;
     if (!ziel) {
         fehler = "Drucker bietet keinen Schreibkanal an";
     } else {
@@ -158,10 +196,15 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
                 fehler = "Verbindung zum Drucker abgebrochen";
                 break;
             }
+            gesendet += n;
             vTaskDelay(pdMS_TO_TICKS(15));
         }
-        if (!fehler.length()) vTaskDelay(pdMS_TO_TICKS(1000));  // Drucker erst fertig empfangen lassen
+        if (!fehler.length()) vTaskDelay(pdMS_TO_TICKS(1500));  // Drucker erst fertig empfangen lassen
     }
+    bericht += "; gesendet " + String(gesendet) + "/" + String(auftrag.size()) + " Bytes; Antworten: " +
+               (g_antworten.length() ? g_antworten : String("keine"));
+    g_druck_bericht = bericht;
+    Serial.printf("# Druck: %s\n", bericht.c_str());
     c->disconnect();
     NimBLEDevice::deleteClient(c);
     return fehler;
@@ -260,6 +303,7 @@ void drucker_frueh(bool erlaubt) {
 }
 
 bool drucker_gesperrt() { return g_ble_gesperrt; }
+String drucker_bericht() { return g_druck_bericht; }
 
 void drucker_start() {
     laden();
