@@ -158,8 +158,12 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
     if (g_ble_gesperrt) return GESPERRT;
     uint32_t t0 = millis();
     auto stand = [&](const String& was) {  // jeder Schritt sofort sichtbar, falls es hängt
-        g_druck_bericht = String((millis() - t0) / 1000.0f, 1) + " s: " + was;
-        Serial.printf("# Druck: %s\n", g_druck_bericht.c_str());
+        String t = String((millis() - t0) / 1000.0f, 1) + " s: " + was;
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            g_druck_bericht = t;
+        }
+        Serial.printf("# Druck: %s\n", t.c_str());
     };
     stand("verbinde mit " + adresse);
     NimBLEClient* c = NimBLEDevice::createClient();
@@ -310,7 +314,10 @@ void drucker_frueh(bool erlaubt) {
 }
 
 bool drucker_gesperrt() { return g_ble_gesperrt; }
-String drucker_bericht() { return g_druck_bericht; }
+String drucker_bericht() {
+    std::lock_guard<std::mutex> l(g_mx);
+    return g_druck_bericht;
+}
 
 void drucker_start() {
     laden();
@@ -363,6 +370,7 @@ const char* drucker_drucken(JsonObjectConst o) {
         delete d;
         return "Drucker ist noch beschäftigt – der letzte Auftrag hängt, Waage neu starten";
     }
+    std::lock_guard<std::mutex> l(g_mx);
     g_druck_bericht = "Auftrag angenommen: " + String(breite) + "×" + String(hoehe) + " Punkte, wartet auf den Drucker";
     return nullptr;
 }
