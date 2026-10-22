@@ -105,11 +105,19 @@ function wlanDaten(){
 }
 $('ssid').oninput = $('pw').oninput = () => { if ($('meldung').className==='fehler') meldung(''); };
 
+// Chrome setzt beim Öffnen DTR und RTS – beim ESP32-S3 (USB-JTAG) hält RTS den Chip im Reset.
+// Beide zugleich loslassen: Die Waage startet normal und antwortet nach etwa zwei Sekunden.
+async function freigeben(port){
+  try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) { log('Steuerleitungen: ' + e.message); }
+  await sleep(2000);
+}
+
 // ---------- serielle Zeilen zur Firmware (JSON-Protokoll, docs/PROTOKOLL.md)
 class Leitung {
   constructor(port){ this.port = port; this.puffer = ''; this.zeilen = []; this.warter = []; }
   async oeffnen(){
     await this.port.open({ baudRate: 115200 });
+    await freigeben(this.port);
     this.writer = this.port.writable.getWriter();
     this.reader = this.port.readable.getReader();
     this.lesen();
@@ -173,7 +181,7 @@ async function wlanUebertragen(l, daten){
     await l.senden({ c:'wlan', ssid: daten.ssid, pw: daten.pw }, JSON.stringify({ c:'wlan', ssid: daten.ssid, pw: '••••' }));
     try { antw = await l.warten(o => o.c === 'wlan', 1500); } catch { await sleep(500); }
   }
-  if (!antw) throw new Error('Die Waage antwortet nicht. Ist Firmware 1.3.0 oder neuer drauf?');
+  if (!antw) throw new Error('Die Waage antwortet nicht über USB. Kabel kurz ab- und anstecken und „Nur WLAN übertragen“ versuchen.');
   if (antw.t !== 'ok') throw new Error(antw.msg || 'Die Waage hat das WLAN abgelehnt.');
   schritt(4, 'ok'); schritt(5, 'laeuft'); meldung('Waage verbindet sich mit „' + daten.ssid + '“…');
   for (let i=0;i<30;i++) {
@@ -246,6 +254,7 @@ $('ausgabe').onclick = async () => {
   if (ausgabePort) { try { await ausgabePort.close(); } catch {} ausgabePort = null; $('ausgabe').textContent = 'Ausgabe der Waage ansehen'; return; }
   let port; try { port = await navigator.serial.requestPort(); } catch { return; }
   try { await port.open({ baudRate: 115200 }); } catch (e) { meldung('Port lässt sich nicht öffnen – ist er noch in einem anderen Programm offen?', 'fehler'); return; }
+  await freigeben(port);
   ausgabePort = port;
   $('ausgabe').textContent = 'Ausgabe beenden';
   document.querySelector('details').open = true;
@@ -265,7 +274,7 @@ $('nurWlan').onclick = async () => {
   schritt(1,'ok'); schritt(2,'ok'); schritt(3,'ok');
   const l = new Leitung(port);
   try {
-    await l.oeffnen(); await sleep(300);
+    await l.oeffnen();
     fertig(await wlanUebertragen(l, daten));
   } catch (e) { fehler(e, $('s4').className==='ok' ? 5 : 4); }
   finally { await l.schliessen(); sperren(false); }
