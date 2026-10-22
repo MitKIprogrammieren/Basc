@@ -735,18 +735,25 @@ function etEinstHtml() {
     <div class="e-block"><span class="ueber">Schwärzung</span>
       <div class="seg">${[[6, "Hell"], [10, "Normal"], [14, "Dunkel"]].map(([v, t]) => `<button class="${v === et.dichte ? "an" : ""}" data-et="dichte" data-v="${v}">${t}</button>`).join("")}</div></div>
     <div class="e-block"><span class="ueber">Herstellerbilder</span>
-      <span class="hinweis">Statt des Namens druckt das Etikett oben ein Bild, das du pro Hersteller hinterlegst (PNG, JPG oder WebP). Am bequemsten am Handy oder Mac: Oberfläche im Heimnetz öffnen und hier das Bild wählen – oder im Repository unter pi/hersteller ablegen.</span>
+      ${et.bild_quelle === undefined
+        ? '<span class="hinweis">Statt des Namens druckt das Etikett oben ein Bild, das du pro Hersteller hinterlegst (PNG, JPG oder WebP). Am bequemsten am Handy oder Mac: Oberfläche im Heimnetz öffnen und hier das Bild wählen – oder im Repository unter pi/hersteller ablegen.</span>'
+        : `<span class="hinweis">Die Waage lädt ein Logo erst, wenn ein Etikett es braucht. Dateiname wie der Hersteller: Bambu Lab → bambu-lab.png. Leer lassen für den Ordner www/hersteller in Home Assistant.</span>
+      <div class="feld"><label for="et-quelle">Bildquelle</label><div class="e-zeile"><input id="et-quelle" class="wachsen" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.bild_quelle)}" placeholder="${esc(et.bild_quelle_standard || "")}">
+        <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" data-et="quelle">Speichern</button></div></div>`}
       <div>${her.length ? her.map((h) => {
         const v = (et.bilder || {})[h];
+        const st = (et.bild_status || {})[h];
         return `<div class="hersteller-zeile"><div class="h-bild">${v ? `<img src="/api/hersteller_bild?name=${encodeURIComponent(h)}&v=${v}" alt="">` : "<span>nur Name</span>"}</div>
           <span class="e-name ellipse">${esc(h)}</span>
-          <label class="knopf rahmen klein">${v ? "Ändern" : "Bild wählen"}<input type="file" accept="image/png,image/jpeg,image/webp" data-hersteller="${esc(h)}" aria-label="Bild für ${esc(h)}"></label>
+          ${st ? `<span class="sub14">${esc(st)}</span>` : ""}
+          ${et.bild_hochladen === false ? "" : `<label class="knopf rahmen klein">${v ? "Ändern" : "Bild wählen"}<input type="file" accept="image/png,image/jpeg,image/webp" data-hersteller="${esc(h)}" aria-label="Bild für ${esc(h)}"></label>`}
           ${(et.bilder_eigen || []).includes(h) ? `<button class="knopf rahmen rot klein" data-et="bild_weg" data-name="${esc(h)}">Entfernen</button>` : ""}</div>`;
       }).join("") : '<span class="sub14">Noch keine Hersteller im Lager</span>'}</div></div>`;
 }
 
 async function etEinstKlick(d) {
   if (d.et === "format") return etSetzen({ format: d.v });
+  if (d.et === "quelle") { tastatur(false); await etSetzen({ bild_quelle: $("et-quelle").value.trim() }); return meldung("Bildquelle gespeichert"); }
   if (d.et === "dichte") return etSetzen({ dichte: Number(d.v) });
   if (d.et === "waehlen") { await etSetzen({ adresse: d.adresse, name: d.name }); return meldung(`${d.name} gewählt`); }
   if (d.et === "test") return etikettOeffnen(Etikett.TEST, 0);

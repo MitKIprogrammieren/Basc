@@ -14,6 +14,8 @@
 #include <AsyncJson.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
@@ -23,6 +25,8 @@
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <atomic>
+#include <map>
 #include <memory>
 #include <mutex>
 
@@ -339,6 +343,106 @@ String bild_pfad(const std::string& hersteller) {
     return "";
 }
 
+// ---------------------------------------------------------------- Herstellerbilder von außen
+// Logos liegen z. B. in Home Assistant unter /config/www/hersteller/ (→ http://ha:8123/local/hersteller/).
+// Die Waage holt ein Logo erst, wenn die Oberfläche es anfragt, und behält es im PSRAM.
+struct ExternesBild {
+    std::atomic<int> zustand{0};  // 0 = wird geladen, 1 = da, 2 = gibt es nicht
+    std::string daten;
+    const char* typ = "image/png";
+    uint32_t seit = millis();
+};
+std::map<String, std::shared_ptr<ExternesBild>> g_bilder;  // unter g_mx
+QueueHandle_t g_bild_auftraege = nullptr;
+constexpr size_t BILD_MAX_BYTES = 200 * 1024, BILDER_SPEICHER_MAX = 1024 * 1024;
+
+String bild_quelle() {  // g_mx gehalten
+    String q = g_einst["bild_quelle"] | "";
+    if (!q.length()) {
+        q = g_ha.url;
+        while (q.endsWith("/")) q.remove(q.length() - 1);
+        q += "/local/hersteller/";
+    }
+    if (!q.endsWith("/")) q += "/";
+    return q;
+}
+
+void bild_holen(const String& k, std::shared_ptr<ExternesBild> b) {
+    String basis;
+    {
+        std::lock_guard<std::mutex> l(g_mx);
+        basis = bild_quelle();
+    }
+    basis = url_aufloesen(basis);
+    static const struct { const char* endung; const char* typ; } ARTEN[] = {
+        {".png", "image/png"}, {".jpg", "image/jpeg"}, {".webp", "image/webp"}};
+    for (const auto& a : ARTEN) {
+        if (WiFi.status() != WL_CONNECTED) break;
+        HTTPClient http;
+        WiFiClient plain;
+        WiFiClientSecure tls;
+        String url = basis + k + a.endung;
+        bool ok = url.startsWith("https://") ? (tls.setInsecure(), http.begin(tls, url)) : http.begin(plain, url);
+        if (!ok) break;
+        http.setTimeout(5000);
+        int code = http.GET();
+        if (code == 200) {
+            int laenge = http.getSize();
+            if (laenge > 0 && (size_t)laenge > BILD_MAX_BYTES) { http.end(); break; }
+            String inhalt = http.getString();
+            http.end();
+            if (inhalt.length() == 0 || inhalt.length() > BILD_MAX_BYTES) break;
+            b->daten.assign(inhalt.c_str(), inhalt.length());
+            b->typ = a.typ;
+            b->zustand = 1;
+            return;
+        }
+        http.end();
+        if (code > 0 && code != 404) break;  // Server antwortet, aber nicht mit dem Bild – nicht weiter raten
+    }
+    b->zustand = 2;
+}
+
+void bild_task(void*) {
+    for (;;) {
+        String* k = nullptr;
+        if (xQueueReceive(g_bild_auftraege, &k, portMAX_DELAY) != pdTRUE) continue;
+        std::shared_ptr<ExternesBild> b;
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            auto it = g_bilder.find(*k);
+            if (it != g_bilder.end()) b = it->second;
+        }
+        if (b && b->zustand == 0) bild_holen(*k, b);
+        // Speicher begrenzen: älteste Bilder fallen raus
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            size_t summe = 0;
+            for (auto& [n, x] : g_bilder) summe += x->daten.size();
+            while (summe > BILDER_SPEICHER_MAX) {
+                auto alt = g_bilder.end();
+                for (auto it = g_bilder.begin(); it != g_bilder.end(); ++it)
+                    if (it->second->zustand == 1 && (alt == g_bilder.end() || it->second->seit < alt->second->seit)) alt = it;
+                if (alt == g_bilder.end()) break;
+                summe -= alt->second->daten.size();
+                g_bilder.erase(alt);
+            }
+        }
+        delete k;
+    }
+}
+
+// Zustand eines externen Logos: 0 = noch nie angefragt oder lädt, 1 = da, 2 = gibt es nicht
+int bild_zustand(const String& k) {  // g_mx gehalten
+    auto it = g_bilder.find(k);
+    return it == g_bilder.end() ? 0 : it->second->zustand.load();
+}
+
+void bild_vergessen() {  // nach Änderung der Bildquelle
+    std::lock_guard<std::mutex> l(g_mx);
+    g_bilder.clear();
+}
+
 // ---------------------------------------------------------------- JSON für die Oberfläche
 void sorte_json(JsonObject o, const Filament& f) {
     char hex[8];
@@ -532,10 +636,21 @@ void routen() {
         for (const Filament& f : g_lager.sorten)
             if (!f.hersteller.empty() && std::find(namen.begin(), namen.end(), f.hersteller) == namen.end()) namen.push_back(f.hersteller);
         std::sort(namen.begin(), namen.end());
+        JsonObject status = d["bild_status"].to<JsonObject>();
         for (const auto& n : namen) {
             h.add(n);
-            if (bild_pfad(n).length()) bilder[n] = 1;
+            if (bild_pfad(n).length()) {  // mitgeliefert (pi/hersteller → LittleFS)
+                bilder[n] = 1;
+                status[n] = "auf der Waage";
+                continue;
+            }
+            int z = bild_zustand(kurz(n));
+            if (z != 2) bilder[n] = 2;  // Version 2: die Oberfläche fragt an, die Waage lädt nach
+            status[n] = z == 1 ? "geladen" : z == 2 ? "kein Bild gefunden" : "lädt bei Bedarf";
         }
+        d["bild_quelle"] = g_einst["bild_quelle"] | "";
+        d["bild_quelle_standard"] = [] { String q = g_ha.url; while (q.endsWith("/")) q.remove(q.length() - 1); return q + "/local/hersteller/"; }();
+        d["bild_hochladen"] = false;
         String url = g_ha.url;
         while (url.endsWith("/")) url.remove(url.length() - 1);
         d["lager_url"] = url + "/todo?entity_id=" + g_ha.todo;
@@ -544,6 +659,18 @@ void routen() {
     g_server.on("/api/etikett/einstellungen", HTTP_GET, etikett);
     post("/api/etikett/einstellungen", [etikett](AsyncWebServerRequest* r, JsonObject o) {
         drucker_setzen(o);
+        if (o["bild_quelle"].is<const char*>()) {
+            String q = o["bild_quelle"].as<const char*>();
+            q.trim();
+            if (q.length() && !q.startsWith("http://") && !q.startsWith("https://"))
+                return ok_text(r, false, "Bildquelle muss mit http:// oder https:// beginnen");
+            {
+                std::lock_guard<std::mutex> l(g_mx);
+                g_einst["bild_quelle"] = q;
+                einst_speichern();
+            }
+            bild_vergessen();
+        }
         etikett(r);
     });
     g_server.on("/api/etikett/suchen", HTTP_GET, [](AsyncWebServerRequest* r) {
@@ -557,12 +684,58 @@ void routen() {
     }, 160 * 1024);
     post("/api/hersteller_bild/loeschen", [](AsyncWebServerRequest* r, JsonObject) { angenommen(r); });
     g_server.on("/api/hersteller_bild", HTTP_GET, [](AsyncWebServerRequest* r) {
-        String p = bild_pfad(r->hasParam("name") ? r->getParam("name")->value().c_str() : "");
-        if (!p.length()) return r->send(404, "text/plain", "kein Bild");
-        const char* typ = p.endsWith(".png") ? "image/png" : p.endsWith(".jpg") ? "image/jpeg" : "image/webp";
-        AsyncWebServerResponse* res = r->beginResponse(LittleFS, p, typ);
-        res->addHeader("Cache-Control", "max-age=3600");
-        r->send(res);
+        std::string name = r->hasParam("name") ? r->getParam("name")->value().c_str() : "";
+        String p = bild_pfad(name);
+        if (p.length()) {  // mitgeliefert
+            const char* typ = p.endsWith(".png") ? "image/png" : p.endsWith(".jpg") ? "image/jpeg" : "image/webp";
+            AsyncWebServerResponse* res = r->beginResponse(LittleFS, p, typ);
+            res->addHeader("Cache-Control", "max-age=3600");
+            return r->send(res);
+        }
+        String k = kurz(name);
+        if (!k.length()) return r->send(404, "text/plain", "kein Bild");
+        std::shared_ptr<ExternesBild> b;
+        bool neu = false;
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            auto it = g_bilder.find(k);
+            if (it == g_bilder.end()) {
+                b = std::make_shared<ExternesBild>();
+                g_bilder[k] = b;
+                neu = true;
+            } else {
+                b = it->second;
+            }
+        }
+        if (neu) {
+            auto* auftrag = new String(k);
+            if (xQueueSend(g_bild_auftraege, &auftrag, 0) != pdTRUE) {
+                delete auftrag;
+                b->zustand = 2;
+            }
+        }
+        if (b->zustand == 2) return r->send(404, "text/plain", "kein Bild");
+        if (b->zustand == 1) {
+            // über einen Filler, der das Bild festhält – so darf es währenddessen aus dem Speicher fallen
+            AsyncWebServerResponse* res = r->beginResponse(b->typ, b->daten.size(), [b](uint8_t* puf, size_t max, size_t index) -> size_t {
+                size_t n = std::min(max, b->daten.size() - index);
+                memcpy(puf, b->daten.data() + index, n);
+                return n;
+            });
+            res->addHeader("Cache-Control", "max-age=3600");
+            return r->send(res);
+        }
+        // Noch nicht da: Antwort offen halten, bis die Waage das Logo geholt hat (höchstens 10 s).
+        // Ein leerer Körper heißt für die Oberfläche „kein Bild“ – sie druckt dann den Namen.
+        uint32_t start = millis();
+        r->send(r->beginChunkedResponse("image/png", [b, start](uint8_t* puf, size_t max, size_t index) -> size_t {
+            int z = b->zustand;
+            if (z == 0) return millis() - start < 10000 ? RESPONSE_TRY_AGAIN : 0;
+            if (z != 1 || index >= b->daten.size()) return 0;
+            size_t n = std::min(max, b->daten.size() - index);
+            memcpy(puf, b->daten.data() + index, n);
+            return n;
+        }));
     });
     g_server.on("/api/hersteller_bild", HTTP_POST, [](AsyncWebServerRequest* r) {
         ok_text(r, false, "Auf der Sensorplatine: Bild im Repository unter pi/hersteller ablegen, dann neu flashen");
@@ -689,6 +862,8 @@ void oberflaeche_start() {
     g_vorgang_fertig = [](bool ok, const String& text) { meldung(text, !ok); };
     g_drucker_meldung = [](const String& text, bool fehler) { meldung(text, fehler); };
     drucker_start();
+    g_bild_auftraege = xQueueCreate(32, sizeof(String*));
+    xTaskCreatePinnedToCore(bild_task, "bilder", 8192, nullptr, 1, nullptr, 1);
     g_auftraege = xQueueCreate(16, sizeof(Auftrag*));
     xTaskCreatePinnedToCore(arbeiter, "ha", 16384, nullptr, 1, nullptr, 1);
     routen();
