@@ -394,7 +394,6 @@ const char* grund_text(esp_reset_reason_t g) {
         case ESP_RST_TASK_WDT: return "Watchdog (Task)";
         case ESP_RST_WDT: return "Watchdog";
         case ESP_RST_BROWNOUT: return "Unterspannung";
-        case ESP_RST_USB: return "USB";
         default: return "anderer Grund";
     }
 }
