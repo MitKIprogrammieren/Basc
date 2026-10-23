@@ -46,7 +46,11 @@ schickt sie das Etikett per WLAN hierher.
     POST /drucken  {"breite": 320, "hoehe": 240, "daten": "<Base64, 1 Bit je Punkt, 1 = schwarz>",
                     "kopien": 1, "dichte": 10}
     POST /test     zwei schwarze Balken
-    GET  /status   Drucker, letzter Druck, Antworten des Druckers
+    GET  /status   Drucker, Verbindung, letzter Druck, Antworten des Druckers
+    POST /freigeben  Dauerverbindung für 10 Minuten lösen (z. B. für die Phomemo-App)
+
+Mit "dauerhaft": true (Standard) bleibt die Bluetooth-Verbindung offen und wird nach jedem Abbruch
+sofort neu aufgebaut; alle 30 s geht eine harmlose Abfrage als Lebenszeichen an den Drucker.
 
 Nur Python-Standardbibliothek (läuft auch auf älterem Raspberry Pi OS neben Pi-hole).
 Einstellungen in /etc/filamentwaage-druck.json: {"drucker": "B6:61:E9:A5:D5:EB", "kanal": 1, "port": 8765}
@@ -63,9 +67,9 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 CFG_PFAD = os.environ.get("DRUCK_CONFIG", "/etc/filamentwaage-druck.json")
-STANDARD = {"drucker": "", "kanal": 1, "port": 8765, "dpi": 300}
+STANDARD = {"drucker": "", "kanal": 1, "port": 8765, "dpi": 300, "dauerhaft": True}
 log = logging.getLogger("druckbruecke")
 
 
@@ -126,39 +130,150 @@ TEST = (b"SIZE 40 mm,30 mm\r\nGAP 4.6 mm, 0 mm\r\nDIRECTION 0,0\r\nDENSITY 7\r\n
 
 
 # ------------------------------------------------------------------ Bluetooth (RFCOMM)
-def senden(auftrag):
-    adresse = CFG.get("drucker", "")
-    if not adresse:
-        raise RuntimeError("Kein Drucker eingetragen (/etc/filamentwaage-druck.json)")
-    if not hasattr(socket, "AF_BLUETOOTH"):
-        raise RuntimeError("Python ohne Bluetooth-Unterstützung")
-    antworten = b""
-    with socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM) as s:
-        s.settimeout(15)
-        try:
-            s.connect((adresse, int(CFG.get("kanal", 1))))
-        except OSError as e:
-            raise RuntimeError("Drucker nicht erreichbar (%s) – eingeschaltet? Mit Handy/Mac verbunden?" % e)
-        s.sendall(b"SSSGETTYPE\r\n")
-        for i in range(0, len(auftrag), 512):
-            s.sendall(auftrag[i:i + 512])
-            time.sleep(0.01)
-        # Antworten mitlesen, bis der Drucker fertig meldet (höchstens 20 s)
-        s.settimeout(1.0)
-        ende = time.time() + 20
-        while time.time() < ende:
+class Verbindung:
+    """Hält die RFCOMM-Verbindung zum Drucker offen und baut sie bei Abbruch neu auf."""
+
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.sock = None
+        self.puffer = b""          # Antworten des Druckers
+        self.seit = ""
+        self.fehler = ""
+        self.frei_bis = 0.0        # bis dahin keine Dauerverbindung (Phomemo-App)
+        self.zuletzt_gesendet = 0.0
+
+    @property
+    def verbunden(self):
+        return self.sock is not None
+
+    def _verbinden(self):
+        adresse = CFG.get("drucker", "")
+        if not adresse:
+            raise RuntimeError("Kein Drucker eingetragen (/etc/filamentwaage-druck.json)")
+        if not hasattr(socket, "AF_BLUETOOTH"):
+            raise RuntimeError("Python ohne Bluetooth-Unterstützung")
+        letzter = None
+        for versuch in range(3):  # Drucker an der Reichweitengrenze antworten oft erst beim zweiten Mal
+            s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+            s.settimeout(25)
+            try:
+                s.connect((adresse, int(CFG.get("kanal", 1))))
+                s.settimeout(None)
+                self.sock = s
+                self.seit = time.strftime("%H:%M:%S")
+                self.fehler = ""
+                self.puffer = b""
+                threading.Thread(target=self._lesen, args=(s,), daemon=True).start()
+                log.info("verbunden mit %s", adresse)
+                return
+            except OSError as e:
+                letzter = e
+                s.close()
+                time.sleep(2)
+        self.fehler = str(letzter)
+        raise RuntimeError("Drucker nicht erreichbar (%s) – eingeschaltet, in Reichweite, nicht mit Handy/Mac verbunden?"
+                           % letzter)
+
+    def _lesen(self, s):
+        while True:
             try:
                 teil = s.recv(512)
-            except socket.timeout:
-                if b"GETTYPE" in antworten and b"PRINTING" not in antworten:
-                    s.sendall(b"SSSGETPRINTING\r\n")
-                continue
+            except OSError:
+                teil = b""
             if not teil:
                 break
-            antworten += teil
-            if b"PRINTING:DONE" in antworten:
+            with self.lock:
+                self.puffer = (self.puffer + teil)[-4000:]
+        with self.lock:
+            if self.sock is s:
+                self.sock = None
+                log.info("Verbindung zum Drucker getrennt")
+        try:
+            s.close()
+        except OSError:
+            pass
+
+    def trennen(self):
+        with self.lock:
+            s, self.sock = self.sock, None
+        if s:
+            try:
+                s.close()
+            except OSError:
+                pass
+
+    def senden(self, daten):
+        with self.lock:
+            if not self.sock:
+                self._verbinden()
+            try:
+                for i in range(0, len(daten), 512):
+                    self.sock.sendall(daten[i:i + 512])
+                    time.sleep(0.01)
+                self.zuletzt_gesendet = time.time()
+            except OSError:
+                # alte Verbindung war tot – einmal neu verbinden und nochmal
+                self.trennen()
+                self._verbinden()
+                for i in range(0, len(daten), 512):
+                    self.sock.sendall(daten[i:i + 512])
+                    time.sleep(0.01)
+                self.zuletzt_gesendet = time.time()
+
+    def drucken(self, auftrag):
+        with self.lock:
+            self.puffer = b""  # nur Antworten zu diesem Auftrag
+            start = 0
+            self.senden(b"SSSGETTYPE\r\n" + auftrag)
+        ende = time.time() + 25
+        gefragt = 0.0
+        while time.time() < ende:
+            time.sleep(0.5)
+            with self.lock:
+                neu = self.puffer[start:] if len(self.puffer) >= start else self.puffer
+            if b"PRINTING:DONE" in neu:
                 break
-    return antworten.decode("utf-8", "replace").strip()
+            if time.time() - gefragt > 3:
+                gefragt = time.time()
+                try:
+                    self.senden(b"SSSGETPRINTING\r\n")
+                except RuntimeError:
+                    break
+        with self.lock:
+            antworten = self.puffer[start:] if len(self.puffer) >= start else self.puffer
+        if not CFG.get("dauerhaft", True):
+            self.trennen()
+        return antworten.decode("utf-8", "replace").strip()
+
+    def waechter(self):
+        """Hält die Verbindung offen (wenn dauerhaft) – mit wachsenden Pausen bei Fehlschlägen."""
+        pause = 5
+        while True:
+            time.sleep(1)
+            if not CFG.get("dauerhaft", True) or time.time() < self.frei_bis:
+                if self.verbunden and time.time() < self.frei_bis:
+                    self.trennen()
+                continue
+            if not self.verbunden:
+                with self.lock:
+                    try:
+                        self._verbinden()
+                        pause = 5
+                    except RuntimeError:
+                        pass
+                if not self.verbunden:
+                    time.sleep(pause)
+                    pause = min(60, pause * 2)
+                continue
+            if time.time() - self.zuletzt_gesendet > 30:  # Lebenszeichen
+                try:
+                    with self.lock:
+                        self.senden(b"SSSGETPRINTING\r\n")
+                except (RuntimeError, OSError):
+                    pass
+
+
+VERBINDUNG = Verbindung()
 
 
 def arbeiter():
@@ -166,7 +281,7 @@ def arbeiter():
         art, auftrag = AUFTRAEGE.get()
         zeit = time.strftime("%H:%M:%S")
         try:
-            antworten = senden(auftrag)
+            antworten = VERBINDUNG.drucken(auftrag)
             ok, text = True, "%s gedruckt (%d Bytes)" % (art, len(auftrag))
         except Exception as e:  # noqa: BLE001 – Dienst soll weiterlaufen
             ok, text, antworten = False, str(e), ""
@@ -176,6 +291,27 @@ def arbeiter():
 
 
 # ------------------------------------------------------------------ HTTP
+SEITE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>FilamentLager Druckbrücke</title>
+<body style="font-family:system-ui;background:#0d0f12;color:#f1f3f5;max-width:520px;margin:24px auto;padding:0 16px">
+<h2 style="font-weight:600">Druckbrücke · M20 Pro</h2>
+<p id="z" style="color:#a3aab3">lade …</p>
+<p><button id="t" style="padding:10px 16px;border-radius:10px;border:0;background:#4caf50;color:#0d0f12;font-size:15px">Testdruck</button>
+<button id="f" style="padding:10px 16px;border-radius:10px;border:2px solid #3a4048;background:none;color:#f1f3f5;font-size:15px">
+Für Phomemo-App freigeben (10 min)</button></p>
+<pre id="a" style="color:#a3aab3;white-space:pre-wrap"></pre>
+<script>
+async function lade(){const z=await (await fetch('/status')).json();
+document.getElementById('z').innerHTML=(z.verbunden?'<b style="color:#9fe3a2">verbunden</b> seit '+z.verbunden_seit
+:(z.freigegeben_s?'<b style="color:#ffb74d">freigegeben</b> für die App, noch '+Math.ceil(z.freigegeben_s/60)+' min'
+:'<b style="color:#ef5350">nicht verbunden</b> '+(z.verbindungsfehler||'')))+'<br>Letzter Druck '+(z.zeit||'')+': '+z.letzter;
+document.getElementById('a').textContent=z.antworten||'';}
+document.getElementById('t').onclick=()=>fetch('/test',{method:'POST'}).then(lade);
+document.getElementById('f').onclick=()=>fetch('/freigeben',{method:'POST'}).then(lade);
+lade();setInterval(lade,3000);
+</script>"""
+
+
 class Server(ThreadingMixIn, HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -204,10 +340,21 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        if self.path.split("?")[0] in ("/", "/status"):
+        if self.path.split("?")[0] == "/":
+            body = SEITE.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            return self.wfile.write(body)
+        if self.path.split("?")[0] == "/status":
             with LOCK:
                 z = dict(ZUSTAND)
-            return self._json({"version": VERSION, "drucker": CFG.get("drucker", ""), **z})
+            frei = max(0, int(VERBINDUNG.frei_bis - time.time()))
+            return self._json({"version": VERSION, "drucker": CFG.get("drucker", ""),
+                               "verbunden": VERBINDUNG.verbunden, "verbunden_seit": VERBINDUNG.seit,
+                               "dauerhaft": bool(CFG.get("dauerhaft", True)), "freigegeben_s": frei,
+                               "verbindungsfehler": VERBINDUNG.fehler, **z})
         self._json({"ok": False, "text": "nicht gefunden"}, 404)
 
     def do_POST(self):
@@ -217,6 +364,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "text": "zu groß"}, 413)
         roh = self.rfile.read(laenge)
         try:
+            if pfad == "/freigeben":
+                VERBINDUNG.frei_bis = time.time() + 600
+                VERBINDUNG.trennen()
+                return self._json({"ok": True, "text": "Drucker für 10 Minuten freigegeben (Phomemo-App)"})
             if pfad == "/test":
                 auftrag, art = TEST, "Test"
             elif pfad == "/drucken":
@@ -242,6 +393,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     threading.Thread(target=arbeiter, daemon=True).start()
+    threading.Thread(target=VERBINDUNG.waechter, daemon=True).start()
     port = int(CFG.get("port", 8765))
     log.info("FilamentLager-Druckbrücke %s auf Port %d, Drucker %s", VERSION, port, CFG.get("drucker") or "–")
     Server(("0.0.0.0", port), Handler).serve_forever()
@@ -255,7 +407,7 @@ if __name__ == "__main__":
         main()
 PYTHON_ENDE
 cat > /etc/filamentwaage-druck.json <<JSON
-{"drucker": "$DRUCKER", "kanal": 1, "port": $PORT, "dpi": 300}
+{"drucker": "$DRUCKER", "kanal": 1, "port": $PORT, "dpi": 300, "dauerhaft": true}
 JSON
 cat > /etc/systemd/system/filamentwaage-druck.service <<UNIT
 [Unit]
@@ -264,6 +416,8 @@ After=bluetooth.target network-online.target
 Wants=bluetooth.target
 
 [Service]
+# länger nach dem Drucker suchen (Standard 5 s → 20 s), hilft an der Reichweitengrenze
+ExecStartPre=-/usr/bin/hciconfig hci0 pageto 32768
 ExecStart=/usr/bin/python3 $ZIEL/druckbruecke.py
 Restart=always
 RestartSec=5
@@ -293,4 +447,5 @@ echo
 echo
 echo "== Fertig. In der Waage unter Einstellungen → Etiketten → Druckbrücke eintragen:"
 echo "   http://$IP:$PORT"
-echo "   Status jederzeit: http://$IP:$PORT/status    Protokoll: journalctl -u filamentwaage-druck -f"
+echo "   Statusseite (Testdruck, für die Phomemo-App freigeben): http://$IP:$PORT"
+echo "   Status als Text: http://$IP:$PORT/status    Protokoll: journalctl -u filamentwaage-druck -f"

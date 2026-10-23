@@ -14,5 +14,8 @@ Das Skript installiert bei Bedarf `bluez`, legt den Dienst `filamentwaage-druck`
 druckt zum Test zwei Balken. Danach in der Waage unter *Einstellungen → Etiketten → Druckbrücke*
 `http://192.168.1.250:8765` eintragen.
 
+Die Verbindung zum Drucker bleibt dauerhaft offen und wird nach Abbrüchen neu aufgebaut. Auf der Statusseite
+`http://192.168.1.250:8765` gibt es einen Testdruck und „Für Phomemo-App freigeben (10 min)“.
+
 `druckbruecke-installieren.sh` enthält `druckbruecke.py` – nach Änderungen an der .py neu zusammensetzen
 (Kopf bis `PYTHON_ENDE`, dann die .py, dann der Rest).
