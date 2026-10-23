@@ -10,6 +10,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import queue
 import sys
 import threading
@@ -31,7 +32,27 @@ from .etiketten import EtikettDienst
 from .ha import HaClient, HaFehler
 from .sensoren import SensorDemo, SensorGpio, SensorUsb, SensorWlan
 
-VERSION = "1.2.0"
+def _version():
+    """Die Version der Waage, dieselbe Nummer wie die Firmware der Sensorplatine.
+
+    install.sh legt sie als Datei VERSION neben das Paket; im Repo steht sie in
+    firmware/sensor-s3zero/include/config.h.
+    """
+    hier = os.path.dirname(os.path.abspath(__file__))
+    for pfad in (os.path.join(hier, "..", "VERSION"),
+                 os.path.join(hier, "..", "..", "firmware", "sensor-s3zero", "include", "config.h")):
+        try:
+            with open(pfad, encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            continue
+        m = re.search(r'FW_VERSION\s+"([^"]+)"', text) or re.match(r"\s*([0-9][0-9.]*\S*)", text)
+        if m:
+            return m.group(1)
+    return "?"
+
+
+VERSION = _version()
 WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 log = logging.getLogger("waage")
 

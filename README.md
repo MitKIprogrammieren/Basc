@@ -59,17 +59,22 @@ Danach am Display: **Einstellungen → Tara** bei leerem Teller, Gewicht auflege
 
 ## Pi-Variante einrichten
 
-Raspberry Pi OS Bookworm (Desktop) auf dem Pi 4, dann:
+Raspberry Pi OS Bookworm auf dem Pi 4 – mit oder ohne Desktop (Lite), dann:
 
 ```bash
 git clone https://github.com/MitKIprogrammieren/bambu-scale
 cd bambu-scale/pi
-./install.sh            # mit --gpio für PN532/HX711 direkt am Pi, --tft50 falls das Display dunkel bleibt
-nano /etc/filamentwaage/config.toml   # Token eintragen, Sensor-Art wählen
+./install.sh --wlan     # Sensorplatine per WLAN wie beim Pad 7; --wlan=192.168.1.50 für eine feste IP
+nano /etc/filamentwaage/config.toml   # Home-Assistant-Adresse und Token eintragen
 sudo systemctl restart filamentwaage
+sudo reboot
 ```
 
-Die Oberfläche startet nach dem Anmelden im Vollbild. Ohne Hardware ausprobieren:
+Weitere Optionen: `--gpio` für PN532/HX711 direkt am Pi, `--tft50` falls das Display dunkel bleibt.
+Ohne Desktop startet die Oberfläche wie beim Pad 7 über einen eigenen X-Server auf tty1
+(`filamentwaage-kiosk.service`), mit Desktop nach dem Anmelden im Vollbild. Eine frühere
+Pi-Version (SpoolmanScaleatPi, Dienst `spoolmanscale`) schaltet der Installer ab; sie bleibt installiert.
+Aktualisieren: `cd ~/bambu-scale && git pull && cd pi && ./install.sh --wlan`. Ohne Hardware ausprobieren:
 `art = "demo"` in der Konfiguration – dann laufen Testszenen mit Testdaten.
 
 Auch am PC (Python 3.11+): `cd pi && python3 -m filamentwaage demo.toml`, dann
