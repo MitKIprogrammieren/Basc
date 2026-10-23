@@ -6,7 +6,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 BROWSER="$(command -v chromium-browser || command -v chromium)"
-exec "$BROWSER" --kiosk --app="$URL" --window-size=800,480 --window-position=0,0 \
+exec "$BROWSER" --kiosk --app="$URL/?kiosk" --window-size=800,480 --window-position=0,0 \
   --noerrdialogs --disable-infobars --no-first-run --disable-translate \
   --lang=de --disable-features=Translate,TranslateUI,OverscrollHistoryNavigation --disable-pinch \
   --check-for-update-interval=31536000 --password-store=basic --incognito

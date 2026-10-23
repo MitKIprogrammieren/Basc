@@ -12,6 +12,8 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+/* Bildlaufleisten schmal und dunkel statt der grauen Leisten mit Pfeilen (Chromium unter Linux) */
+* { scrollbar-width: thin; scrollbar-color: var(--rand) transparent; }
 body { color: var(--text); font-family: Montserrat, system-ui, sans-serif; font-weight: 500;
   -webkit-user-select: none; user-select: none; cursor: none; -webkit-tap-highlight-color: transparent; }
 body.maus { cursor: default; }
@@ -99,7 +101,8 @@ button { font-family: inherit; color: inherit; }
 .zeile .rechts { width: 86px; text-align: right; flex: 0 0 auto; }
 .zeile .anz { font-weight: 700; font-size: 15px; } .zeile .anz.leer { color: var(--rot); }
 .leer-hinweis { padding: 16px 0; color: var(--sub); }
-.reste { width: 232px; flex: 0 0 auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.reste { width: 232px; flex: 0 0 auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+#reste { min-height: 0; overflow-y: auto; }
 .rest-zeile { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
 .balken { height: 4px; border-radius: 2px; background: var(--rand2); margin-top: 4px; overflow: hidden; }
 .balken div { height: 100%; border-radius: 2px; }
@@ -255,3 +258,24 @@ input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
 .knopf.klein { height: 38px; padding: 0 12px; font-size: 13px; }
 label.knopf { position: relative; }
 label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Textgröße „Groß“ (u. a. im Kiosk auf dem 5"-TFT): dieselbe Aufteilung auf weniger Fläche */
+.app.eng .wiegen-karte { gap: 14px; padding: 16px; }
+.app.eng .ring { width: 140px; height: 140px; }
+.app.eng .ring-innen { width: 116px; height: 116px; }
+.app.eng .spule { width: 76px; height: 76px; }
+.app.eng .zahl { font-size: 80px; }
+.app.eng .rechts270 { width: 248px; }
+.app.eng .menue { width: 232px; }
+.app.eng .links300 { width: 270px; }
+.app.eng .b300 { width: 270px; }
+.app.eng .reste { width: 210px; }
+.app.eng .etikett-box { width: calc(100% - 16px); max-width: 720px; }
+.app.eng .et-vorschau { width: 330px; height: 280px; }
+.app.eng #et-canvas { max-width: 310px; max-height: 250px; }
+.app.eng .kopf #kopf-sub { display: none; }
+.app.eng .kopf-rechts { gap: 9px; }
+.app.eng .status { white-space: nowrap; }
+.app.eng .filter { padding: 0 9px; }
+.app.eng #filter { gap: 5px; }
+.app.eng .suche { min-width: 92px; }

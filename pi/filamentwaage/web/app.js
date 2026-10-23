@@ -39,7 +39,11 @@ async function post(pfad, daten = {}) {
 // ------------------------------------------------------------ Skalierung (Test im Browser)
 // Textgröße gilt nur für diesen Browser (am Mac klein, am Pad 7 normal): größere virtuelle Fläche, dann skaliert
 const TEXTGROESSEN = [["gross", "Groß", 1.15], ["normal", "Normal", 1], ["klein", "Klein", 0.85], ["sehrklein", "Sehr klein", 0.72]];
+// Im Kiosk auf dem Pi (Adresse mit ?kiosk) liegt die Textgröße beim Dienst: der Browser startet dort
+// jedes Mal mit leerem Profil. Ohne Wahl ist sie im Kiosk „Groß“ – das TFT ist klein.
+const KIOSK = new URLSearchParams(location.search).has("kiosk");
 function textGroesse() {
+  if (KIOSK) return (typeof S !== "undefined" && S.e && S.e.textgroesse_kiosk) || "gross";
   try { return localStorage.getItem("fl_textgroesse") || "normal"; } catch (e) { return "normal"; }
 }
 function textFaktor() { return (TEXTGROESSEN.find((t) => t[0] === textGroesse()) || TEXTGROESSEN[1])[2]; }
@@ -49,6 +53,7 @@ function skalieren() {
   const app = $("app");
   app.style.width = `${W}px`;
   app.style.height = `${H}px`;
+  app.classList.toggle("eng", W < 760);   // „Groß“: weniger Platz, die festen Maße rücken zusammen
   app.style.transform = f > 1.01 || f < 0.99 ? `scale(${f})` : "";
   app.style.left = f > 1.01 || f < 0.99 ? `${(innerWidth - W * f) / 2}px` : "0";
 }
@@ -424,6 +429,7 @@ async function einstLaden() {
   try {
     S.e = await (await fetch("/api/einstellungen")).json();
     designAnwenden();
+    if (KIOSK) skalieren();
     if (S.seite === "einst") einst();
   } catch (e) { /* Dienst noch nicht bereit */ }
 }
@@ -598,7 +604,11 @@ $("e-inhalt").onclick = async (e) => {
   const d = b.dataset;
   if (d.et) return etEinstKlick(d);
   if (d.akzent) return einstSetzen({ akzent: d.akzent });
-  if (d.text) { try { localStorage.setItem("fl_textgroesse", d.text); } catch (e) { /* ohne Speicher nur bis zum Neuladen */ } skalieren(); return einst(); }
+  if (d.text) {
+    if (KIOSK) { await einstSetzen({ textgroesse_kiosk: d.text }); skalieren(); return einst(); }
+    try { localStorage.setItem("fl_textgroesse", d.text); } catch (e) { /* ohne Speicher nur bis zum Neuladen */ }
+    skalieren(); return einst();
+  }
   if (d.seg) { let v = d.v; v = v === "true" ? true : v === "false" ? false : isNaN(Number(v)) ? v : Number(v); return einstSetzen({ [d.seg]: v }); }
   if (d.schalter) {
     if (d.schalter.startsWith("drucker:")) {

@@ -20,7 +20,7 @@ PROFIL="$HOME/.cache/filamentwaage-kiosk"
 BROWSER="$(command -v chromium || command -v chromium-browser)"
 while true; do
   rm -rf "$PROFIL"   # sauberer Start, keine "wiederherstellen?"-Leiste nach Stromausfall
-  "$BROWSER" --kiosk --app="$URL" --user-data-dir="$PROFIL" \
+  "$BROWSER" --kiosk --app="$URL/?kiosk" --user-data-dir="$PROFIL" \
     --window-size="$B,$H" --window-position=0,0 --start-fullscreen \
     --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 \
     --noerrdialogs --disable-infobars --no-first-run --disable-translate --disable-sync \

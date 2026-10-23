@@ -13,7 +13,8 @@ import threading
 
 log = logging.getLogger("system")
 
-ERLAUBT = ("akzent", "helligkeit", "display_aus_min", "kompakt", "leerspule_g", "nfc_stufe", "drucker", "ams_suche")
+ERLAUBT = ("akzent", "helligkeit", "display_aus_min", "kompakt", "leerspule_g", "nfc_stufe", "drucker", "ams_suche",
+           "textgroesse_kiosk")
 
 
 # ------------------------------------------------------------ Einstellungen der Oberfläche
