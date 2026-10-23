@@ -53,6 +53,7 @@ bool g_suche_fertig = false, g_suche_laeuft = false, g_suche_wunsch = false;
 String g_suche_fehler;
 bool g_druckt = false;
 bool g_trennen_wunsch = false;
+bool g_minitest_wunsch = false;
 int g_letzter_druck = -1;  // -1 = noch keiner, 0 = fehlgeschlagen, 1 = geklappt
 QueueHandle_t g_druecke = nullptr;
 Preferences g_prefs;
@@ -373,13 +374,32 @@ void arbeiter(void*) {
     for (;;) {
         Druck* d = nullptr;
         if (xQueueReceive(g_druecke, &d, pdMS_TO_TICKS(200)) != pdTRUE) {
-            bool los, trennen;
+            bool los, trennen, minitest;
             {
                 std::lock_guard<std::mutex> l(g_mx);
                 los = g_suche_wunsch;
                 g_suche_wunsch = false;
+                minitest = g_minitest_wunsch;
+                g_minitest_wunsch = false;
                 trennen = g_trennen_wunsch;
                 g_trennen_wunsch = false;
+            }
+            if (minitest) {
+                // Kleinster TSPL-Auftrag ohne Bild: zwei Balken. Zeigt, ob der Drucker über Bluetooth LE druckt.
+                static const char JOB[] =
+                    "SIZE 40 mm,30 mm\r\nGAP 4.6 mm, 0 mm\r\nDIRECTION 0,0\r\nDENSITY 7\r\nCLS\r\n"
+                    "BAR 40,40,392,60\r\nBAR 40,150,200,40\r\nPRINT 1,1\r\n";
+                Werte w;
+                {
+                    std::lock_guard<std::mutex> l(g_mx);
+                    w = g_w;
+                }
+                std::vector<uint8_t> auftrag(JOB, JOB + sizeof(JOB) - 1);
+                meldung("Mini-Test: schicke zwei Balken …");
+                g_ble_marke = BLE_LAEUFT;
+                String f = senden(auftrag, w.adresse, w.adress_typ, w.name);
+                g_ble_marke = 0;
+                meldung(f.length() ? f : String("Mini-Test gesendet – kommen zwei schwarze Balken?"), f.length() > 0);
             }
             if (trennen && g_ble_an) {
                 // alle Bluetooth-Verbindungen der Waage lösen – auch hängende von früheren Druckversuchen
@@ -539,6 +559,11 @@ int drucker_zustand() {
     if (g_ble_gesperrt && g_w.adresse.length()) return 2;
     if (!g_w.adresse.length()) return 0;
     return g_letzter_druck == 0 ? 2 : 1;
+}
+
+void drucker_minitest() {
+    std::lock_guard<std::mutex> l(g_mx);
+    g_minitest_wunsch = true;
 }
 
 void drucker_trennen() {

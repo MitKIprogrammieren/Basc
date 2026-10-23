@@ -19,6 +19,8 @@ const char* drucker_drucken(JsonObjectConst o);
 bool drucker_suche(JsonDocument& d);
 // alle Bluetooth-Verbindungen lösen (läuft im Drucker-Task)
 void drucker_trennen();
+// kleinster TSPL-Auftrag (zwei Balken) zum Testen
+void drucker_minitest();
 // für die Kopfleiste: 0 = kein Drucker, 1 = eingerichtet, 2 = letzter Druck fehlgeschlagen
 int drucker_zustand();
 

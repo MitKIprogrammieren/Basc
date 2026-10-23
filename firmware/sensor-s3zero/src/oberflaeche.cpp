@@ -698,6 +698,12 @@ void routen() {
         if (const char* f = drucker_drucken(o)) return ok_text(r, false, f, 400);
         angenommen(r);
     }, 160 * 1024);
+    // Zum Testen im Browser aufrufbar: http://filamentwaage.local/api/etikett/minitest
+    g_server.on("/api/etikett/minitest", HTTP_GET, [](AsyncWebServerRequest* r) {
+        drucker_minitest();
+        r->send(200, "text/plain; charset=utf-8",
+                "Mini-Test gestartet: zwei schwarze Balken.\nIn ca. 15 s /api/diagnose ansehen (Zeile druck).");
+    });
     post("/api/etikett/trennen", [](AsyncWebServerRequest* r, JsonObject) {
         drucker_trennen();
         ok_text(r, true, "Drucker getrennt und entfernt – über „Drucker suchen“ neu einrichten");
