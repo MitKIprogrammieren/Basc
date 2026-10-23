@@ -34,7 +34,7 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 CFG_PFAD = os.environ.get("DRUCK_CONFIG", "/etc/filamentwaage-druck.json")
 STANDARD = {"drucker": "", "kanal": 1, "port": 8765, "dpi": 300, "dauerhaft": True}
 log = logging.getLogger("druckbruecke")
@@ -359,7 +359,11 @@ class Verbindung:
                 except (RuntimeError, OSError):
                     pass
                 signal_messen()
+                self.zuletzt_signal = time.time()
                 continue
+            if time.time() - getattr(self, "zuletzt_signal", 0) >= 10:  # Funksignal alle 10 s
+                self.zuletzt_signal = time.time()
+                signal_messen()
             if time.time() - self.zuletzt_gesendet > 30:  # Lebenszeichen
                 try:
                     with self.lock:
