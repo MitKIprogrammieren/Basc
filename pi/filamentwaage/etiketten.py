@@ -12,6 +12,8 @@ import os
 import queue
 import re
 import threading
+import urllib.error
+import urllib.request
 
 from . import phomemo
 
@@ -59,6 +61,8 @@ class EtikettDienst:
             "name": "",
             "format": cfg.get("format", "expanded"),
             "dichte": int(cfg.get("dichte", 10)),
+            # Druckbrücke (tools/druckbruecke) für Drucker, die nur klassisches Bluetooth können (M20 Pro)
+            "bruecke": cfg.get("bruecke", ""),
         }
         self._laden()
         self.auftraege: queue.Queue = queue.Queue()
@@ -114,6 +118,13 @@ class EtikettDienst:
             if "adresse" in d:
                 self.werte["adresse"] = str(d["adresse"])[:40]
                 self.werte["name"] = str(d.get("name", ""))[:40]
+            if "bruecke" in d:
+                b = str(d["bruecke"]).strip().rstrip("/")[:80]
+                if b and not re.match(r"^https?://", b):
+                    b = "http://" + b
+                if b and not re.search(r":\d+$", b.split("://", 1)[1]):
+                    b += ":8765"
+                self.werte["bruecke"] = b
             if d.get("verbindung") in ("ble", "rfcomm", "datei"):
                 self.werte["verbindung"] = d["verbindung"]
             self._speichern()
@@ -175,6 +186,11 @@ class EtikettDienst:
                 w = dict(self.werte)
             self.druckt = True
             try:
+                if w.get("bruecke"):
+                    self.meldung("Schicke Etikett an die Druckbrücke …")
+                    self._an_bruecke(w["bruecke"], breite, hoehe, daten, kopien, w["dichte"])
+                    self.meldung("Druckbrücke hat das Etikett angenommen")
+                    continue
                 kb, kd = phomemo.auf_kopfbreite(breite, hoehe, daten, int(self.cfg.get("kopf_px", 384)))
                 auftrag = phomemo.befehle(kb, hoehe, kd, w["dichte"]) * kopien
                 self.meldung("Drucke Etikett …")
@@ -188,6 +204,25 @@ class EtikettDienst:
                 self.meldung(f"Druck fehlgeschlagen: {e}", ok=False)
             finally:
                 self.druckt = False
+
+    @staticmethod
+    def _an_bruecke(basis, breite, hoehe, daten, kopien, dichte):
+        """Wie die Sensorplatine: POST /drucken an die Druckbrücke, die per klassischem Bluetooth druckt."""
+        body = json.dumps({"breite": breite, "hoehe": hoehe, "kopien": kopien, "dichte": dichte,
+                           "titel": "Etikett", "daten": base64.b64encode(daten).decode()}).encode()
+        req = urllib.request.Request(basis + "/drucken", data=body, method="POST",
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                r.read()
+        except urllib.error.HTTPError as e:
+            try:
+                text = json.loads(e.read() or b"{}").get("text")
+            except ValueError:
+                text = None
+            raise phomemo.DruckFehler("Druckbrücke: " + (text or f"Fehler {e.code}")) from e
+        except (urllib.error.URLError, OSError) as e:
+            raise phomemo.DruckFehler(f"Druckbrücke nicht erreichbar ({basis}) – läuft der Dienst?") from e
 
     def suchen(self):
         return phomemo.suchen()

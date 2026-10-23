@@ -4,6 +4,7 @@
 #   --wlan     Sensorplatine (ESP32-S3-Zero) per WLAN, Standard-Adresse filamentwaage.local
 #   --gpio     UARTs für zwei PN532 direkt am Pi einschalten (uart3, uart4)
 #   --tft50    Display-Overlay für das BTT PI TFT50 eintragen (nur nötig, wenn das Bild fehlt)
+#   --druckbruecke[=DRUCKER]  Druckbrücke für den Phomemo M20 Pro auf diesem Pi einrichten
 #   --konsole  Oberfläche ohne Desktop starten (X-Server + Chromium auf tty1); ohne Desktop automatisch
 set -euo pipefail
 
@@ -14,6 +15,7 @@ GPIO=0
 TFT50=0
 WLAN=""
 KONSOLE=0
+BRUECKE=""
 for a in "$@"; do
   case "$a" in
     --gpio) GPIO=1 ;;
@@ -21,6 +23,8 @@ for a in "$@"; do
     --wlan) WLAN="filamentwaage.local" ;;
     --wlan=*) WLAN="${a#--wlan=}" ;;
     --konsole) KONSOLE=1 ;;
+    --druckbruecke) BRUECKE="ja" ;;
+    --druckbruecke=*) BRUECKE="${a#--druckbruecke=}" ;;
     *) echo "Unbekannte Option: $a"; exit 1 ;;
   esac
 done
@@ -79,6 +83,18 @@ sudo usermod -aG dialout,gpio,bluetooth "$BENUTZER" || true
 sed "s/@BENUTZER@/$BENUTZER/" "$HIER/filamentwaage.service" | sudo tee /etc/systemd/system/filamentwaage.service >/dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable --now filamentwaage.service
+
+if [ -n "$BRUECKE" ]; then
+  echo "== Druckbrücke für den Phomemo M20 Pro auf diesem Pi"
+  if [ "$BRUECKE" = "ja" ]; then sudo bash "$HIER/../tools/druckbruecke/druckbruecke-installieren.sh"
+  else sudo bash "$HIER/../tools/druckbruecke/druckbruecke-installieren.sh" "$BRUECKE"; fi
+  if grep -q '^bruecke = ' /etc/filamentwaage/config.toml; then
+    sudo sed -i 's#^bruecke = .*#bruecke = "http://127.0.0.1:8765"#' /etc/filamentwaage/config.toml
+  else
+    sudo sed -i '/^\[etikett\]/a bruecke = "http://127.0.0.1:8765"' /etc/filamentwaage/config.toml
+  fi
+  sudo systemctl restart filamentwaage.service
+fi
 
 if [ "$KONSOLE" = 1 ]; then
   echo "== Bildschirm ohne Desktop: X-Server + Chromium auf tty1"

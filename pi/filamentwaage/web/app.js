@@ -893,7 +893,7 @@ function etEinstHtml() {
       <div>${geraete}</div></div>
     ${et.bruecke !== undefined ? `<div class="e-block"><span class="ueber">Druckbrücke</span>
       <span class="hinweis">Für Drucker, die nur über klassisches Bluetooth drucken (Phomemo M20 Pro): Adresse des Druckdienstes auf dem Raspberry Pi. Leer lassen, wenn die Waage direkt druckt.</span>
-      <div class="e-zeile"><input id="et-bruecke" class="wachsen" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.bruecke)}" placeholder="http://192.168.1.250:8765">
+      <div class="e-zeile"><div class="feld wachsen"><input id="et-bruecke" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.bruecke)}" placeholder="http://192.168.1.250:8765" aria-label="Adresse der Druckbrücke"></div>
         <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" data-et="bruecke">Speichern</button></div></div>` : ""}
     <div class="e-block"><span class="ueber">Standardformat</span>
       <div class="seg">${Object.entries(Etikett.FORMATE).map(([k, v]) => `<button class="${k === et.format ? "an" : ""}" data-et="format" data-v="${k}">${v.name}</button>`).join("")}</div></div>

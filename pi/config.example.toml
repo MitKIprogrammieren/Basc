@@ -40,6 +40,9 @@ port = 8080
 # Phomemo-Etikettendrucker per Bluetooth (M110/M220/M20-Familie)
 # ble = Bluetooth Low Energy (Standard), rfcomm = klassisches Bluetooth, datei = ohne Drucker testen
 verbindung = "ble"
+# Druckbrücke (tools/druckbruecke) für den Phomemo M20 Pro, der nur klassisches Bluetooth kann,
+# z. B. "http://192.168.1.250:8765" – leer = direkt drucken
+bruecke = ""
 # leer lassen und in der Waage unter Einstellungen → Etiketten „Drucker suchen“ tippen
 adresse = ""
 kopf_px = 384              # Druckbreite in Punkten (48 mm bei 203 dpi)

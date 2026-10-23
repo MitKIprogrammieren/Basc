@@ -64,7 +64,7 @@ STANDARD = {
                "kalibrierung": "/var/lib/filamentwaage/kalibrierung.json"},
     "waage": {"leerspule_g": 250, "lager_neu_laden_s": 60},
     "server": {"adresse": "127.0.0.1", "port": 8080},
-    "etikett": {"verbindung": "ble", "adresse": "", "kanal": 1, "kopf_px": 384, "dichte": 10,
+    "etikett": {"verbindung": "ble", "adresse": "", "bruecke": "", "kanal": 1, "kopf_px": 384, "dichte": 10,
                 "format": "expanded", "ordner": "/var/lib/filamentwaage", "datei": ""},
 }
 
