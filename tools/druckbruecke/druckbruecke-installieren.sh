@@ -63,6 +63,7 @@ import json
 import logging
 import os
 import queue
+import re
 import socket
 import subprocess
 import sys
@@ -71,7 +72,7 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 CFG_PFAD = os.environ.get("DRUCK_CONFIG", "/etc/filamentwaage-druck.json")
 STANDARD = {"drucker": "", "kanal": 1, "port": 8765, "dpi": 300, "dauerhaft": True}
 log = logging.getLogger("druckbruecke")
@@ -276,10 +277,19 @@ class Verbindung:
                 self.puffer = (self.puffer + teil)[-4000:]
                 self.zeilen += teil
                 *fertig, self.zeilen = self.zeilen.split(b"\r\n")
-            for z in fertig:  # z. B. SSSGETPAPERCAPACITY:105
-                z = z.decode("utf-8", "replace").strip()
+            # Der Drucker hängt Antworten teils ohne Zeilenende aneinander, z. B.
+            # „SSSGETBATTERY:9%Cmd error:SSSGETPRINTING“ – daher an jeder Antwort-Marke trennen.
+            stuecke = []
+            for z in fertig:
+                z = z.decode("utf-8", "replace")
+                stuecke += re.split(r"(?=SSSGET[A-Z]+:)|(?=Cmd error:)", z)
+            for z in stuecke:  # z. B. SSSGETPAPERCAPACITY:105
+                z = z.strip()
                 if z.startswith("SSSGET") and ":" in z:
                     k, _, v = z[6:].partition(":")
+                    v = v.strip()
+                    if k in AKKU_KANDIDATEN:
+                        v = v.rstrip("%").strip()
                     INFO[k] = v
                     INFO["zeit"] = time.strftime("%H:%M:%S")
                     if k in AKKU_KANDIDATEN and AKKU_BEFEHL is None:
