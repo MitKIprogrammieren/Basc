@@ -232,6 +232,8 @@ input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
 .mini-seg button { height: 26px; padding: 0 9px; border-radius: 13px; border: 0; background: transparent; color: var(--sub);
   font: inherit; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .mini-seg button.an { background: var(--gruen); color: var(--bg); font-weight: 700; }
+.et-feld.an.ohne { background: transparent; border: 1px dashed var(--orange, #ff9800); color: var(--orange-t, #ffb74d); font-weight: 600; }
+.et-ohne { font-size: 12px; color: var(--orange-t, #ffb74d); line-height: 1.4; }
 .et-weg { color: var(--orange, #ff9800); font-size: 12px; }
 .et-weg:empty { display: none; }
 .mini-knopf { height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid var(--rand); background: transparent;

@@ -56,6 +56,30 @@ const Etikett = (() => {
     return m ? `${m[3]}.${m[2]}.${m[1].slice(2)}` : "";
   }
 
+  // Eine Zeile [Beschriftung, Wert] für ein Feld – oder null, wenn die Sorte dafür nichts hat
+  function feldZeile(s, f, o = {}) {
+    if (f === "duese") { const v = bereich(s.duese_min, s.duese_max, " °C"); return v ? ["Düse", v] : null; }
+    if (f === "bett") { const v = bereich(s.bett_min ?? -1, s.bett_max ?? -1, " °C"); return v ? ["Bett", v] : null; }
+    if (f === "trocknen") {
+      const t = trocknen(s);
+      return t ? ["Trocknen", `${t.richtwert ? "~" : ""}${t.c} °C${t.h > 0 ? ` · ${t.h} h` : ""}`] : null;
+    }
+    if (f === "getrocknet") { const d = datum(s.getrocknet); return d ? ["Getrockn.", d] : null; }
+    if (f === "flow") {
+      if (s.flow > 0 && s.td > 0) return ["Flow / TD", `${komma(s.flow)} / ${komma(s.td)}`];
+      if (s.flow > 0) return ["Flow", komma(s.flow)];
+      if (s.td > 0) return ["TD", komma(s.td)];
+      return null;
+    }
+    if (f === "netto") return s.gewicht > 0 ? ["Netto", `${s.gewicht} g`] : null;
+    if (f === "leer") { const l = s.leer_g > 0 ? s.leer_g : o.leerStandard || 0; return l > 0 ? ["Leer", `${l} g`] : null; }
+    if (f === "ort") return s.ort ? ["Ort", s.ort] : null;
+    if (f === "eigene") { const t = String(o.eigene || "").trim(); return t ? ["", t] : null; }
+    if (f === "rest") return (o.rest || 0) > 0 ? ["Rest", `${o.rest} g`] : null;
+    return null;
+  }
+  const hatWert = (s, f, o) => !!feldZeile(s, f, o);
+
   // Zeilen unten links; "Rest" bleibt immer drin, wenn er gewählt ist und es einen gibt
   function zeilen(s, o, max) {
     const felder = o.felder || STANDARD_FELDER;
@@ -63,23 +87,9 @@ const Etikett = (() => {
     const z = [];
     let restZeile = null;
     for (const f of felder) {
-      if (f === "duese") { const v = bereich(s.duese_min, s.duese_max, " °C"); if (v) z.push(["Düse", v]); }
-      else if (f === "bett") { const v = bereich(s.bett_min ?? -1, s.bett_max ?? -1, " °C"); if (v) z.push(["Bett", v]); }
-      else if (f === "trocknen") {
-        const t = trocknen(s);
-        if (t) z.push(["Trocknen", `${t.richtwert ? "~" : ""}${t.c} °C${t.h > 0 ? ` · ${t.h} h` : ""}`]);
-      } else if (f === "getrocknet") { const d = datum(s.getrocknet); if (d) z.push(["Getrockn.", d]); }
-      else if (f === "flow") {
-        if (s.flow > 0 && s.td > 0) z.push(["Flow / TD", `${komma(s.flow)} / ${komma(s.td)}`]);
-        else if (s.flow > 0) z.push(["Flow", komma(s.flow)]);
-        else if (s.td > 0) z.push(["TD", komma(s.td)]);
-      } else if (f === "netto") { if (s.gewicht > 0) z.push(["Netto", `${s.gewicht} g`]); }
-      else if (f === "leer") {
-        const l = s.leer_g > 0 ? s.leer_g : o.leerStandard || 0;
-        if (l > 0) z.push(["Leer", `${l} g`]);
-      } else if (f === "ort") { if (s.ort) z.push(["Ort", s.ort]); }
-      else if (f === "eigene") { const t = String(o.eigene || "").trim(); if (t) z.push(["", t]); }
-      else if (f === "rest" && rest > 0) restZeile = ["Rest", `${rest} g`];
+      if (f === "rest") { if (rest > 0) restZeile = ["Rest", `${rest} g`]; continue; }
+      const zeile = feldZeile(s, f, o);
+      if (zeile) z.push(zeile);
     }
     if (!z.length && !restZeile) z.push(["Ø", `${komma(s.durchmesser || 1.75)} mm · ${s.gewicht} g`]);
     const platz = Math.max(restZeile ? 0 : 1, max - (restZeile ? 1 : 0));
@@ -111,7 +121,7 @@ const Etikett = (() => {
     ctx.fillText(t, x, y);
   }
 
-  function qr(ctx, inhalt, x, y, groesse) {
+  function qr(ctx, inhalt, x, y, groesse, mitte = false) {
     if (!inhalt || !window.QRCode || groesse < 40) return;
     const halter = document.createElement("div");
     let modell;
@@ -123,7 +133,7 @@ const Etikett = (() => {
     const n = modell.getModuleCount();
     const m = Math.floor(groesse / n);
     if (m < 2) return;
-    const ox = x + groesse - n * m, oy = y + groesse - n * m;
+    const ox = x + (mitte ? Math.floor((groesse - n * m) / 2) : groesse - n * m), oy = y + groesse - n * m;
     ctx.fillStyle = "#000";
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (modell.isDark(r, c)) ctx.fillRect(ox + c * m, oy + r * m, m, m);
   }
@@ -223,13 +233,26 @@ const Etikett = (() => {
     };
     let weg = [];
     if (hoch) {
-      const qMin = o.qr ? Math.round(W * 0.32) : 0;
-      const liste = zeilen(s, o, Math.max(1, Math.min(6, Math.floor((unten - y - qMin) / zh))));
-      werte(liste, m, y, innen);
+      // Hochkant: Werte oben, QR-Code unten rechts – passen nicht alle über den Code, kommen die übrigen links daneben
+      const luecke = Math.round(ref * 0.04);
+      const q0 = o.qr ? Math.round(W * 0.4) : 0;
+      const oben = Math.max(0, Math.floor((unten - y - (q0 ? q0 + luecke : 0)) / zh));
+      const daneben = q0 ? Math.floor(q0 / zh) : 0;
+      const liste = zeilen(s, o, Math.max(1, Math.min(8, oben + daneben)));
       weg = liste.weg;
-      y += liste.length * zh + Math.round(ref * 0.03);
-      const q = o.qr ? Math.min(unten - y, Math.round(W * 0.45)) : 0;
-      if (q >= 48) qr(ctx, o.qr, W - m - q, unten - q, q);
+      const obenListe = liste.slice(0, oben), nebenListe = liste.slice(oben);
+      werte(obenListe, m, y, innen);
+      y += obenListe.length * zh + luecke;
+      if (o.qr) {
+        if (nebenListe.length) {
+          werte(nebenListe, m, unten - q0, innen - q0 - luecke);
+          if (q0 >= 48) qr(ctx, o.qr, W - m - q0, unten - q0, q0);
+        } else {
+          // Platz übrig: Code größer und mittig statt einsam in der Ecke
+          const q = Math.min(innen, unten - y);
+          if (q >= 48) qr(ctx, o.qr, Math.round((W - q) / 2), unten - q, q, true);
+        }
+      }
     } else {
       const q = o.qr ? Math.min(unten - y, Math.round(W * 0.3)) : 0;
       const liste = zeilen(s, o, Math.max(1, Math.min(6, Math.floor((unten - y) / zh))));
@@ -284,5 +307,5 @@ const Etikett = (() => {
     trocknen_c: -1, trocknen_h: -1, durchmesser: 1.75, gewicht: 1000, leer_g: 250, ort: "Regal 1",
     getrocknet: new Date().toISOString().slice(0, 10) };
 
-  return { FORMATE, KOPF_MM, formatVon, FELDER, STANDARD_FELDER, trocknen, datum, zeichnen, raster, TEST };
+  return { FORMATE, KOPF_MM, formatVon, hatWert, FELDER, STANDARD_FELDER, trocknen, datum, zeichnen, raster, TEST };
 })();

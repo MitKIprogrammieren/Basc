@@ -751,11 +751,18 @@ function etOptionenHtml(d) {
   const o = d.opt;
   const quer = f.b > f.h;
   const aus = quer ? `<div class="spalte gap6"><span class="ueber">Ausrichtung</span>${seg("et-hoch", o.hochkant ? 1 : 0, [[0, "Quer"], [1, "Hochkant"]])}</div>` : "";
-  const chips = Etikett.FELDER.map(([k, n]) =>
-    `<button class="et-feld${o.felder.includes(k) ? " an" : ""}" data-feld="${k}" aria-pressed="${o.felder.includes(k)}">${esc(n)}</button>`).join("");
+  const wo = { rest: d.rest, eigene: o.eigene, leerStandard: S.z ? S.z.leer_standard_g : 0 };
+  const leer = [];
+  const chips = Etikett.FELDER.map(([k, n]) => {
+    const an = o.felder.includes(k);
+    const ohne = an && k !== "eigene" && !Etikett.hatWert(d.sorte, k, wo);
+    if (ohne) leer.push(n);
+    return `<button class="et-feld${an ? " an" : ""}${ohne ? " ohne" : ""}" data-feld="${k}" aria-pressed="${an}"${ohne ? ' title="Bei dieser Sorte nicht eingetragen"' : ""}>${esc(n)}${ohne ? " –" : ""}</button>`;
+  }).join("");
+  const hinweis = leer.length ? `<span class="et-ohne">Bei dieser Sorte nicht eingetragen: ${esc(leer.join(", "))} – diese Zeilen bleiben leer.</span>` : "";
   const eigene = o.felder.includes("eigene")
     ? `<input id="et-eigene" class="et-eigene" data-tastatur="frei" maxlength="40" placeholder="Eigener Text, z. B. Für Halloween-Deko" value="${esc(o.eigene)}">` : "";
-  return `${aus}<div class="spalte gap6"><span class="ueber">Angaben auf dem Etikett</span><div class="et-felder">${chips}</div>${eigene}<span id="et-weg" class="sub14 et-weg"></span></div>`;
+  return `${aus}<div class="spalte gap6"><span class="ueber">Angaben auf dem Etikett</span><div class="et-felder">${chips}</div>${hinweis}${eigene}<span id="et-weg" class="sub14 et-weg"></span></div>`;
 }
 async function etikettZeichnen(nurVorschau) {
   const d = S.etDialog;
