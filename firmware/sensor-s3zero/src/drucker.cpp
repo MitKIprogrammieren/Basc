@@ -429,7 +429,25 @@ void drucker_setzen(JsonObjectConst o) {
     speichern();
 }
 
+// Nur an Modelle senden, deren Druckbefehle bekannt sind (203 dpi, ESC/POS wie phomemo.py).
+// Der M20 Pro (300 dpi, RFID) spricht anders – falsche Befehle haben ihn hängen lassen.
+bool modell_bekannt(String n) {
+    n.toUpperCase();
+    n.replace(" ", "");
+    if (n.startsWith("M20PRO") || n.startsWith("M20-PRO")) return false;
+    for (const char* m : {"M110", "M120", "M200", "M220", "M221", "M250", "M260", "M02", "T02", "M03"})
+        if (n.startsWith(m)) return true;
+    return false;
+}
+
 const char* drucker_drucken(JsonObjectConst o) {
+    {
+        std::lock_guard<std::mutex> l(g_mx);
+        if (g_w.name.length() && !modell_bekannt(g_w.name)) {
+            g_druck_bericht = "nicht gesendet: Druckbefehle für " + g_w.name + " noch unbekannt";
+            return "Für diesen Drucker kennt die Waage die Druckbefehle noch nicht – zum Schutz wird nichts gesendet";
+        }
+    }
     int breite = o["breite"] | 0, hoehe = o["hoehe"] | 0;
     const char* b64 = o["daten"] | "";
     int kopien = constrain((int)(o["kopien"] | 1), 1, 10);
