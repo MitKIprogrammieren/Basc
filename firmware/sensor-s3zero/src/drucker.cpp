@@ -633,9 +633,17 @@ const char* drucker_drucken(JsonObjectConst o) {
     return nullptr;
 }
 
+static int g_bruecke_stand = -2;  // -2 = noch nicht abgefragt
+
+void drucker_bruecke_melden(int stand) {
+    std::lock_guard<std::mutex> l(g_mx);
+    g_bruecke_stand = stand;
+}
+
 int drucker_zustand() {
     std::lock_guard<std::mutex> l(g_mx);
-    if (g_w.bruecke.length()) return g_letzter_druck == 0 ? 2 : 1;
+    // Über die Druckbrücke zählt, ob der Drucker wirklich mit ihr verbunden ist – nicht der letzte Auftrag
+    if (g_w.bruecke.length()) return g_bruecke_stand == 1 ? 1 : g_bruecke_stand == -2 ? 0 : 2;
     if (g_ble_gesperrt && g_w.adresse.length()) return 2;
     if (!g_w.adresse.length()) return 0;
     return g_letzter_druck == 0 ? 2 : 1;

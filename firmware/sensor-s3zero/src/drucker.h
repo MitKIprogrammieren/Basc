@@ -24,5 +24,7 @@ void drucker_trennen();
 void drucker_minitest();
 // für die Kopfleiste: 0 = kein Drucker, 1 = eingerichtet, 2 = letzter Druck fehlgeschlagen
 int drucker_zustand();
+// Stand der Druckbrücke (jede Minute abgefragt): 1 = Drucker verbunden, 0 = Brücke da, Drucker nicht, -1 = Brücke nicht erreichbar
+void drucker_bruecke_melden(int stand);
 
 extern void (*g_drucker_meldung)(const String& text, bool fehler);

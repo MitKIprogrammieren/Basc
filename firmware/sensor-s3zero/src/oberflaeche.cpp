@@ -261,6 +261,7 @@ void bruecke_nach_ha() {
     http.end();
     JsonDocument z;
     bool erreichbar = code == 200 && !deserializeJson(z, text);
+    drucker_bruecke_melden(!erreichbar ? -1 : (z["verbunden"] | false) ? 1 : 0);
     HaClient ha;
     std::string fehler;
     if (!client_fuer(ha_cfg(), ha, fehler)) return;
