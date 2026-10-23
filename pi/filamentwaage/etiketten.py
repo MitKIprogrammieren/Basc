@@ -67,6 +67,8 @@ class EtikettDienst:
         self._laden()
         self.auftraege: queue.Queue = queue.Queue()
         self.druckt = False
+        self.bruecke_stand = -2   # -2 noch nicht gefragt, 1 Drucker an der Brücke verbunden, 0 nicht
+        self.letzter_druck = -1   # -1 noch keiner, 1 geklappt, 0 fehlgeschlagen
 
     # ------------------------------------------------------------ Ablage
     @staticmethod
@@ -124,6 +126,8 @@ class EtikettDienst:
                     b = "http://" + b
                 if b and not re.search(r":\d+$", b.split("://", 1)[1]):
                     b += ":8765"
+                if b != self.werte.get("bruecke"):
+                    self.bruecke_stand = -2
                 self.werte["bruecke"] = b
             if d.get("verbindung") in ("ble", "rfcomm", "datei"):
                 self.werte["verbindung"] = d["verbindung"]
@@ -190,6 +194,7 @@ class EtikettDienst:
                     self.meldung("Schicke Etikett an die Druckbrücke …")
                     self._an_bruecke(w["bruecke"], breite, hoehe, daten, kopien, w["dichte"])
                     self.meldung("Druckbrücke hat das Etikett angenommen")
+                    self.letzter_druck = 1
                     continue
                 kb, kd = phomemo.auf_kopfbreite(breite, hoehe, daten, int(self.cfg.get("kopf_px", 384)))
                 auftrag = phomemo.befehle(kb, hoehe, kd, w["dichte"]) * kopien
@@ -197,7 +202,9 @@ class EtikettDienst:
                 phomemo.senden(auftrag, w["verbindung"], w["adresse"], int(self.cfg.get("kanal", 1)),
                                self.cfg.get("datei") or os.path.join(self.ordner, "letztes-etikett.bin"))
                 self.meldung("Etikett gedruckt" if kopien == 1 else f"{kopien} Etiketten gedruckt")
+                self.letzter_druck = 1
             except phomemo.DruckFehler as e:
+                self.letzter_druck = 0
                 self.meldung(str(e), ok=False)
             except Exception as e:  # noqa: BLE001
                 log.exception("Druck fehlgeschlagen")
@@ -224,8 +231,36 @@ class EtikettDienst:
         except (urllib.error.URLError, OSError) as e:
             raise phomemo.DruckFehler(f"Druckbrücke nicht erreichbar ({basis}) – läuft der Dienst?") from e
 
+    def stand(self):
+        """Für den Punkt „Drucker“ in der Kopfzeile, wie auf der Sensorplatine:
+        0 = kein Drucker / noch unbekannt, 1 = bereit, 2 = Problem."""
+        with self.lock:
+            bruecke, adresse = self.werte.get("bruecke"), self.werte.get("adresse")
+        if bruecke:
+            return 1 if self.bruecke_stand == 1 else 0 if self.bruecke_stand == -2 else 2
+        if not adresse:
+            return 0
+        return 2 if self.letzter_druck == 0 else 1
+
+    def _bruecke_fragen(self):
+        """Fragt die Druckbrücke alle 15 s, ob der Drucker mit ihr verbunden ist."""
+        import time
+        while True:
+            with self.lock:
+                b = self.werte.get("bruecke")
+            if b:
+                try:
+                    with urllib.request.urlopen(b + "/status", timeout=5) as r:
+                        self.bruecke_stand = 1 if json.loads(r.read() or b"{}").get("verbunden") else 0
+                except (OSError, ValueError):
+                    self.bruecke_stand = 0
+            else:
+                self.bruecke_stand = -2
+            time.sleep(15)
+
     def suchen(self):
         return phomemo.suchen()
 
     def start(self):
         threading.Thread(target=self._arbeiter, daemon=True, name="etikett").start()
+        threading.Thread(target=self._bruecke_fragen, daemon=True, name="druckbruecke").start()

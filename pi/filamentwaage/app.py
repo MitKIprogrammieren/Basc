@@ -227,7 +227,7 @@ class Anwendung:
                 "tag_l": w.tag_l, "tag_r": w.tag_r, "sensor_ok": w.verbunden,
                 "ha_ok": self.ha_ok, "lager_version": self.lager_version,
                 "uhrzeit": time.strftime("%H:%M"), "leer_standard_g": int(self.einst.werte.get("leerspule_g", 250)),
-                "version": VERSION, "ip": _ip(), "netz": _netz(),
+                "version": VERSION, "ip": _ip(), "netz": _netz(), "drucker": self.etikett.stand(),
             }
 
     # ------------------------------------------------------------ Einstellungen, WLAN, HA, AMS
