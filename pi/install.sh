@@ -37,7 +37,7 @@ sudo apt-get update -qq
 sudo apt-get install -y python3 python3-serial python3-lgpio python3-bleak bluez curl
 command -v chromium-browser >/dev/null || command -v chromium >/dev/null || sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
 if [ "$KONSOLE" = 1 ]; then
-  sudo apt-get install -y --no-install-recommends xserver-xorg xinit x11-xserver-utils
+  sudo apt-get install -y --no-install-recommends xserver-xorg xserver-xorg-legacy xinit x11-xserver-utils
 fi
 
 echo "== Ältere Waagen-Software abschalten (bleibt installiert)"
@@ -82,6 +82,8 @@ sudo systemctl enable --now filamentwaage.service
 
 if [ "$KONSOLE" = 1 ]; then
   echo "== Bildschirm ohne Desktop: X-Server + Chromium auf tty1"
+  # Xorg.wrap (xserver-xorg-legacy) startet den X-Server mit Rechten auf tty1,
+  # ohne ihn lief er auf Trixie als Benutzer: "Cannot open virtual console 1".
   printf 'allowed_users=anybody\nneeds_root_rights=yes\n' | sudo tee /etc/X11/Xwrapper.config >/dev/null
   sudo usermod -aG video,input,tty "$BENUTZER" || true
   sed -e "s/@BENUTZER@/$BENUTZER/" -e "s#/opt/filamentwaage/kiosk-pad7.sh#$ZIEL/kiosk-x.sh#" \
