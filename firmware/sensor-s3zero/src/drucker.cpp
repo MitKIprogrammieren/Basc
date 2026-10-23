@@ -129,6 +129,43 @@ void befehle(std::vector<uint8_t>& out, int breite, int hoehe, const std::vector
     out.insert(out.end(), ende, ende + sizeof(ende));
 }
 
+// ---------------------------------------------------------------- TSPL (M20 Pro und andere 300-dpi-Modelle)
+// Aufgezeichnet aus der Phomemo-App: Textbefehle, Bild als BITMAP (1 = weiß, 0 = schwarz).
+// Das Raster der Oberfläche hat 8 Punkte/mm (203 dpi) und wird auf 300 dpi hochgerechnet.
+bool ist_tspl(String n) {
+    n.toUpperCase();
+    n.replace(" ", "");
+    n.replace("-", "");
+    return n.startsWith("M20PRO");
+}
+
+void tspl_auftrag(std::vector<uint8_t>& out, int breite, int hoehe, const std::vector<uint8_t>& daten, int dichte, int kopien) {
+    const float F = 300.0f / 203.2f;
+    int b_mm = (breite + 4) / 8, h_mm = (hoehe + 4) / 8;
+    int nb = (int)(breite * F + 0.5f), nh = (int)(hoehe * F + 0.5f);
+    int nbpr = (nb + 7) / 8, bpr = breite / 8;
+    int tdichte = constrain((dichte * 7 + 5) / 10, 1, 15);  // 10 („Normal“) → 7 wie in der Phomemo-App
+    char kopf[200];
+    int n = snprintf(kopf, sizeof(kopf),
+                     "SPEED 1\r\nSIZE %d mm,%d mm\r\nREFERENCE 0,0\r\nGAP 4.6 mm, 0 mm\r\nOFFSET 0 mm\r\n"
+                     "DIRECTION 0,0\r\nDENSITY %d\r\nCLS\r\nBITMAP 0,0,%d,%d,0,",
+                     b_mm, h_mm, tdichte, nbpr, nh);
+    out.insert(out.end(), kopf, kopf + n);
+    size_t start = out.size();
+    out.resize(start + (size_t)nbpr * nh, 0xFF);  // weiß
+    for (int y = 0; y < nh; y++) {
+        int sy = std::min(hoehe - 1, (int)(y / F));
+        const uint8_t* z = daten.data() + (size_t)sy * bpr;
+        uint8_t* o = out.data() + start + (size_t)y * nbpr;
+        for (int x = 0; x < nb; x++) {
+            int sx = std::min(breite - 1, (int)(x / F));
+            if (z[sx >> 3] & (0x80 >> (sx & 7))) o[x >> 3] &= ~(0x80 >> (x & 7));  // schwarz
+        }
+    }
+    n = snprintf(kopf, sizeof(kopf), "\r\nPRINT 1,%d\r\n", kopien);
+    out.insert(out.end(), kopf, kopf + n);
+}
+
 // ---------------------------------------------------------------- Bluetooth
 // Bericht des letzten Drucks: welche Dienste der Drucker anbietet, was die Waage benutzt und was er
 // geantwortet hat. Steht in /api/diagnose und geht als #-Zeile über USB.
@@ -252,6 +289,9 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
     if (!ziel) {
         fehler = "Drucker bietet keinen Schreibkanal an";
     } else {
+        static const char FRAGE[] = "SSSGETTYPE\r\n";
+        ziel->writeValue((const uint8_t*)FRAGE, sizeof(FRAGE) - 1, false);
+        vTaskDelay(pdMS_TO_TICKS(600));
         stand(bericht + "; sende");
         size_t stueck = constrain((int)c->getMTU() - 3, 20, 180);
         for (size_t i = 0; i < auftrag.size(); i += stueck) {
@@ -262,7 +302,7 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
             }
             gesendet += n;
             if ((gesendet / stueck) % 50 == 0) stand(bericht + "; gesendet " + String(gesendet) + "/" + String(auftrag.size()));
-            vTaskDelay(pdMS_TO_TICKS(15));
+            vTaskDelay(pdMS_TO_TICKS(20));
         }
         if (!fehler.length()) vTaskDelay(pdMS_TO_TICKS(1500));  // Drucker erst fertig empfangen lassen
     }
@@ -347,10 +387,14 @@ void arbeiter(void*) {
             w = g_w;
             g_druckt = true;
         }
-        int breite = 0;
-        std::vector<uint8_t> raster = auf_kopfbreite(d->breite, d->hoehe, d->daten, ETIKETT_KOPF_PX, breite);
         std::vector<uint8_t> auftrag;
-        for (int i = 0; i < d->kopien; i++) befehle(auftrag, breite, d->hoehe, raster, w.dichte);
+        if (ist_tspl(w.name)) {
+            tspl_auftrag(auftrag, d->breite, d->hoehe, d->daten, w.dichte, d->kopien);
+        } else {
+            int breite = 0;
+            std::vector<uint8_t> raster = auf_kopfbreite(d->breite, d->hoehe, d->daten, ETIKETT_KOPF_PX, breite);
+            for (int i = 0; i < d->kopien; i++) befehle(auftrag, breite, d->hoehe, raster, w.dichte);
+        }
         meldung("Drucke Etikett …");
         g_ble_marke = BLE_LAEUFT;
         String fehler = senden(auftrag, w.adresse, w.adress_typ, w.name);
@@ -434,7 +478,7 @@ void drucker_setzen(JsonObjectConst o) {
 bool modell_bekannt(String n) {
     n.toUpperCase();
     n.replace(" ", "");
-    if (n.startsWith("M20PRO") || n.startsWith("M20-PRO")) return false;
+    if (ist_tspl(n)) return true;  // M20 Pro: TSPL
     for (const char* m : {"M110", "M120", "M200", "M220", "M221", "M250", "M260", "M02", "T02", "M03"})
         if (n.startsWith(m)) return true;
     return false;
