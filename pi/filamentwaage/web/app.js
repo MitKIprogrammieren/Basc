@@ -406,11 +406,14 @@ const ICONS = {
   bambu: '<rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 8.5h16"/><path d="M10.2 8.5v2.2h3.6V8.5"/><path d="M7.5 16.5h9"/>',
   waage: '<path d="M4 20h16"/><path d="M6 20l2-9h8l2 9"/><path d="M12 11V5"/><path d="M8 5h8"/>',
   etikett: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
+  bruecke: '<path d="M2 18h20"/><path d="M4 18v-6a8 8 0 0 1 16 0v6"/><path d="M8 18v-5M12 18v-6M16 18v-5"/>',
   system: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
 };
 const MENUE = [
-  ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["etikett", "Etiketten"], ["system", "System"],
+  ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["etikett", "Etiketten"], ["bruecke", "Druckbrücke"], ["system", "System"],
 ];
+// Die Druckbrücke steht nur im Menü, wenn unter Etiketten eine eingetragen ist
+const menueListe = () => MENUE.filter(([n]) => n !== "bruecke" || (S.et && S.et.bruecke));
 S.e = null;          // Einstellungen vom Dienst
 S.eSeite = "design";
 S.ams = { drucker: [], abbuchungen: [] };
@@ -468,13 +471,20 @@ function menueText(n) {
   if (n === "etikett") {
     if (!S.et) return "wird geladen …";
     const f = (Etikett.FORMATE[S.et.format] || {}).name || "";
-    return `${S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker"} · ${f}`;
+    return `${S.et.bruecke ? "über Druckbrücke" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker"} · ${f}`;
+  }
+  if (n === "bruecke") {
+    const b = S.br;
+    if (!b) return "wird geladen …";
+    if (b.fehler) return "nicht erreichbar";
+    const r = b.rolle || {};
+    return [b.verbunden ? "verbunden" : "nicht verbunden", r.rest != null ? `Rolle ${r.rest}${r.gesamt ? "/" + r.gesamt : ""}` : ""].filter(Boolean).join(" · ");
   }
   if (n === "waage") return `Leerspule ${e.leerspule_g ?? 250} g · NFC Stufe ${e.nfc_stufe ?? 3}`;
   return `Version ${z.version || ""}`;
 }
 function einstMenue() {
-  $("e-menue").innerHTML = MENUE.map(([n, t]) => `<button class="m-zeile${S.eSeite === n ? " an" : ""}" data-m="${n}">
+  $("e-menue").innerHTML = menueListe().map(([n, t]) => `<button class="m-zeile${S.eSeite === n ? " an" : ""}" data-m="${n}">
     <span class="m-icon">${icon(n)}</span><span class="m-text"><b>${t}</b><small>${esc(menueText(n))}</small></span>
     <span class="pfeil" aria-hidden="true">›</span></button>`).join("");
 }
@@ -487,6 +497,7 @@ $("e-menue").onclick = (e) => {
   if (S.eSeite === "wlan" && !S.netze) wlanSuchen();
   if (S.eSeite === "bambu") amsLaden();
   if (S.eSeite === "etikett") etLaden();
+  if (S.eSeite === "bruecke") brLaden();
   einst();
 };
 
@@ -496,6 +507,7 @@ function einst() {
   const z = S.z || {};
   const ziel = $("e-inhalt");
   if (S.eSeite === "etikett") { ziel.innerHTML = etEinstHtml(); return; }
+  if (S.eSeite === "bruecke") { ziel.innerHTML = brEinstHtml(); return; }
   if (!e) { ziel.innerHTML = '<span class="sub14">Einstellungen werden geladen …</span>'; return; }
   let h = "";
   if (S.eSeite === "design") {
@@ -603,6 +615,7 @@ $("e-inhalt").onclick = async (e) => {
   if (!b) return;
   const d = b.dataset;
   if (d.et) return etEinstKlick(d);
+  if (d.br) return brAktion(d.br, b);
   if (d.akzent) return einstSetzen({ akzent: d.akzent });
   if (d.text) {
     if (KIOSK) { await einstSetzen({ textgroesse_kiosk: d.text }); skalieren(); return einst(); }
@@ -719,6 +732,75 @@ S.et = null;          // Etiketten-Einstellungen vom Dienst
 S.etDialog = null;    // { sorte, rest, format }
 S.etGeraete = null;   // gefundene Bluetooth-Geräte
 S.etSucht = false;
+
+// ------------------------------------------------------------ Druckbrücke (Phomemo M20 Pro)
+// Die Oberfläche fragt die Brücke direkt (sie erlaubt das per CORS) – so geht es auf dem Pi und auf der Sensorplatine.
+S.br = null;
+let brTimer = 0;
+async function brLaden() {
+  clearTimeout(brTimer);
+  const basis = S.et && S.et.bruecke;
+  if (!basis) return;
+  try {
+    const ab = new AbortController(), t = setTimeout(() => ab.abort(), 4000);
+    S.br = await (await fetch(basis + "/status", { cache: "no-store", signal: ab.signal })).json();
+    clearTimeout(t);
+  } catch (e) { S.br = { fehler: true }; }
+  if (S.seite === "einst") { if (S.eSeite === "bruecke") einst(); else einstMenue(); }
+  if (S.seite === "einst" && S.eSeite === "bruecke") brTimer = setTimeout(brLaden, 3000);
+}
+function brEinstHtml() {
+  const b = S.br, basis = (S.et && S.et.bruecke) || "";
+  const kopf = (p) => `<div class="e-zeile"><span class="e-titel wachsen">Druckbrücke${b && b.geraet && b.geraet.typ ? " · " + esc(b.geraet.typ) : ""}</span>${p}</div>`;
+  if (!b) return kopf(pill(null, "lädt …")) + '<span class="sub14">Frage die Druckbrücke …</span>';
+  if (b.fehler) return kopf(pill(false, "nicht erreichbar")) + `<span class="hinweis">${esc(basis)} antwortet nicht. Läuft der Dienst filamentwaage-druck auf dem Pi, und stimmt die Adresse unter Etiketten?</span>`;
+  const st = b.verbunden ? pill(true, `verbunden seit ${b.verbunden_seit || ""}`)
+    : b.freigegeben_s ? `<span class="status-pill frei">für die App frei · noch ${Math.ceil(b.freigegeben_s / 60)} min</span>` : pill(false, "nicht verbunden");
+  const r = b.rolle || {}, ak = b.akku || {}, sg = b.signal || {}, dr = b.drucke || {}, g = b.geraet || {};
+  const p = r.gesamt ? Math.round(r.rest * 100 / r.gesamt) : 0;
+  const pFarbe = p < 10 ? "var(--rot)" : p < 25 ? "var(--orange)" : "var(--gruen)";
+  const stufe = sg.rssi == null ? 0 : sg.rssi >= -3 ? 4 : sg.rssi >= -8 ? 3 : sg.rssi >= -15 ? 2 : 1;
+  const akkuWert = ak.wert ? ak.wert + (/^\d+$/.test(ak.wert) && +ak.wert <= 100 ? " %" : "") : "";
+  const kachel = (ue, gross, unten) => `<div class="br-k"><span class="ueber">${ue}</span><b class="br-gross">${gross}</b>${unten}</div>`;
+  const letzte = (dr.letzte || []).slice(0, 5);
+  const neuVerbinden = parseFloat(b.version || "0") >= 1.3;
+  return kopf(st) + `
+    <div class="br-kacheln">
+      ${kachel("Etikettenrolle", r.rest != null ? `${r.rest}${r.gesamt ? ` <small>von ${r.gesamt}</small>` : ""}` : "–",
+        `<div class="balken"><div style="width:${p}%;background:${pFarbe}"></div></div><span class="sub14">${r.rfid ? "RFID " + esc(r.rfid) : ""}</span>`)}
+      ${akkuWert ? kachel("Akku", esc(akkuWert), `<span class="sub14">${ak.befehl ? "über SSSGET" + esc(ak.befehl) : ""}</span>`) : ""}
+      ${kachel("Funksignal", esc(sg.text || "–"), `<span class="br-striche">${[6, 10, 14, 18].map((h, i) => `<i class="${i < stufe ? "an" : ""}" style="height:${h}px"></i>`).join("")}</span>
+        <span class="sub14">${sg.rssi != null ? sg.rssi + " dB · " : ""}${dr.abbrueche_heute || 0} Abbrüche heute</span>`)}
+      ${kachel("Gedruckt", `${dr.heute ?? 0} <small>heute</small>`, `<span class="sub14">${dr.gesamt ?? 0} insgesamt${dr.fehler_heute ? ` · ${dr.fehler_heute} Fehler heute` : ""}</span>`)}
+    </div>
+    <div class="e-block"><span class="ueber">Letzte Drucke</span>
+      <div class="info-liste" style="flex:0 0 auto">${letzte.length ? letzte.map((e) => `<div class="info-zeile br-zeile"><span>${esc(String(e.zeit || "").slice(11, 16))} · ${esc(e.titel)}</span>
+        <span class="${e.ok ? "br-ok" : "br-fehler"}">${esc(e.ok ? "gedruckt" : e.text)}</span></div>`).join("") : '<div class="info-zeile"><span>noch keine</span><span></span></div>'}</div></div>
+    <span class="sub14">${esc([g.typ, g.firmware && "Firmware " + g.firmware, g.seriennummer && "SN " + g.seriennummer].filter(Boolean).join(" · "))}${b.version ? ` · Druckbrücke ${esc(b.version)}` : ""}</span>
+    <div class="e-zeile">${neuVerbinden ? '<button class="knopf rahmen h50 wachsen" data-br="verbinden">Neu verbinden</button>' : ""}
+      <button class="knopf primaer h50 wachsen" data-br="test" style="font-size:15px">Testdruck</button></div>
+    <button class="knopf rahmen h50" data-br="freigeben">Für Phomemo-App freigeben (10 min)</button>`;
+}
+async function brAktion(was, knopf) {
+  const basis = S.et && S.et.bruecke;
+  if (!basis) return;
+  if (knopf) knopf.disabled = true;
+  // „Neu verbinden“ heißt nicht in jeder Version der Brücke gleich
+  const pfade = was === "verbinden" ? ["/verbinden", "/neu_verbinden", "/neuverbinden", "/reconnect"] : ["/" + was];
+  let text = "", ok = false;
+  for (const p of pfade) {
+    try {
+      const r = await fetch(basis + p, { method: "POST" });
+      if (r.status === 404) continue;
+      const d = await r.json().catch(() => ({}));
+      ok = r.ok && d.ok !== false;
+      text = d.text || (ok ? (was === "test" ? "Testdruck geschickt" : "Erledigt") : `Druckbrücke meldet ${r.status}`);
+      break;
+    } catch (e) { text = "Druckbrücke nicht erreichbar"; break; }
+  }
+  meldung(text || "Diese Druckbrücke kennt das noch nicht", !ok);
+  setTimeout(brLaden, 800);
+}
 
 async function etLaden() {
   try {

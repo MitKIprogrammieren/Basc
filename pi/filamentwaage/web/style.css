@@ -279,3 +279,16 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .app.eng .filter { padding: 0 9px; }
 .app.eng #filter { gap: 5px; }
 .app.eng .suche { min-width: 92px; }
+
+/* Druckbrücke in den Einstellungen */
+.br-kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.br-k { background: var(--panel); border: 2px solid var(--rand2); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.br-gross { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.br-gross small { font-size: 13px; color: var(--sub); font-weight: 500; }
+.br-k .balken { height: 6px; margin: 2px 0; }
+.br-striche { display: flex; gap: 3px; align-items: flex-end; height: 18px; }
+.br-striche i { width: 6px; border-radius: 2px; background: var(--rand); }
+.br-striche i.an { background: var(--gruen); }
+.br-zeile span:last-child { font-weight: 500; text-align: right; max-width: 62%; }
+.br-ok { color: var(--gruen-t); } .br-fehler { color: var(--rot); font-size: 12px; }
+.status-pill.frei { background: rgba(255,167,38,.18); color: var(--orange-t); }
