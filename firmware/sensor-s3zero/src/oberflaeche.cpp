@@ -245,6 +245,90 @@ bool aendern(const std::string& uid, const std::function<Aenderung(const std::st
     return true;
 }
 
+// Holt den Status der Druckbrücke und meldet ihn als Sensoren an Home Assistant (ohne YAML).
+// Die Sensoren entstehen über die REST-API; nach einem HA-Neustart sind sie nach spätestens einer Minute wieder da.
+void bruecke_nach_ha() {
+    String basis = drucker_bruecke();
+    if (!basis.length() || WiFi.status() != WL_CONNECTED) return;
+    while (basis.endsWith("/")) basis.remove(basis.length() - 1);
+    HTTPClient http;
+    WiFiClient netz;
+    if (!http.begin(netz, basis + "/status")) return;
+    http.setTimeout(4000);
+    int code = http.GET();
+    String text = code == 200 ? http.getString() : String("");
+    http.end();
+    JsonDocument z;
+    bool erreichbar = code == 200 && !deserializeJson(z, text);
+    HaClient ha;
+    std::string fehler;
+    if (!client_fuer(ha_cfg(), ha, fehler)) return;
+    auto setzen = [&](const char* entity, JsonDocument& d) {
+        std::string body;
+        serializeJson(d, body);
+        ha.zustand_setzen(entity, body, fehler);
+    };
+    {
+        JsonDocument d;
+        d["state"] = erreichbar && (z["verbunden"] | false) ? "on" : "off";
+        d["attributes"]["friendly_name"] = "M20 Pro verbunden";
+        d["attributes"]["device_class"] = "connectivity";
+        d["attributes"]["druckbruecke"] = erreichbar ? "erreichbar" : "nicht erreichbar";
+        d["attributes"]["verbunden_seit"] = z["verbunden_seit"] | "";
+        d["attributes"]["abbrueche_heute"] = z["drucke"]["abbrueche_heute"] | 0;
+        setzen("binary_sensor.m20_pro_verbunden", d);
+    }
+    if (!erreichbar) return;
+    if (!z["rolle"]["rest"].isNull()) {
+        JsonDocument d;
+        d["state"] = z["rolle"]["rest"];
+        d["attributes"]["friendly_name"] = "M20 Pro Etiketten übrig";
+        d["attributes"]["unit_of_measurement"] = "Etiketten";
+        d["attributes"]["state_class"] = "measurement";
+        d["attributes"]["icon"] = "mdi:label-multiple-outline";
+        d["attributes"]["gesamt"] = z["rolle"]["gesamt"];
+        d["attributes"]["rfid"] = z["rolle"]["rfid"];
+        setzen("sensor.m20_pro_etiketten", d);
+    }
+    const char* akku = z["akku"]["wert"] | "";
+    if (*akku) {
+        JsonDocument d;
+        d["state"] = akku;
+        d["attributes"]["friendly_name"] = "M20 Pro Akku";
+        bool prozent = atoi(akku) > 0 && atoi(akku) <= 100 && strspn(akku, "0123456789") == strlen(akku);
+        if (prozent) {
+            d["attributes"]["unit_of_measurement"] = "%";
+            d["attributes"]["device_class"] = "battery";
+            d["attributes"]["state_class"] = "measurement";
+        }
+        setzen("sensor.m20_pro_akku", d);
+    }
+    if (!z["signal"]["rssi"].isNull()) {
+        JsonDocument d;
+        d["state"] = z["signal"]["rssi"];
+        d["attributes"]["friendly_name"] = "M20 Pro Funksignal";
+        d["attributes"]["unit_of_measurement"] = "dB";
+        d["attributes"]["state_class"] = "measurement";
+        d["attributes"]["icon"] = "mdi:bluetooth";
+        d["attributes"]["bewertung"] = z["signal"]["text"];
+        setzen("sensor.m20_pro_funksignal", d);
+    }
+    {
+        JsonDocument d;
+        d["state"] = z["drucke"]["heute"] | 0;
+        d["attributes"]["friendly_name"] = "M20 Pro Drucke heute";
+        d["attributes"]["unit_of_measurement"] = "Etiketten";
+        d["attributes"]["icon"] = "mdi:printer-pos";
+        d["attributes"]["gesamt"] = z["drucke"]["gesamt"];
+        d["attributes"]["fehler_heute"] = z["drucke"]["fehler_heute"];
+        JsonVariantConst l = z["drucke"]["letzte"][0];
+        if (!l.isNull()) {
+            d["attributes"]["letzter"] = String(l["zeit"] | "") + " · " + String(l["titel"] | "") + " · " + String(l["text"] | "");
+        }
+        setzen("sensor.m20_pro_drucke_heute", d);
+    }
+}
+
 void arbeiter(void*) {
     uint32_t naechstes_laden = 0;
     for (;;) {
@@ -285,6 +369,7 @@ void arbeiter(void*) {
                 break;
             }
             case Art::LADEN:
+                if (a->zahl == 1) bruecke_nach_ha();  // jede Minute: Druckerwerte als Sensoren in HA
                 break;
         }
         if (a->art != Art::TEST) {

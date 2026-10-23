@@ -8,6 +8,7 @@
 // Ganz am Anfang von setup(): Bluetooth einschalten (oder nach Absturz sperren)
 void drucker_frueh(bool erlaubt);
 bool drucker_gesperrt();
+String drucker_bruecke();  // Adresse der Druckbrücke oder leer
 String drucker_bericht();  // was beim letzten Druck passiert ist (für /api/diagnose)
 void drucker_start();
 // Einstellungen für /api/etikett/einstellungen (ohne Hersteller und Lager-Adresse)

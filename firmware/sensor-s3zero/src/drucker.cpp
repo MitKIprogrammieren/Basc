@@ -48,6 +48,7 @@ struct Geraet {
 struct Druck {
     int breite, hoehe, kopien;
     std::vector<uint8_t> daten;
+    String titel;
 };
 
 std::mutex g_mx;
@@ -204,8 +205,12 @@ String an_bruecke(const String& basis, const char* pfad, const Druck* d, int dic
         mbedtls_base64_encode((unsigned char*)&b64[0], b64len, &b64len, d->daten.data(), d->daten.size());
         b64.resize(b64len);
         body.reserve(b64len + 100);
+        JsonDocument t;
+        t.set(d->titel);
+        String titel;
+        serializeJson(t, titel);  // als JSON-String mit Anführungszeichen und Escapes
         body = "{\"breite\":" + String(d->breite) + ",\"hoehe\":" + String(d->hoehe) + ",\"kopien\":" +
-               String(d->kopien) + ",\"dichte\":" + String(dichte) + ",\"daten\":\"";
+               String(d->kopien) + ",\"dichte\":" + String(dichte) + ",\"titel\":" + titel + ",\"daten\":\"";
         body += b64.c_str();
         body += "\"}";
     }
@@ -530,6 +535,10 @@ void drucker_frueh(bool erlaubt) {
 }
 
 bool drucker_gesperrt() { return g_ble_gesperrt; }
+String drucker_bruecke() {
+    std::lock_guard<std::mutex> l(g_mx);
+    return g_w.bruecke;
+}
 String drucker_bericht() {
     std::lock_guard<std::mutex> l(g_mx);
     return g_druck_bericht;
@@ -608,7 +617,7 @@ const char* drucker_drucken(JsonObjectConst o) {
     int kopien = constrain((int)(o["kopien"] | 1), 1, 10);
     if (breite <= 0 || breite % 8 || hoehe <= 0 || hoehe > 4000) return "Etikett unvollständig";
     size_t soll = (size_t)breite / 8 * hoehe, laenge = 0;
-    auto* d = new Druck{breite, hoehe, kopien, std::vector<uint8_t>(soll + 4)};
+    auto* d = new Druck{breite, hoehe, kopien, std::vector<uint8_t>(soll + 4), String(o["titel"] | "Etikett").substring(0, 80)};
     if (mbedtls_base64_decode(d->daten.data(), d->daten.size(), &laenge, (const unsigned char*)b64, strlen(b64)) ||
         laenge != soll) {
         delete d;

@@ -12,6 +12,8 @@ public:
     bool lager_laden(Lager& lager, std::string& fehler);
     // todo.update_item: nur die Beschreibung ersetzen
     bool beschreibung_setzen(const std::string& item_uid, const std::string& beschreibung, std::string& fehler);
+    // POST /api/states/<entity>: Zustand eines eigenen Sensors setzen (body: {"state":…,"attributes":{…}})
+    bool zustand_setzen(const std::string& entity, const std::string& body, std::string& fehler);
 
 private:
     bool post(const std::string& pfad, const std::string& body, std::string& antwort, std::string& fehler);

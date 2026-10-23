@@ -47,7 +47,7 @@ bool HaClient::post(const std::string& pfad, const std::string& body, std::strin
         fehler = "Token abgelehnt (401)";
         return false;
     }
-    if (code != 200) {
+    if (code != 200 && code != 201) {
         fehler = "Home Assistant meldet " + std::to_string(code);
         return false;
     }
@@ -76,4 +76,9 @@ bool HaClient::beschreibung_setzen(const std::string& item_uid, const std::strin
     std::string body, antwort;
     serializeJson(b, body);
     return post("/api/services/todo/update_item", body, antwort, fehler);
+}
+
+bool HaClient::zustand_setzen(const std::string& entity, const std::string& body, std::string& fehler) {
+    std::string antwort;
+    return post("/api/states/" + entity, body, antwort, fehler);
 }

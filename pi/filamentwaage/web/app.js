@@ -730,6 +730,8 @@ $("et-zu").onclick = () => { $("etikett").classList.add("versteckt"); S.etDialog
 $("et-druck").onclick = async () => {
   if (!S.etDialog) return;
   const r = Etikett.raster($("et-canvas"));
+  const so = S.etDialog.sorte;
+  r.titel = so === Etikett.TEST ? "Testdruck" : [kurzname(so), so.hersteller && `(${so.hersteller})`].filter(Boolean).join(" ");
   try {
     const a = await fetch("/api/etikett/drucken", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(r) });
     const j = await a.json();
