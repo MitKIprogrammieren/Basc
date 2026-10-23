@@ -228,6 +228,10 @@ input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
 .et-format.an b { color: var(--gruen-t); }
 .etikett-box > .spalte { max-height: calc(100vh - 60px); min-height: 0; }
 #et-optionen { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.mini-seg { display: flex; gap: 3px; background: var(--kachel); border-radius: 16px; padding: 3px; }
+.mini-seg button { height: 26px; padding: 0 9px; border-radius: 13px; border: 0; background: transparent; color: var(--sub);
+  font: inherit; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.mini-seg button.an { background: var(--gruen); color: var(--bg); font-weight: 700; }
 .et-weg { color: var(--orange, #ff9800); font-size: 12px; }
 .et-weg:empty { display: none; }
 .mini-knopf { height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid var(--rand); background: transparent;

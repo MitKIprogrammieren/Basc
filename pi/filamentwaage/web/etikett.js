@@ -38,7 +38,7 @@ const Etikett = (() => {
     ["flow", "Flow / TD"], ["netto", "Nettogewicht"], ["leer", "Leergewicht"], ["ort", "Lagerort"],
     ["eigene", "Eigene Zeile"], ["rest", "Rest"],
   ];
-  const STANDARD_FELDER = ["duese", "bett", "trocknen", "flow", "rest"];
+  const STANDARD_FELDER = ["duese", "bett", "trocknen", "flow"];  // Rest nur auf Wunsch – er veraltet
 
   // Übliche Trocknungswerte, wenn im Lager nichts eingetragen ist (Richtwerte, mit „~“ gedruckt)
   const TROCKNEN_RICHTWERTE = [

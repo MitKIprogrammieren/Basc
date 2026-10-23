@@ -728,6 +728,7 @@ function etOptionen() {
   try { o = JSON.parse(localStorage.getItem("fl_etikett") || "null"); } catch (e) { /* ohne Speicher */ }
   o = o && typeof o === "object" ? o : {};
   if (!Array.isArray(o.felder)) o.felder = Etikett.STANDARD_FELDER.slice();
+  if (o.v !== 2) { o.felder = o.felder.filter((k) => k !== "rest"); o.v = 2; }  // Rest ist seit 2.8.2 aus
   o.eigene = typeof o.eigene === "string" ? o.eigene : "";
   o.hochkant = !!o.hochkant;
   o.formate = Array.isArray(o.formate) ? o.formate.filter((k) => Etikett.formatVon(k)) : [];
@@ -770,7 +771,9 @@ async function etikettZeichnen(nurVorschau) {
       const r = d.opt.sortierung === "klein" ? 1 : -1;
       liste.sort(([, a], [, b]) => r * (a.b * a.h - b.b * b.h || a.b - b.b));
     }
-    $("et-sort").innerHTML = { standard: "Reihenfolge: Standard", klein: "↑ Kleinste zuerst", gross: "↓ Größte zuerst" }[d.opt.sortierung];
+    const pfeil = (auf) => `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${auf ? '<path d="M7 20V4M3 8l4-4 4 4M14 8h7M14 13h5M14 18h3"/>' : '<path d="M7 4v16M3 16l4 4 4-4M14 6h3M14 11h5M14 16h7"/>'}</svg>`;
+    $("et-sort").innerHTML = [["standard", "Standard"], ["klein", `${pfeil(true)}Klein`], ["gross", `${pfeil(false)}Groß`]].map(([k, t]) =>
+      `<button class="${d.opt.sortierung === k ? "an" : ""}" data-sort="${k}" aria-pressed="${d.opt.sortierung === k}">${t}</button>`).join("");
     $("et-formate").innerHTML = liste.map(([k, v]) =>
       `<button class="et-format${k === d.format ? " an" : ""}${v.eigen ? " eigen" : ""}" data-format="${k}"><b>${v.name}</b><small>${v.b} × ${v.h} mm</small>${v.eigen ? `<span class="et-x" data-weg="${k}" aria-label="Größe löschen">×</span>` : ""}</button>`).join("")
       + `<button class="et-format neu" data-eigen="1">+ Eigene Maße</button>`;
@@ -826,10 +829,11 @@ $("et-formate").onclick = (e) => {
   etOptionenSpeichern(d.opt);
   etikettZeichnen();
 };
-$("et-sort").onclick = () => {
+$("et-sort").onclick = (e) => {
   const d = S.etDialog;
-  if (!d) return;
-  d.opt.sortierung = { standard: "klein", klein: "gross", gross: "standard" }[d.opt.sortierung];
+  const b = e.target.closest("[data-sort]");
+  if (!d || !b) return;
+  d.opt.sortierung = b.dataset.sort;
   etOptionenSpeichern(d.opt);
   etikettZeichnen();
 };
