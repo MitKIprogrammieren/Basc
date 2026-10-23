@@ -497,7 +497,7 @@ function einst() {
       <div class="e-block"><span class="ueber">Helligkeit</span>
         <div class="e-zeile"><input type="range" class="regler" id="e-hell" min="10" max="100" step="5" value="${e.helligkeit}" aria-label="Helligkeit"><span class="e-wert" id="e-hell-w">${e.helligkeit} %</span></div></div>
       <div class="e-block"><span class="ueber">Display ausschalten</span>${seg("display_aus_min", e.display_aus_min, [[0, "Nie"], [5, "5 min"], [15, "15 min"], [30, "30 min"]])}</div>
-      <div class="e-block"><span class="ueber">Textgröße</span><div class="seg">${TEXTGROESSEN.map(([k, t]) =>
+      <div class="e-block"><span class="ueber gross-ss">TEXTGRÖẞE</span><div class="seg">${TEXTGROESSEN.map(([k, t]) =>
         `<button class="${k === textGroesse() ? "an" : ""}" data-text="${k}">${t}</button>`).join("")}</div>
         <span class="hinweis">Kleiner zeigt mehr auf einmal – praktisch im Browser am Mac. Gilt nur für dieses Gerät.</span></div>
       <div class="e-block"><span class="ueber">Lagerliste</span>${seg("kompakt", e.kompakt, [[false, "Normal"], [true, "Kompakt"]])}</div>`;
@@ -778,7 +778,7 @@ async function etikettZeichnen(nurVorschau) {
       `<button class="et-format${k === d.format ? " an" : ""}${v.eigen ? " eigen" : ""}" data-format="${k}"><b>${v.name}</b><small>${v.b} × ${v.h} mm</small>${v.eigen ? `<span class="et-x" data-weg="${k}" aria-label="Größe löschen">×</span>` : ""}</button>`).join("")
       + `<button class="et-format neu" data-eigen="1">+ Eigene Maße</button>`;
     $("et-eigen-form").innerHTML = d.eigenOffen ? `<div class="et-eigen-box spalte gap6">
-        <span class="ueber">Eigene Maße</span>
+        <span class="ueber gross-ss">EIGENE MAẞE</span>
         <div class="reihe gap6 mitte"><input id="et-mb" class="et-eigene klein mass" data-tastatur="frei" inputmode="decimal" value="${f.eigen ? f.b : 40}" aria-label="Breite in mm">
           <span>×</span><input id="et-mh" class="et-eigene klein mass" data-tastatur="frei" inputmode="decimal" value="${f.eigen ? f.h : 30}" aria-label="Höhe in mm"><span>mm</span>
           <button class="mini-knopf" id="et-mok" style="margin-left:auto">Übernehmen</button></div>

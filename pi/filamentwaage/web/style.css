@@ -46,7 +46,7 @@ button { font-family: inherit; color: inherit; }
 .panel { background: var(--panel); border: 2px solid var(--rand2); border-radius: 18px; }
 .panel.gruen { border-color: var(--gruen); } .panel.orange { border-color: var(--orange); }
 .ueber { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--sub); }
-.ueber.klein { font-size: 11px; } .orange-t { color: var(--orange-t); }
+.ueber.klein { font-size: 11px; } .ueber.gross-ss { text-transform: none; } /* „ß“ als ẞ statt „SS“ */ .orange-t { color: var(--orange-t); }
 .sub14 { font-size: 13px; color: var(--sub); } .sub16 { font-size: 15px; color: var(--sub); }
 .name20 { font-weight: 700; font-size: 17px; line-height: 1.2; } .name28 { font-weight: 800; font-size: 28px; }
 .ellipse { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -220,7 +220,7 @@ input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
 .et-format.neu { border-style: dashed; color: var(--sub); align-items: center; font-size: 12px; font-weight: 600; }
 .et-x { position: absolute; top: 2px; right: 6px; font-size: 15px; line-height: 1; color: var(--sub); padding: 2px; }
 .et-eigen-box { border: 1px solid var(--rand); border-radius: 12px; padding: 10px; }
-.et-eigene.mass { width: 64px; flex: 0 0 auto; text-align: center; }
+.et-eigene.mass { width: 72px; flex: 0 0 auto; text-align: center; padding: 0 6px; font-weight: 700; }
 .et-format { height: 46px; border-radius: 12px; border: 1px solid var(--rand); background: transparent; color: var(--text);
   text-align: left; padding: 0 8px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; }
 .et-format b { font-weight: 700; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .et-format small { font-size: 10.5px; color: var(--sub); white-space: nowrap; }

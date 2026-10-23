@@ -25,7 +25,7 @@ ziel = projekt / "data"
 
 # Zeichen, die die Oberfläche braucht: Latein mit Umlauten, Satzzeichen, Pfeile, Symbole wie ✓ ⌫ ⇧ °
 ZEICHEN = ("U+0020-007E,U+00A0-00FF,U+0152-0153,U+2010-2027,U+2030-205E,U+20AC,U+2122,"
-           "U+2190-21FF,U+2212,U+2713,U+2715,U+232B,U+25CB,U+25CF")
+           "U+1E9E,U+2190-21FF,U+2212,U+2713,U+2715,U+232B,U+25CB,U+25CF")
 
 
 def schrift_verkleinern(datei):
