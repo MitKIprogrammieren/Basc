@@ -8,5 +8,5 @@ done
 BROWSER="$(command -v chromium-browser || command -v chromium)"
 exec "$BROWSER" --kiosk --app="$URL" --window-size=800,480 --window-position=0,0 \
   --noerrdialogs --disable-infobars --no-first-run --disable-translate \
-  --disable-features=TranslateUI,OverscrollHistoryNavigation --disable-pinch \
+  --lang=de --disable-features=Translate,TranslateUI,OverscrollHistoryNavigation --disable-pinch \
   --check-for-update-interval=31536000 --password-store=basic --incognito

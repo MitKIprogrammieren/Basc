@@ -24,7 +24,7 @@ while true; do
     --window-size="$B,$H" --window-position=0,0 --start-fullscreen \
     --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 \
     --noerrdialogs --disable-infobars --no-first-run --disable-translate --disable-sync \
-    --disable-features=TranslateUI,OverscrollHistoryNavigation,MediaRouter \
+    --lang=de --disable-features=Translate,TranslateUI,OverscrollHistoryNavigation,MediaRouter \
     --check-for-update-interval=31536000 --password-store=basic \
     --disk-cache-size=1 --renderer-process-limit=1 --disable-background-networking \
     2>/dev/null
