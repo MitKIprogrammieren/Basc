@@ -291,18 +291,23 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
     } else {
         static const char FRAGE[] = "SSSGETTYPE\r\n";
         ziel->writeValue((const uint8_t*)FRAGE, sizeof(FRAGE) - 1, false);
-        vTaskDelay(pdMS_TO_TICKS(600));
+        vTaskDelay(pdMS_TO_TICKS(1500));
         stand(bericht + "; sende");
         size_t stueck = constrain((int)c->getMTU() - 3, 20, 180);
+        // Mit Bestätigung schreiben, wenn der Drucker das kann: dann wartet die Waage nach jedem Paket,
+        // bis er es angenommen hat – sonst läuft sein Empfangspuffer über (M20 Pro trennt dann).
+        bool bestaetigt = ziel->canWrite();
+        bericht += bestaetigt ? "; mit Bestätigung" : "; ohne Bestätigung";
         for (size_t i = 0; i < auftrag.size(); i += stueck) {
             size_t n = std::min(stueck, auftrag.size() - i);
-            if (!ziel->writeValue(auftrag.data() + i, n, false)) {
+            if (!ziel->writeValue(auftrag.data() + i, n, bestaetigt)) {
                 fehler = "Verbindung zum Drucker abgebrochen";
                 break;
             }
             gesendet += n;
             if ((gesendet / stueck) % 50 == 0) stand(bericht + "; gesendet " + String(gesendet) + "/" + String(auftrag.size()));
-            vTaskDelay(pdMS_TO_TICKS(20));
+            // alle 2 KB kurz Luft lassen, damit der Drucker das Bild verarbeiten kann
+            vTaskDelay(pdMS_TO_TICKS((gesendet % 2048) < stueck ? 120 : 20));
         }
         if (!fehler.length()) vTaskDelay(pdMS_TO_TICKS(1500));  // Drucker erst fertig empfangen lassen
     }
