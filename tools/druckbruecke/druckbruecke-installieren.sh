@@ -48,6 +48,7 @@ schickt sie das Etikett per WLAN hierher.
     POST /test     zwei schwarze Balken
     GET  /status   Drucker, Verbindung, letzter Druck, Antworten des Druckers
     POST /freigeben  Dauerverbindung für 10 Minuten lösen (z. B. für die Phomemo-App)
+    POST /verbinden  Verbindung trennen und sofort neu aufbauen
 
 Der Status enthält außerdem, was der Drucker über sich meldet (Restetiketten der Rolle, RFID, Firmware,
 Seriennummer), die Signalstärke, Verbindungsabbrüche und den Druckverlauf (/var/lib/filamentwaage-druck).
@@ -72,7 +73,7 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-VERSION = "1.2.2"
+VERSION = "1.3.0"
 CFG_PFAD = os.environ.get("DRUCK_CONFIG", "/etc/filamentwaage-druck.json")
 STANDARD = {"drucker": "", "kanal": 1, "port": 8765, "dpi": 300, "dauerhaft": True}
 log = logging.getLogger("druckbruecke")
@@ -228,6 +229,8 @@ class Verbindung:
         self.zuletzt_gesendet = 0.0
         self.zuletzt_info = 0.0
         self.zeilen = b""
+        self.sofort = False     # „Neu verbinden“ gedrückt: Wartezeit überspringen
+        self.verbindet = False  # gerade ein Verbindungsversuch
 
     @property
     def verbunden(self):
@@ -305,6 +308,13 @@ class Verbindung:
         except OSError:
             pass
 
+    def neu_verbinden(self):
+        """Verbindung trennen und sofort neu aufbauen (auch eine App-Freigabe endet damit)."""
+        self.frei_bis = 0.0
+        self.trennen()
+        self.sofort = True
+        log.info("Neu verbinden angefordert")
+
     def trennen(self):
         with self.lock:
             s, self.sock = self.sock, None
@@ -373,14 +383,23 @@ class Verbindung:
                     self.trennen()
                 continue
             if not self.verbunden:
+                if self.sofort:
+                    self.sofort = False
+                    pause = 5
+                self.verbindet = True
                 with self.lock:
                     try:
                         self._verbinden()
                         pause = 5
                     except RuntimeError:
                         pass
+                self.verbindet = False
                 if not self.verbunden:
-                    time.sleep(pause)
+                    self.naechster = time.time() + pause
+                    for _ in range(pause):  # „Neu verbinden“ beendet die Wartezeit sofort
+                        if self.sofort:
+                            break
+                        time.sleep(1)
                     pause = min(60, pause * 2)
                 continue
             if time.time() - self.zuletzt_info > 60:  # Rolle, RFID usw. – zugleich Lebenszeichen
@@ -451,7 +470,7 @@ h1{font-size:20px;font-weight:600;margin:0}
 .ok{color:var(--gruen-t)}.fehler{color:var(--rot)}
 .fuss{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--sub)}
 button{font:inherit;font-size:14px;padding:9px 15px;border-radius:10px;cursor:pointer}
-.primaer{background:var(--gruen);color:var(--bg);border:0;font-weight:600}.rahmen{background:none;color:var(--text);border:2px solid var(--rand2)}
+.primaer{background:var(--gruen);color:var(--bg);border:0;font-weight:600}.rahmen{background:none;color:var(--text);border:2px solid var(--rand2)}.rahmen.neu{border-color:var(--gruen);color:var(--gruen)}
 pre{color:var(--sub);font-size:12px;white-space:pre-wrap;margin:0}
 </style>
 <main>
@@ -467,7 +486,7 @@ pre{color:var(--sub);font-size:12px;white-space:pre-wrap;margin:0}
  </div>
  <div class="k"><div class="ue" style="margin-bottom:4px">Letzte Drucke</div><div id="verlauf"><span class="klein">noch keine</span></div></div>
  <div class="fuss"><span id="geraet"></span><span id="ver"></span></div>
- <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primaer" id="t">Testdruck</button>
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="rahmen neu" id="nv">&#x21bb; Neu verbinden</button><button class="primaer" id="t">Testdruck</button>
   <button class="rahmen" id="f">Für Phomemo-App freigeben (10 min)</button></div>
  <details><summary class="klein">Antworten des Druckers beim letzten Druck</summary><pre id="a"></pre></details>
 </main>
@@ -479,7 +498,8 @@ async function lade(){
  const v=$('verb');
  if(z.verbunden){v.textContent='verbunden seit '+z.verbunden_seit;v.className='pill an';}
  else if(z.freigegeben_s){v.textContent='für die App freigegeben · noch '+Math.ceil(z.freigegeben_s/60)+' min';v.className='pill frei';}
- else{v.textContent='nicht verbunden';v.className='pill aus';v.title=z.verbindungsfehler||'';}
+ else if(z.verbindet){v.textContent='verbinde …';v.className='pill frei';}
+ else{v.textContent='nicht verbunden'+(z.naechster_versuch_s?' · nächster Versuch in '+z.naechster_versuch_s+' s':'');v.className='pill aus';v.title=z.verbindungsfehler||'';}
  const r=z.rolle||{};
  if(r.rest!=null){$('rolle').innerHTML=r.rest+(r.gesamt?' <small>von '+r.gesamt+'</small>':'');
   const p=r.gesamt?Math.round(r.rest*100/r.gesamt):0;$('rolle-b').style.width=p+'%';
@@ -502,6 +522,7 @@ async function lade(){
  $('a').textContent=z.antworten||'';
 }
 $('t').onclick=()=>fetch('/test',{method:'POST'}).then(lade);
+$('nv').onclick=()=>{$('verb').textContent='verbinde …';$('verb').className='pill frei';fetch('/verbinden',{method:'POST'}).then(lade);};
 $('f').onclick=()=>fetch('/freigeben',{method:'POST'}).then(lade);
 lade();setInterval(lade,3000);
 </script>"""
@@ -554,6 +575,8 @@ class Handler(BaseHTTPRequestHandler):
                     return None
             return self._json({"version": VERSION, "drucker": CFG.get("drucker", ""),
                                "verbunden": VERBINDUNG.verbunden, "verbunden_seit": VERBINDUNG.seit,
+                               "verbindet": VERBINDUNG.verbindet or VERBINDUNG.sofort,
+                               "naechster_versuch_s": max(0, int(getattr(VERBINDUNG, "naechster", 0) - time.time())),
                                "dauerhaft": bool(CFG.get("dauerhaft", True)), "freigegeben_s": frei,
                                "verbindungsfehler": VERBINDUNG.fehler,
                                "rolle": {"rest": zahl("PAPERCAPACITY"), "gesamt": zahl("PAPERTOTALITY"),
@@ -578,6 +601,9 @@ class Handler(BaseHTTPRequestHandler):
                 VERBINDUNG.frei_bis = time.time() + 600
                 VERBINDUNG.trennen()
                 return self._json({"ok": True, "text": "Drucker für 10 Minuten freigegeben (Phomemo-App)"})
+            if pfad == "/verbinden":
+                VERBINDUNG.neu_verbinden()
+                return self._json({"ok": True, "text": "Verbinde neu …"})
             if pfad == "/test":
                 auftrag, art, titel = TEST, "Test", "Testdruck"
             elif pfad == "/drucken":
