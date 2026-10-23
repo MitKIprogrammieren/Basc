@@ -746,7 +746,7 @@ function etEinstHtml() {
       ${g.adresse === et.adresse ? pill(true, "gewählt") : g.phomemo ? pill(null, "Phomemo?") : ""}</div>`).join("")
     : '<span class="sub14">Kein Gerät gefunden – Drucker einschalten und nochmal suchen.</span>';
   const her = et.hersteller || [];
-  return `<div class="e-zeile"><span class="e-titel wachsen">Etiketten</span>${et.verbunden ? pill(true, "mit der Waage verbunden") : pill(et.adresse || et.verbindung === "datei" ? true : null, et.adresse || et.verbindung === "datei" ? "eingerichtet" : "kein Drucker")}</div>
+  return `<div class="e-zeile"><span class="e-titel wachsen">Etiketten</span>${et.verbunden ? pill(true, "mit der Waage verbunden") : pill(et.bruecke || et.adresse || et.verbindung === "datei" ? true : null, et.bruecke ? "über Druckbrücke" : et.adresse || et.verbindung === "datei" ? "eingerichtet" : "kein Drucker")}</div>
     <div class="e-block"><span class="ueber">Drucker</span>
       <div class="info-liste" style="flex:0 0 auto">
         <div class="info-zeile"><span>Drucker</span><span>${esc(et.name || (et.adresse ? "Phomemo" : "–"))}</span></div>
@@ -756,6 +756,10 @@ function etEinstHtml() {
         ${et.verbunden !== undefined ? `<button class="knopf rahmen rot h50 wachsen" data-et="trennen" aria-label="Verbindung zum Drucker trennen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12l5 5-1.5 1.5a3.5 3.5 0 0 1-5-5z"/><path d="M17 12l-5-5 1.5-1.5a3.5 3.5 0 0 1 5 5z"/><path d="M3 21l2.5-2.5M18.5 5.5L21 3M10 11l-2 2M13 14l-2 2"/></svg>Trennen</button>` : ""}
         <button class="knopf primaer h50 wachsen" data-et="test" style="font-size:15px">Testdruck</button></div>
       <div>${geraete}</div></div>
+    ${et.bruecke !== undefined ? `<div class="e-block"><span class="ueber">Druckbrücke</span>
+      <span class="hinweis">Für Drucker, die nur über klassisches Bluetooth drucken (Phomemo M20 Pro): Adresse des Druckdienstes auf dem Raspberry Pi. Leer lassen, wenn die Waage direkt druckt.</span>
+      <div class="e-zeile"><input id="et-bruecke" class="wachsen" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.bruecke)}" placeholder="http://192.168.1.250:8765">
+        <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" data-et="bruecke">Speichern</button></div></div>` : ""}
     <div class="e-block"><span class="ueber">Standardformat</span>
       <div class="seg">${Object.entries(Etikett.FORMATE).map(([k, v]) => `<button class="${k === et.format ? "an" : ""}" data-et="format" data-v="${k}">${v.name}</button>`).join("")}</div></div>
     <div class="e-block"><span class="ueber">Schwärzung</span>
@@ -783,6 +787,7 @@ async function etEinstKlick(d) {
   if (d.et === "dichte") return etSetzen({ dichte: Number(d.v) });
   if (d.et === "waehlen") { await etSetzen({ adresse: d.adresse, name: d.name }); return meldung(`${d.name} gewählt`); }
   if (d.et === "test") return etikettOeffnen(Etikett.TEST, 0);
+  if (d.et === "bruecke") { tastatur(false); await etSetzen({ bruecke: $("et-bruecke").value.trim() }); return meldung($("et-bruecke").value.trim() ? "Druckbrücke gespeichert" : "Druckbrücke entfernt"); }
   if (d.et === "trennen") {
     try {
       const j = await (await fetch("/api/etikett/trennen", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).json();

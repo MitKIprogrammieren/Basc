@@ -4,7 +4,9 @@
 #include "drucker.h"
 
 #include <NimBLEDevice.h>
+#include <HTTPClient.h>
 #include <Preferences.h>
+#include <WiFi.h>
 #include <esp_system.h>
 #include <mbedtls/base64.h>
 
@@ -32,6 +34,7 @@ constexpr uint8_t PAPIER_LUECKE = 0x0A;
 
 struct Werte {
     String adresse, name, format = "expanded";
+    String bruecke;  // http://pi:8765 – Druckbrücke für Drucker, die nur klassisches Bluetooth können (M20 Pro)
     uint8_t adress_typ = 0;  // 0 = öffentlich, 1 = zufällig (aus der Suche)
     int dichte = 10;
 } g_w;
@@ -53,6 +56,7 @@ bool g_suche_fertig = false, g_suche_laeuft = false, g_suche_wunsch = false;
 String g_suche_fehler;
 bool g_druckt = false;
 bool g_trennen_wunsch = false;
+String g_druck_bericht = "noch nichts gedruckt";
 bool g_minitest_wunsch = false;
 int g_letzter_druck = -1;  // -1 = noch keiner, 0 = fehlgeschlagen, 1 = geklappt
 QueueHandle_t g_druecke = nullptr;
@@ -70,6 +74,7 @@ void laden() {
     g_w.format = g_prefs.getString("format", "expanded");
     g_w.adress_typ = g_prefs.getUChar("typ", 0);
     g_w.dichte = g_prefs.getInt("dichte", 10);
+    g_w.bruecke = g_prefs.getString("bruecke", "");
     g_prefs.end();
 }
 
@@ -80,6 +85,7 @@ void speichern() {  // g_mx gehalten
     g_prefs.putString("format", g_w.format);
     g_prefs.putUChar("typ", g_w.adress_typ);
     g_prefs.putInt("dichte", g_w.dichte);
+    g_prefs.putString("bruecke", g_w.bruecke);
     g_prefs.end();
 }
 
@@ -183,10 +189,51 @@ void tspl_auftrag(std::vector<uint8_t>& out, int breite, int hoehe, const std::v
     out.insert(out.end(), kopf, kopf + n);
 }
 
+// ---------------------------------------------------------------- Druckbrücke (HTTP)
+// Schickt das Raster an die Druckbrücke auf dem Pi (tools/druckbruecke), die per klassischem Bluetooth druckt.
+String an_bruecke(const String& basis, const char* pfad, const Druck* d, int dichte) {
+    if (WiFi.status() != WL_CONNECTED) return "WLAN getrennt";
+    String url = basis;
+    while (url.endsWith("/")) url.remove(url.length() - 1);
+    url += pfad;
+    String body;
+    if (d) {
+        size_t b64len = 0;
+        mbedtls_base64_encode(nullptr, 0, &b64len, d->daten.data(), d->daten.size());
+        std::string b64(b64len, '\0');
+        mbedtls_base64_encode((unsigned char*)&b64[0], b64len, &b64len, d->daten.data(), d->daten.size());
+        b64.resize(b64len);
+        body.reserve(b64len + 100);
+        body = "{\"breite\":" + String(d->breite) + ",\"hoehe\":" + String(d->hoehe) + ",\"kopien\":" +
+               String(d->kopien) + ",\"dichte\":" + String(dichte) + ",\"daten\":\"";
+        body += b64.c_str();
+        body += "\"}";
+    }
+    HTTPClient http;
+    WiFiClient netz;
+    if (!http.begin(netz, url)) return "Adresse der Druckbrücke ungültig";
+    http.setTimeout(10000);
+    http.addHeader("Content-Type", "application/json");
+    int code = http.POST(body);
+    String antwort = code > 0 ? http.getString() : String("");
+    http.end();
+    {
+        std::lock_guard<std::mutex> l(g_mx);
+        g_druck_bericht = "Druckbrücke " + url + ": " + String(code) + " " + antwort.substring(0, 200);
+    }
+    if (code <= 0) return "Druckbrücke nicht erreichbar (" + url + ") – läuft der Dienst auf dem Pi?";
+    if (code >= 300) {
+        JsonDocument j;
+        if (!deserializeJson(j, antwort) && j["text"].is<const char*>()) return String("Druckbrücke: ") + j["text"].as<const char*>();
+        return "Druckbrücke meldet " + String(code);
+    }
+    return "";
+}
+
 // ---------------------------------------------------------------- Bluetooth
 // Bericht des letzten Drucks: welche Dienste der Drucker anbietet, was die Waage benutzt und was er
 // geantwortet hat. Steht in /api/diagnose und geht als #-Zeile über USB.
-String g_druck_bericht = "noch nichts gedruckt";
+
 String g_antworten;  // Benachrichtigungen des Druckers als Hex
 
 void antwort_merken(NimBLERemoteCharacteristic* k, uint8_t* d, size_t n, bool) {
@@ -396,9 +443,14 @@ void arbeiter(void*) {
                 }
                 std::vector<uint8_t> auftrag(JOB, JOB + sizeof(JOB) - 1);
                 meldung("Mini-Test: schicke zwei Balken …");
-                g_ble_marke = BLE_LAEUFT;
-                String f = senden(auftrag, w.adresse, w.adress_typ, w.name);
-                g_ble_marke = 0;
+                String f;
+                if (w.bruecke.length()) {
+                    f = an_bruecke(w.bruecke, "/test", nullptr, 0);
+                } else {
+                    g_ble_marke = BLE_LAEUFT;
+                    f = senden(auftrag, w.adresse, w.adress_typ, w.name);
+                    g_ble_marke = 0;
+                }
                 meldung(f.length() ? f : String("Mini-Test gesendet – kommen zwei schwarze Balken?"), f.length() > 0);
             }
             if (trennen && g_ble_an) {
@@ -428,23 +480,30 @@ void arbeiter(void*) {
             w = g_w;
             g_druckt = true;
         }
-        std::vector<uint8_t> auftrag;
-        if (ist_tspl(w.name)) {
-            tspl_auftrag(auftrag, d->breite, d->hoehe, d->daten, w.dichte, d->kopien);
+        String fehler;
+        if (w.bruecke.length()) {
+            meldung("Schicke Etikett an die Druckbrücke …");
+            fehler = an_bruecke(w.bruecke, "/drucken", d, w.dichte);
         } else {
-            int breite = 0;
-            std::vector<uint8_t> raster = auf_kopfbreite(d->breite, d->hoehe, d->daten, ETIKETT_KOPF_PX, breite);
-            for (int i = 0; i < d->kopien; i++) befehle(auftrag, breite, d->hoehe, raster, w.dichte);
+            std::vector<uint8_t> auftrag;
+            if (ist_tspl(w.name)) {
+                tspl_auftrag(auftrag, d->breite, d->hoehe, d->daten, w.dichte, d->kopien);
+            } else {
+                int breite = 0;
+                std::vector<uint8_t> raster = auf_kopfbreite(d->breite, d->hoehe, d->daten, ETIKETT_KOPF_PX, breite);
+                for (int i = 0; i < d->kopien; i++) befehle(auftrag, breite, d->hoehe, raster, w.dichte);
+            }
+            meldung("Drucke Etikett …");
+            g_ble_marke = BLE_LAEUFT;
+            fehler = senden(auftrag, w.adresse, w.adress_typ, w.name);
+            g_ble_marke = 0;
         }
-        meldung("Drucke Etikett …");
-        g_ble_marke = BLE_LAEUFT;
-        String fehler = senden(auftrag, w.adresse, w.adress_typ, w.name);
-        g_ble_marke = 0;
         {
             std::lock_guard<std::mutex> l(g_mx);
             g_letzter_druck = fehler.length() ? 0 : 1;
         }
         if (fehler.length()) meldung(fehler, true);
+        else if (w.bruecke.length()) meldung("Druckbrücke hat das Etikett angenommen");
         else meldung(d->kopien == 1 ? String("Etikett gedruckt") : String(d->kopien) + " Etiketten gedruckt");
         {
             std::lock_guard<std::mutex> l(g_mx);
@@ -497,6 +556,7 @@ void drucker_einstellungen(JsonDocument& d) {
     if (g_ble_an)
         for (NimBLEClient* c : *NimBLEDevice::getClientList()) verbunden |= c->isConnected();
     d["verbunden"] = verbunden;
+    d["bruecke"] = g_w.bruecke;
 }
 
 void drucker_setzen(JsonObjectConst o) {
@@ -504,6 +564,12 @@ void drucker_setzen(JsonObjectConst o) {
     String format = o["format"] | "";
     if (format == "classic" || format == "expanded" || format == "compact" || format == "vertikal") g_w.format = format;
     if (o["dichte"].is<int>()) g_w.dichte = constrain(o["dichte"].as<int>(), 1, 15);
+    if (o["bruecke"].is<const char*>()) {
+        String b = o["bruecke"].as<const char*>();
+        b.trim();
+        if (b.length() && !b.startsWith("http://")) b = "http://" + b;
+        g_w.bruecke = b.substring(0, 80);
+    }
     if (o["adresse"].is<const char*>()) {
         g_w.adresse = String(o["adresse"].as<const char*>()).substring(0, 40);
         g_w.name = String(o["name"] | "").substring(0, 40);
@@ -528,7 +594,11 @@ bool modell_bekannt(String n) {
 const char* drucker_drucken(JsonObjectConst o) {
     {
         std::lock_guard<std::mutex> l(g_mx);
-        if (g_w.name.length() && !modell_bekannt(g_w.name)) {
+        if (!g_w.bruecke.length() && ist_tspl(g_w.name)) {
+            g_druck_bericht = "nicht gesendet: M20 Pro druckt nicht über Bluetooth LE – Druckbrücke eintragen";
+            return "Der M20 Pro braucht die Druckbrücke auf dem Pi – unter Etiketten → Druckbrücke eintragen";
+        }
+        if (!g_w.bruecke.length() && g_w.name.length() && !modell_bekannt(g_w.name)) {
             g_druck_bericht = "nicht gesendet: Druckbefehle für " + g_w.name + " noch unbekannt";
             return "Für diesen Drucker kennt die Waage die Druckbefehle noch nicht – zum Schutz wird nichts gesendet";
         }
@@ -556,6 +626,7 @@ const char* drucker_drucken(JsonObjectConst o) {
 
 int drucker_zustand() {
     std::lock_guard<std::mutex> l(g_mx);
+    if (g_w.bruecke.length()) return g_letzter_druck == 0 ? 2 : 1;
     if (g_ble_gesperrt && g_w.adresse.length()) return 2;
     if (!g_w.adresse.length()) return 0;
     return g_letzter_druck == 0 ? 2 : 1;
