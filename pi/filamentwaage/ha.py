@@ -52,3 +52,12 @@ class HaClient:
     def beschreibung_setzen(self, item_uid, beschreibung):
         self._post("/api/services/todo/update_item",
                    {"entity_id": self.todo, "item": item_uid, "description": beschreibung})
+
+    def vorlage(self, template):
+        """Rendert ein Template in Home Assistant; die Vorlagen hier geben JSON aus."""
+        return self._post("/api/template", {"template": template})
+
+    def verbrauch(self):
+        """Einträge der Verbrauchsliste von „Ernsthaft gelagert“ (todo.filament_verbrauch)."""
+        liste = self.todo + "_verbrauch"
+        return liste, self._post("/api/services/todo/get_items?return_response", {"entity_id": liste})

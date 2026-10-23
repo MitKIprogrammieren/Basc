@@ -27,7 +27,7 @@ except ModuleNotFoundError:  # Python < 3.11 (z. B. Debian 11 auf dem BTT CB1)
     except ModuleNotFoundError:
         tomllib = None
 
-from . import modell
+from . import modell, pi_system
 from .etiketten import EtikettDienst
 from .ha import HaClient, HaFehler
 from .sensoren import SensorDemo, SensorGpio, SensorUsb, SensorWlan
@@ -82,8 +82,9 @@ def config_laden(pfad):
 
 
 class Anwendung:
-    def __init__(self, cfg):
+    def __init__(self, cfg, pfad=None):
         self.cfg = cfg
+        self.pfad = pfad
         ha = cfg["home_assistant"]
         self.ha = HaClient(ha["url"], ha["token"], ha["todo"], ha.get("zertifikat_pruefen", True))
         s = cfg["sensor"]
@@ -108,6 +109,9 @@ class Anwendung:
         self.meldung_id = 0
         self.auftraege: queue.Queue = queue.Queue()
         self.etikett = EtikettDienst(cfg["etikett"], self.meldung)
+        self.einst = pi_system.Einstellungen(self.etikett.ordner, cfg["waage"]["leerspule_g"])
+        self.ams_cache = {"drucker": [], "abbuchungen": []}
+        self.ams_abbuchung = False
 
     # ------------------------------------------------------------ Meldungen
     def meldung(self, text, ok=True):
@@ -222,9 +226,75 @@ class Anwendung:
                 "brutto_g": w.gramm, "stabil": w.stabil, "kalibriert": w.kalibriert,
                 "tag_l": w.tag_l, "tag_r": w.tag_r, "sensor_ok": w.verbunden,
                 "ha_ok": self.ha_ok, "lager_version": self.lager_version,
-                "uhrzeit": time.strftime("%H:%M"), "leer_standard_g": int(self.cfg["waage"]["leerspule_g"]),
-                "version": VERSION, "ip": _ip(),
+                "uhrzeit": time.strftime("%H:%M"), "leer_standard_g": int(self.einst.werte.get("leerspule_g", 250)),
+                "version": VERSION, "ip": _ip(), "netz": _netz(),
             }
+
+    # ------------------------------------------------------------ Einstellungen, WLAN, HA, AMS
+    def einstellungen(self):
+        e = self.einst.alle()
+        e["abbuchung_aktiv"] = self.ams_abbuchung
+        e["wlan"] = pi_system.wlan_status()
+        ha = self.cfg["home_assistant"]
+        tok = ha.get("token") or ""
+        e["ha"] = {"url": ha["url"], "todo": ha["todo"], "token_gesetzt": bool(tok), "token_ende": tok[-4:] if len(tok) > 4 else ""}
+        e["update"] = False
+        return e
+
+    def ha_werte(self, d):
+        ha = dict(self.cfg["home_assistant"])
+        for k in ("url", "todo", "token"):
+            v = str(d.get(k) or "").strip()
+            if v:
+                ha[k] = v.rstrip("/") if k == "url" else v
+        return ha
+
+    def ha_testen(self, ha):
+        def lauf():
+            try:
+                n = len(HaClient(ha["url"], ha["token"], ha["todo"], ha.get("zertifikat_pruefen", True)).lager_laden())
+                self.meldung(f"Verbindung klappt – {n} Sorten im Lager")
+            except HaFehler as e:
+                self.meldung(str(e), ok=False)
+        threading.Thread(target=lauf, daemon=True).start()
+
+    def ha_speichern(self, ha):
+        self.cfg["home_assistant"].update(ha)
+        if self.pfad and os.path.exists(self.pfad):
+            pi_system.toml_setzen(self.pfad, "home_assistant", {"url": ha["url"], "todo": ha["todo"], "token": ha["token"]})
+        self.ha = HaClient(ha["url"], ha["token"], ha["todo"], ha.get("zertifikat_pruefen", True))
+        self.demo_ohne_ha = self.cfg["sensor"]["art"] == "demo" and not ha["token"]
+        self.auftrag("laden")
+
+    def ams(self):
+        if self.demo_ohne_ha:
+            return self.ams_cache
+        try:
+            a = pi_system.ams_aufbereiten(self.ha.vorlage(pi_system.AMS_VORLAGE))
+            self.ams_abbuchung = a.pop("abbuchung_aktiv", False)
+            try:
+                liste, antwort = self.ha.verbrauch()
+                a["abbuchungen"] = pi_system.abbuchungen(antwort, liste)
+            except HaFehler:
+                a["abbuchungen"] = []
+            self.ams_cache = a
+        except (HaFehler, ValueError, TypeError, KeyError) as e:
+            log.warning("AMS nicht lesbar: %s", e)
+        return self.ams_cache
+
+    def system(self, aktion):
+        if aktion in ("neustart", "werk"):
+            if aktion == "werk":
+                self.einst.zuruecksetzen()
+                try:
+                    os.remove(self.etikett.zustand_pfad)
+                except OSError:
+                    pass
+            self.meldung("Waage startet neu …")
+            # systemd startet den Dienst wieder (Restart=always), die Oberfläche verbindet sich neu
+            threading.Timer(0.8, lambda: os._exit(0)).start()
+        elif aktion == "update":
+            self.meldung("Update am Pi: cd ~/bambu-scale && git pull && cd pi && ./install.sh --wlan")
 
     def lager(self):
         with self.lock:
@@ -232,6 +302,16 @@ class Anwendung:
 
 
 _IP = {"t": 0, "ip": ""}
+
+
+_NETZ = {"t": 0, "art": ""}
+
+
+def _netz():
+    if time.monotonic() - _NETZ["t"] > 30:
+        _NETZ["art"] = pi_system.netz_art()
+        _NETZ["t"] = time.monotonic()
+    return _NETZ["art"]
 
 
 def _ip():
@@ -292,6 +372,15 @@ def handler_fuer(app: Anwendung):
                 return self._ereignisse()
             if pfad == "/api/etikett/einstellungen":
                 return self._json(app.etikett_einstellungen())
+            if pfad == "/api/einstellungen":
+                return self._json(app.einstellungen())
+            if pfad == "/api/ams":
+                return self._json(app.ams())
+            if pfad == "/api/wlan/netze":
+                return self._json(pi_system.wlan_netze())
+            if pfad == "/api/diagnose":
+                return self._json({"version": VERSION, "zustand": app.zustand(), "ha_url": app.cfg["home_assistant"]["url"],
+                                   "sensor": app.cfg["sensor"]["art"], "netz": _netz()})
             if pfad == "/api/etikett/suchen":
                 try:
                     return self._json({"ok": True, "geraete": app.etikett.suchen()})
@@ -379,6 +468,32 @@ def handler_fuer(app: Anwendung):
             elif pfad == "/api/hersteller_bild/loeschen":
                 app.etikett.bild_loeschen(str(d.get("name", "")))
                 return self._json({"ok": True, "text": "Bild entfernt"})
+            elif pfad == "/api/einstellungen":
+                app.einst.setzen(d)
+                return self._json(app.einstellungen())
+            elif pfad == "/api/wlan":
+                ssid, pw = str(d.get("ssid", "")), str(d.get("passwort", ""))
+                if not ssid or len(ssid) > 32 or len(pw) > 63:
+                    return self._json({"ok": False, "text": "WLAN-Name oder Passwort ungültig"})
+                ok, text = pi_system.wlan_verbinden(ssid, pw)
+                return self._json({"ok": ok, "text": text})
+            elif pfad in ("/api/ha", "/api/ha/test"):
+                ha = app.ha_werte(d)
+                if not re.match(r"^https?://", ha["url"]):
+                    return self._json({"ok": False, "text": "Adresse muss mit http:// oder https:// beginnen"})
+                if pfad == "/api/ha/test":
+                    app.ha_testen(ha)
+                    return self._json({"ok": True, "text": "Teste Verbindung …"})
+                try:
+                    app.ha_speichern(ha)
+                except OSError as e:
+                    return self._json({"ok": False, "text": f"Nicht gespeichert: {e}"})
+                return self._json({"ok": True, "text": "Gespeichert – lade Lager …" if ha["token"] else "Gespeichert – es fehlt noch das Token"})
+            elif pfad == "/api/system":
+                app.system(str(d.get("aktion", "")))
+            elif pfad == "/api/etikett/trennen":
+                app.etikett.setzen({"adresse": "", "name": ""})
+                return self._json({"ok": True, "text": "Drucker entfernt – über „Drucker suchen“ neu einrichten"})
             elif pfad == "/api/neu_laden":
                 app.meldung("Lade Lager …")
                 app.auftrag("laden")
@@ -396,7 +511,7 @@ def main(argv=None):
     cfg = config_laden(pfad)
     if not cfg["home_assistant"]["token"] and cfg["sensor"]["art"] != "demo":
         log.warning("Kein Home-Assistant-Token in %s – Lager bleibt leer", pfad)
-    app = Anwendung(cfg)
+    app = Anwendung(cfg, pfad)
     app.start()
     srv = ThreadingHTTPServer((cfg["server"]["adresse"], int(cfg["server"]["port"])), handler_fuer(app))
     srv.daemon_threads = True

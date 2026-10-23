@@ -115,6 +115,8 @@ function kopf() {
   if (z.drucker !== undefined) $("dot-drucker").className = "dot " + (z.drucker === 2 ? "aus" : z.drucker === 1 ? "an" : "");
   $("wlan").classList.toggle("aus", !z.ip);
   $("wlan").classList.toggle("an", !!z.ip);
+  // Pi am Netzwerkkabel: dort steht LAN statt WLAN (die Sensorplatine meldet kein "netz")
+  if ($("wlan-text")) $("wlan-text").textContent = z.netz === "lan" ? "LAN" : "WLAN";
   $("uhr").textContent = z.uhrzeit || "--:--";
 }
 
