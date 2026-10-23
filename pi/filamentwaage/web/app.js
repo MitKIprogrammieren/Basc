@@ -730,6 +730,8 @@ function etOptionen() {
   if (!Array.isArray(o.felder)) o.felder = Etikett.STANDARD_FELDER.slice();
   o.eigene = typeof o.eigene === "string" ? o.eigene : "";
   o.hochkant = !!o.hochkant;
+  o.formate = Array.isArray(o.formate) ? o.formate.filter((k) => Etikett.formatVon(k)) : [];
+  o.sortierung = ["klein", "gross"].includes(o.sortierung) ? o.sortierung : "standard";
   return o;
 }
 function etOptionenSpeichern(o) {
@@ -737,12 +739,14 @@ function etOptionenSpeichern(o) {
 }
 
 function etikettOeffnen(sorte, rest) {
-  S.etDialog = { sorte, rest: rest || 0, format: (S.et && S.et.format) || "expanded", opt: etOptionen() };
+  const opt = etOptionen();
+  const format = Etikett.formatVon(opt.format) ? opt.format : (S.et && S.et.format) || "expanded";
+  S.etDialog = { sorte, rest: rest || 0, format, opt, eigenOffen: false };
   $("etikett").classList.remove("versteckt");
   etikettZeichnen();
 }
 function etOptionenHtml(d) {
-  const f = Etikett.FORMATE[d.format];
+  const f = Etikett.formatVon(d.format) || Etikett.FORMATE.expanded;
   const o = d.opt;
   const quer = f.b > f.h;
   const aus = quer ? `<div class="spalte gap6"><span class="ueber">Ausrichtung</span>${seg("et-hoch", o.hochkant ? 1 : 0, [[0, "Quer"], [1, "Hochkant"]])}</div>` : "";
@@ -755,14 +759,42 @@ function etOptionenHtml(d) {
 async function etikettZeichnen(nurVorschau) {
   const d = S.etDialog;
   if (!d) return;
-  const f = Etikett.FORMATE[d.format];
+  const f = Etikett.formatVon(d.format) || Etikett.FORMATE.expanded;
   if (!nurVorschau) {
     $("et-titel").textContent = d.sorte === Etikett.TEST ? "Testdruck" : kurzname(d.sorte);
     const hoch = d.opt.hochkant && f.b > f.h;
     $("et-info").textContent = [`${f.b} × ${f.h} mm${hoch ? " · hochkant" : ""}`, d.rest ? `Rest ${gramm(d.rest)}` : "",
       !S.et ? "" : S.et.bruecke ? "über Druckbrücke" : S.et.verbindung === "datei" ? "Testmodus ohne Drucker" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker eingestellt"].filter(Boolean).join(" · ");
-    $("et-formate").innerHTML = Object.entries(Etikett.FORMATE).map(([k, v]) =>
-      `<button class="et-format${k === d.format ? " an" : ""}" data-format="${k}"><b>${v.name}</b><small>${v.b} × ${v.h} mm</small></button>`).join("");
+    const liste = [...Object.keys(Etikett.FORMATE), ...d.opt.formate].map((k) => [k, Etikett.formatVon(k)]);
+    if (d.opt.sortierung !== "standard") {
+      const r = d.opt.sortierung === "klein" ? 1 : -1;
+      liste.sort(([, a], [, b]) => r * (a.b * a.h - b.b * b.h || a.b - b.b));
+    }
+    $("et-sort").innerHTML = { standard: "Reihenfolge: Standard", klein: "↑ Kleinste zuerst", gross: "↓ Größte zuerst" }[d.opt.sortierung];
+    $("et-formate").innerHTML = liste.map(([k, v]) =>
+      `<button class="et-format${k === d.format ? " an" : ""}${v.eigen ? " eigen" : ""}" data-format="${k}"><b>${v.name}</b><small>${v.b} × ${v.h} mm</small>${v.eigen ? `<span class="et-x" data-weg="${k}" aria-label="Größe löschen">×</span>` : ""}</button>`).join("")
+      + `<button class="et-format neu" data-eigen="1">+ Eigene Maße</button>`;
+    $("et-eigen-form").innerHTML = d.eigenOffen ? `<div class="et-eigen-box spalte gap6">
+        <span class="ueber">Eigene Maße</span>
+        <div class="reihe gap6 mitte"><input id="et-mb" class="et-eigene klein mass" data-tastatur="frei" inputmode="decimal" value="${f.eigen ? f.b : 40}" aria-label="Breite in mm">
+          <span>×</span><input id="et-mh" class="et-eigene klein mass" data-tastatur="frei" inputmode="decimal" value="${f.eigen ? f.h : 30}" aria-label="Höhe in mm"><span>mm</span>
+          <button class="mini-knopf" id="et-mok" style="margin-left:auto">Übernehmen</button></div>
+        <span id="et-mfehler" class="sub14" style="font-size:12px">Breite 15–${Etikett.KOPF_MM} mm (Druckkopf), Höhe 10–100 mm</span></div>` : "";
+    if (d.eigenOffen) $("et-mok").onclick = () => {
+      const b = Number(String($("et-mb").value).replace(",", ".")), h = Number(String($("et-mh").value).replace(",", "."));
+      const k = `eigen-${Math.round(b)}x${Math.round(h)}`;
+      if (!Etikett.formatVon(k)) {
+        $("et-mfehler").textContent = `Geht nicht: Breite 15–${Etikett.KOPF_MM} mm, Höhe 10–100 mm`;
+        $("et-mfehler").style.color = "var(--rot, #f44336)";
+        return;
+      }
+      if (!d.opt.formate.includes(k)) d.opt.formate.push(k);
+      d.format = d.opt.format = k;
+      d.eigenOffen = false;
+      tastatur(false);
+      etOptionenSpeichern(d.opt);
+      etikettZeichnen();
+    };
     $("et-optionen").innerHTML = etOptionenHtml(d);
     const ein = $("et-eigene");
     if (ein) ein.oninput = () => { d.opt.eigene = ein.value; etOptionenSpeichern(d.opt); etikettZeichnen(true); };
@@ -777,9 +809,28 @@ async function etikettZeichnen(nurVorschau) {
   if (weg) weg.textContent = erg && erg.weg && erg.weg.length ? `Passt nicht mehr drauf: ${erg.weg.join(", ")}` : "";
 }
 $("et-formate").onclick = (e) => {
+  const d = S.etDialog;
+  if (!d) return;
+  const weg = e.target.closest("[data-weg]");
+  if (weg) {
+    d.opt.formate = d.opt.formate.filter((k) => k !== weg.dataset.weg);
+    if (d.format === weg.dataset.weg) d.format = (S.et && S.et.format) || "expanded";
+    d.opt.format = d.format;
+    etOptionenSpeichern(d.opt);
+    return etikettZeichnen();
+  }
+  if (e.target.closest("[data-eigen]")) { d.eigenOffen = !d.eigenOffen; return etikettZeichnen(); }
   const b = e.target.closest("[data-format]");
-  if (!b || !S.etDialog) return;
-  S.etDialog.format = b.dataset.format;
+  if (!b) return;
+  d.format = d.opt.format = b.dataset.format;
+  etOptionenSpeichern(d.opt);
+  etikettZeichnen();
+};
+$("et-sort").onclick = () => {
+  const d = S.etDialog;
+  if (!d) return;
+  d.opt.sortierung = { standard: "klein", klein: "gross", gross: "standard" }[d.opt.sortierung];
+  etOptionenSpeichern(d.opt);
   etikettZeichnen();
 };
 $("et-optionen").onclick = (e) => {

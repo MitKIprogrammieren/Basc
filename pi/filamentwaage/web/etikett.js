@@ -10,6 +10,17 @@ const Etikett = (() => {
     compact: { name: "Compact", b: 40, h: 25 },
     vertikal: { name: "Vertikal", b: 30, h: 40 },
   };
+  const KOPF_MM = 48;  // Druckkopf 384 Punkte bei 8 Punkten je mm
+  // Bekanntes Format oder eigene Maße als "eigen-45x35"
+  function formatVon(k) {
+    if (FORMATE[k]) return FORMATE[k];
+    const m = /^eigen-(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/.exec(k || "");
+    if (m) {
+      const b = Number(m[1]), h = Number(m[2]);
+      if (b >= 15 && b <= KOPF_MM && h >= 10 && h <= 100) return { name: "Eigene", b, h, eigen: true };
+    }
+    return null;
+  }
   const SCHRIFT = "Montserrat, Arial, sans-serif";
   const bilder = new Map(); // Hersteller → { version, img }
 
@@ -145,9 +156,9 @@ const Etikett = (() => {
   /** Zeichnet das Etikett. o: { format, rest, qr (Inhalt), bildVersion, felder, eigene, leerStandard, hochkant }
    *  hochkant: auf derselben Rolle um 90° gedreht – die Vorschau zeigt es aufrecht, raster() dreht fürs Drucken. */
   async function zeichnen(canvas, s, o = {}) {
-    const f = FORMATE[o.format] || FORMATE.expanded;
+    const f = formatVon(o.format) || FORMATE.expanded;
     const drehen = !!o.hochkant && f.b > f.h;
-    const W = (drehen ? f.h : f.b) * PX_MM, H = (drehen ? f.b : f.h) * PX_MM;
+    const W = Math.round((drehen ? f.h : f.b) * PX_MM), H = Math.round((drehen ? f.b : f.h) * PX_MM);
     canvas.width = W; canvas.height = H;
     canvas.dataset.drehen = drehen ? "1" : "";
     await Promise.all([document.fonts.load(`800 20px Montserrat`), document.fonts.load(`700 20px Montserrat`),
@@ -273,5 +284,5 @@ const Etikett = (() => {
     trocknen_c: -1, trocknen_h: -1, durchmesser: 1.75, gewicht: 1000, leer_g: 250, ort: "Regal 1",
     getrocknet: new Date().toISOString().slice(0, 10) };
 
-  return { FORMATE, FELDER, STANDARD_FELDER, trocknen, datum, zeichnen, raster, TEST };
+  return { FORMATE, KOPF_MM, formatVon, FELDER, STANDARD_FELDER, trocknen, datum, zeichnen, raster, TEST };
 })();
