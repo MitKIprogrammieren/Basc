@@ -148,21 +148,37 @@ void tspl_auftrag(std::vector<uint8_t>& out, int breite, int hoehe, const std::v
     char kopf[200];
     int n = snprintf(kopf, sizeof(kopf),
                      "SPEED 1\r\nSIZE %d mm,%d mm\r\nREFERENCE 0,0\r\nGAP 4.6 mm, 0 mm\r\nOFFSET 0 mm\r\n"
-                     "DIRECTION 0,0\r\nDENSITY %d\r\nCLS\r\nBITMAP 0,0,%d,%d,0,",
-                     b_mm, h_mm, tdichte, nbpr, nh);
+                     "DIRECTION 0,0\r\nDENSITY %d\r\nCLS\r\n",
+                     b_mm, h_mm, tdichte);
     out.insert(out.end(), kopf, kopf + n);
-    size_t start = out.size();
-    out.resize(start + (size_t)nbpr * nh, 0xFF);  // weiß
+    // Bild in 300 dpi (1 = weiß, 0 = schwarz)
+    std::vector<uint8_t> bild((size_t)nbpr * nh, 0xFF);
     for (int y = 0; y < nh; y++) {
         int sy = std::min(hoehe - 1, (int)(y / F));
         const uint8_t* z = daten.data() + (size_t)sy * bpr;
-        uint8_t* o = out.data() + start + (size_t)y * nbpr;
+        uint8_t* o = bild.data() + (size_t)y * nbpr;
         for (int x = 0; x < nb; x++) {
             int sx = std::min(breite - 1, (int)(x / F));
-            if (z[sx >> 3] & (0x80 >> (sx & 7))) o[x >> 3] &= ~(0x80 >> (x & 7));  // schwarz
+            if (z[sx >> 3] & (0x80 >> (sx & 7))) o[x >> 3] &= ~(0x80 >> (x & 7));
         }
     }
-    n = snprintf(kopf, sizeof(kopf), "\r\nPRINT 1,%d\r\n", kopien);
+    // In Streifen schicken: der M20 Pro nimmt ein ganzes unkomprimiertes Bild nicht in einem Stück an
+    // (sein Puffer ist nach 9–13 KB voll). Ganz weiße Streifen fallen weg.
+    const int STREIFEN = 24;
+    for (int y0 = 0; y0 < nh; y0 += STREIFEN) {
+        int zeilen = std::min(STREIFEN, nh - y0);
+        const uint8_t* a = bild.data() + (size_t)y0 * nbpr;
+        size_t len = (size_t)zeilen * nbpr;
+        bool leer = true;
+        for (size_t k = 0; k < len && leer; k++) leer = a[k] == 0xFF;
+        if (leer) continue;
+        n = snprintf(kopf, sizeof(kopf), "BITMAP 0,%d,%d,%d,0,", y0, nbpr, zeilen);
+        out.insert(out.end(), kopf, kopf + n);
+        out.insert(out.end(), a, a + len);
+        out.push_back('\r');
+        out.push_back('\n');
+    }
+    n = snprintf(kopf, sizeof(kopf), "PRINT 1,%d\r\n", kopien);
     out.insert(out.end(), kopf, kopf + n);
 }
 
@@ -305,7 +321,7 @@ String senden(const std::vector<uint8_t>& auftrag, const String& adresse, uint8_
                 break;
             }
             gesendet += n;
-            if ((gesendet / stueck) % 50 == 0) stand(bericht + "; gesendet " + String(gesendet) + "/" + String(auftrag.size()));
+            if ((gesendet / stueck) % 10 == 0) stand(bericht + "; gesendet " + String(gesendet) + "/" + String(auftrag.size()));
             // alle 2 KB kurz Luft lassen, damit der Drucker das Bild verarbeiten kann
             vTaskDelay(pdMS_TO_TICKS((gesendet % 2048) < stueck ? 120 : 20));
         }
