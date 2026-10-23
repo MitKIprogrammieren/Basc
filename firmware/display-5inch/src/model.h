@@ -33,6 +33,7 @@ struct Filament {
     float durchmesser = 1.75f;
     int leer_g = -1;  // -1 = Standardwert aus der Konfiguration
     std::string fcode, bambu_id;
+    std::string ort, getrocknet;  // Lagerort, zuletzt getrocknet (JJJJ-MM-TT)
     std::vector<std::string> codes, nfc;
 
     // Name ohne Hersteller, z. B. "PLA Blue Gray"
@@ -71,5 +72,7 @@ Aenderung tag_zuordnen(const std::string& beschreibung, const std::string& tag);
 Aenderung tag_entfernen(const std::string& beschreibung, const std::string& tag);
 // Spulenzahl um delta ändern (+1 / -1).
 Aenderung spulen_aendern(const std::string& beschreibung, int delta);
+// Freies Textfeld setzen (nur "ort" und "getrocknet"); leerer Wert löscht das Feld.
+Aenderung feld_setzen(const std::string& beschreibung, const std::string& feld, const std::string& wert);
 
 uint32_t hex_zu_rgb(const std::string& hex, uint32_t standard = 0x888888);

@@ -134,12 +134,13 @@ void einst_json(JsonDocument& d) {
 }
 
 // ---------------------------------------------------------------- Home Assistant (eigener Task)
-enum class Art { LADEN, REST, SPULEN, ZUORDNEN, TEST };
+enum class Art { LADEN, REST, SPULEN, ZUORDNEN, TEST, FELD };
 struct Auftrag {
     Art art;
     std::string sorte, tag;
     int zahl = 0;
     HaCfg test;
+    std::string wert;  // FELD: neuer Inhalt, tag = Feldname
 };
 QueueHandle_t g_auftraege = nullptr;
 
@@ -361,6 +362,9 @@ void arbeiter(void*) {
                 if (ok) ok = aendern(a->sorte, [&](const std::string& b) { return tag_zuordnen(b, a->tag); }, text, fehler);
                 break;
             }
+            case Art::FELD:
+                ok = aendern(a->sorte, [&](const std::string& b) { return feld_setzen(b, a->tag, a->wert); }, text, fehler);
+                break;
             case Art::TEST: {
                 HaClient ha;
                 Lager probe;
@@ -563,6 +567,8 @@ void sorte_json(JsonObject o, const Filament& f) {
     o["leer_g"] = f.leer_g;
     o["fcode"] = f.fcode;
     o["bambu_id"] = f.bambu_id;
+    o["ort"] = f.ort;
+    o["getrocknet"] = f.getrocknet;
     JsonArray c = o["codes"].to<JsonArray>();
     for (const auto& x : f.codes) c.add(x);
     JsonArray n = o["nfc"].to<JsonArray>();
@@ -880,6 +886,12 @@ void routen() {
     });
     post("/api/spulen", [](AsyncWebServerRequest* r, JsonObject o) {
         auftrag(Art::SPULEN, o["sorte"] | "", "", o["delta"] | 0);
+        angenommen(r);
+    });
+    post("/api/feld", [](AsyncWebServerRequest* r, JsonObject o) {
+        auto* a = new Auftrag{Art::FELD, o["sorte"] | "", o["feld"] | "", 0, {}};
+        a->wert = (const char*)(o["wert"] | "");
+        auftrag(a);
         angenommen(r);
     });
     post("/api/neu_laden", [](AsyncWebServerRequest* r, JsonObject) {

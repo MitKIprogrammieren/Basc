@@ -215,12 +215,27 @@ input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
 .et-vorschau { width: 380px; height: 300px; flex: 0 0 auto; display: grid; place-items: center; background: var(--kachel);
   border-radius: 14px; }
 #et-canvas { max-width: 350px; max-height: 270px; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 0 0 1px var(--rand); }
-.et-formate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.et-format { height: 58px; border-radius: 12px; border: 1px solid var(--rand); background: transparent; color: var(--text);
-  text-align: left; padding: 0 12px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
-.et-format b { font-weight: 700; font-size: 14px; } .et-format small { font-size: 12px; color: var(--sub); }
+.et-formate { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.et-format { height: 46px; border-radius: 12px; border: 1px solid var(--rand); background: transparent; color: var(--text);
+  text-align: left; padding: 0 8px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; }
+.et-format b { font-weight: 700; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .et-format small { font-size: 10.5px; color: var(--sub); white-space: nowrap; }
 .et-format.an { background: var(--nav-akt); border: 2px solid var(--gruen); }
 .et-format.an b { color: var(--gruen-t); }
+.etikett-box > .spalte { max-height: calc(100vh - 60px); min-height: 0; }
+#et-optionen { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.et-weg { color: var(--orange, #ff9800); font-size: 12px; }
+.et-weg:empty { display: none; }
+.mini-knopf { height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid var(--rand); background: transparent;
+  color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mini-knopf:disabled { opacity: .45; cursor: default; }
+.et-eigene.klein { height: 32px; font-size: 13px; width: 150px; flex: 1 1 auto; }
+#seite-detail .info-liste { overflow-y: auto; min-height: 0; }
+.et-felder { display: flex; flex-wrap: wrap; gap: 6px; }
+.et-feld { height: 30px; padding: 0 11px; border-radius: 16px; border: 1px solid var(--rand); background: transparent;
+  color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.et-feld.an { background: var(--nav-akt); border-color: var(--gruen); color: var(--gruen-t); font-weight: 700; }
+.et-eigene { height: 40px; border-radius: 10px; border: 1px solid var(--rand); background: var(--kachel); color: var(--text);
+  font: inherit; font-size: 14px; padding: 0 12px; min-width: 0; }
 .hersteller-zeile { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--linie); }
 .hersteller-zeile:last-child { border-bottom: 0; }
 .h-bild { width: 92px; height: 30px; flex: 0 0 auto; border-radius: 6px; background: #fff; display: grid; place-items: center; overflow: hidden; }

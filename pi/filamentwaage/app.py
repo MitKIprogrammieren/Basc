@@ -146,6 +146,8 @@ class Anwendung:
                     text = self._aendern(d["sorte"], lambda b: modell.rest_speichern(b, int(d["netto"]), d.get("tag", "")))
                 elif art == "spulen":
                     text = self._aendern(d["sorte"], lambda b: modell.spulen_aendern(b, int(d["delta"])))
+                elif art == "feld":
+                    text = self._aendern(d["sorte"], lambda b: modell.feld_setzen(b, d["feld"], d.get("wert", "")))
                 elif art == "zuordnen":
                     tag = d["tag"]
                     with self.lock:
@@ -343,6 +345,8 @@ def handler_fuer(app: Anwendung):
                 app.auftrag("zuordnen", sorte=d["sorte"], tag=d["tag"])
             elif pfad == "/api/spulen":
                 app.auftrag("spulen", sorte=d["sorte"], delta=int(d["delta"]))
+            elif pfad == "/api/feld":
+                app.auftrag("feld", sorte=d["sorte"], feld=str(d.get("feld", "")), wert=str(d.get("wert", "")))
             elif pfad == "/api/etikett/drucken":
                 try:
                     app.etikett.drucken(d)

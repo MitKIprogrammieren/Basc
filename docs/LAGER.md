@@ -15,6 +15,8 @@ Die Waage liest die Felder der Karte (`hersteller`, `material`, `farbe`, `hex`, 
 | `reste` | Restgewichte angebrochener Spulen in g |
 | `nfc` *(neu)* | Liste der NFC-UIDs, die zu dieser Sorte gehören |
 | `waage` *(neu)* | zuletzt gewogener Rest je Spule: `{"04C0FFEE112233": 562}` |
+| `ort` *(optional, neu)* | Lagerort, in der Detailansicht unter „Lagerort → Ändern“ |
+| `getrocknet` *(optional, neu)* | Datum der letzten Trocknung (`JJJJ-MM-TT`), Knopf „Heute“ in der Detailansicht |
 | `leer_g` *(optional, neu)* | Gewicht der leeren Spule für diese Sorte, sonst gilt `leerspule_g` aus der Konfiguration (250 g) |
 
 Alle anderen Felder bleiben unverändert, auch unbekannte. Vor jeder Änderung lädt die Waage den
@@ -47,3 +49,8 @@ Gemessen wird **netto** = Gewicht auf dem Teller − Leerspule.
 
 Fürs Etikett liest die Waage zusätzlich – wenn vorhanden – `bett_min`, `bett_max`, `flow` und `td`
 (Transmission Distance). Fehlen sie, bleiben die Zeilen einfach weg. Geschrieben wird dabei nichts.
+
+Im Etikett-Dialog wählst du, welche Angaben aufs Etikett kommen (Düse, Bett, Trocknen, zuletzt getrocknet,
+Flow/TD, Netto- und Leergewicht, Lagerort, eine eigene Zeile, Rest) und ob es quer oder **hochkant** auf derselben
+Rolle gedruckt wird. Die Auswahl merkt sich der Browser. Ist bei einer Sorte keine Trocknung eingetragen, druckt die
+Waage einen üblichen Richtwert für das Material mit „~“ davor (z. B. „~65 °C · 8 h“ bei PETG).

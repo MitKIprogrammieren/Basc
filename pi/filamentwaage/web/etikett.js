@@ -21,21 +21,60 @@ const Etikett = (() => {
   }
   const komma = (v) => String(Math.round(v * 100) / 100);
 
-  // Zeilen unten links; "Rest" bleibt immer drin, wenn es einen gibt
-  function zeilen(s, rest, max) {
+  // Wählbare Angaben fürs Etikett, in Druckreihenfolge
+  const FELDER = [
+    ["duese", "Düse"], ["bett", "Bett"], ["trocknen", "Trocknen"], ["getrocknet", "Zuletzt getrocknet"],
+    ["flow", "Flow / TD"], ["netto", "Nettogewicht"], ["leer", "Leergewicht"], ["ort", "Lagerort"],
+    ["eigene", "Eigene Zeile"], ["rest", "Rest"],
+  ];
+  const STANDARD_FELDER = ["duese", "bett", "trocknen", "flow", "rest"];
+
+  // Übliche Trocknungswerte, wenn im Lager nichts eingetragen ist (Richtwerte, mit „~“ gedruckt)
+  const TROCKNEN_RICHTWERTE = [
+    [/TPU|TPE/, 55, 8], [/PETG|PET|PCTG/, 65, 8], [/ASA|ABS/, 80, 8], [/PC\b|PC-|POLYCARB/, 80, 8],
+    [/PA|NYLON|PAHT|PPA/, 80, 12], [/PVA|BVOH/, 50, 8], [/PLA/, 55, 8],
+  ];
+  function trocknen(s) {
+    if (s.trocknen_c > 0) return { c: s.trocknen_c, h: s.trocknen_h, richtwert: false };
+    const m = String(s.material || "").toUpperCase();
+    const t = TROCKNEN_RICHTWERTE.find(([re]) => re.test(m));
+    return t ? { c: t[1], h: t[2], richtwert: true } : null;
+  }
+  function datum(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+    return m ? `${m[3]}.${m[2]}.${m[1].slice(2)}` : "";
+  }
+
+  // Zeilen unten links; "Rest" bleibt immer drin, wenn er gewählt ist und es einen gibt
+  function zeilen(s, o, max) {
+    const felder = o.felder || STANDARD_FELDER;
+    const rest = o.rest || 0;
     const z = [];
-    const duese = bereich(s.duese_min, s.duese_max, " °C");
-    if (duese) z.push(["Düse", duese]);
-    const bett = bereich(s.bett_min ?? -1, s.bett_max ?? -1, " °C");
-    if (bett) z.push(["Bett", bett]);
-    if (s.trocknen_c > 0) z.push(["Trocknen", `${s.trocknen_c} °C${s.trocknen_h > 0 ? ` · ${s.trocknen_h} h` : ""}`]);
-    if (s.flow > 0 && s.td > 0) z.push(["Flow / TD", `${komma(s.flow)} / ${komma(s.td)}`]);
-    else if (s.flow > 0) z.push(["Flow", komma(s.flow)]);
-    else if (s.td > 0) z.push(["TD", komma(s.td)]);
-    if (!z.length) z.push(["Ø", `${komma(s.durchmesser || 1.75)} mm · ${s.gewicht} g`]);
-    const restZeile = rest > 0 ? ["Rest", `${rest} g`] : null;
-    const platz = Math.max(1, max - (restZeile ? 1 : 0));
+    let restZeile = null;
+    for (const f of felder) {
+      if (f === "duese") { const v = bereich(s.duese_min, s.duese_max, " °C"); if (v) z.push(["Düse", v]); }
+      else if (f === "bett") { const v = bereich(s.bett_min ?? -1, s.bett_max ?? -1, " °C"); if (v) z.push(["Bett", v]); }
+      else if (f === "trocknen") {
+        const t = trocknen(s);
+        if (t) z.push(["Trocknen", `${t.richtwert ? "~" : ""}${t.c} °C${t.h > 0 ? ` · ${t.h} h` : ""}`]);
+      } else if (f === "getrocknet") { const d = datum(s.getrocknet); if (d) z.push(["Getrockn.", d]); }
+      else if (f === "flow") {
+        if (s.flow > 0 && s.td > 0) z.push(["Flow / TD", `${komma(s.flow)} / ${komma(s.td)}`]);
+        else if (s.flow > 0) z.push(["Flow", komma(s.flow)]);
+        else if (s.td > 0) z.push(["TD", komma(s.td)]);
+      } else if (f === "netto") { if (s.gewicht > 0) z.push(["Netto", `${s.gewicht} g`]); }
+      else if (f === "leer") {
+        const l = s.leer_g > 0 ? s.leer_g : o.leerStandard || 0;
+        if (l > 0) z.push(["Leer", `${l} g`]);
+      } else if (f === "ort") { if (s.ort) z.push(["Ort", s.ort]); }
+      else if (f === "eigene") { const t = String(o.eigene || "").trim(); if (t) z.push(["", t]); }
+      else if (f === "rest" && rest > 0) restZeile = ["Rest", `${rest} g`];
+    }
+    if (!z.length && !restZeile) z.push(["Ø", `${komma(s.durchmesser || 1.75)} mm · ${s.gewicht} g`]);
+    const platz = Math.max(restZeile ? 0 : 1, max - (restZeile ? 1 : 0));
     const out = z.slice(0, platz);
+    const lang = { "Getrockn.": "Zuletzt getrocknet", Ort: "Lagerort", Leer: "Leergewicht", Netto: "Nettogewicht" };
+    out.weg = z.slice(platz).map(([n]) => (n ? lang[n] || n : "Eigene Zeile"));
     if (restZeile) out.push(restZeile);
     return out;
   }
@@ -103,11 +142,14 @@ const Etikett = (() => {
     text(ctx, p.text, x, y + Math.round(h * 0.86), p.g, 800);
   }
 
-  /** Zeichnet das Etikett. o: { format, rest, qr (Inhalt), bildVersion } */
+  /** Zeichnet das Etikett. o: { format, rest, qr (Inhalt), bildVersion, felder, eigene, leerStandard, hochkant }
+   *  hochkant: auf derselben Rolle um 90° gedreht – die Vorschau zeigt es aufrecht, raster() dreht fürs Drucken. */
   async function zeichnen(canvas, s, o = {}) {
     const f = FORMATE[o.format] || FORMATE.expanded;
-    const W = f.b * PX_MM, H = f.h * PX_MM;
+    const drehen = !!o.hochkant && f.b > f.h;
+    const W = (drehen ? f.h : f.b) * PX_MM, H = (drehen ? f.b : f.h) * PX_MM;
     canvas.width = W; canvas.height = H;
+    canvas.dataset.drehen = drehen ? "1" : "";
     await Promise.all([document.fonts.load(`800 20px Montserrat`), document.fonts.load(`700 20px Montserrat`),
       document.fonts.load(`500 20px Montserrat`)]).catch(() => {});
     const img = await bild(s.hersteller, o.bildVersion);
@@ -150,35 +192,43 @@ const Etikett = (() => {
     // unten: Werte und QR-Code – quer nebeneinander, hochkant untereinander
     const unten = H - m;
     // Zeilenhöhe: groß, solange Platz ist – bei vielen Werten etwas enger
-    const voll = zeilen(s, o.rest || 0, 5).length;
+    const voll = zeilen(s, o, 6).length;
     const zh = Math.round(Math.max(ref * 0.072, Math.min(ref * 0.095, (unten - y) / voll)));
     const zg = Math.round(zh * 0.82);
     const werte = (liste, x, yy, breite) => {
       ctx.font = `600 ${zg}px ${SCHRIFT}`;
-      const spalte = Math.max(...liste.map(([n]) => ctx.measureText(n).width)) + Math.round(ref * 0.04);
+      const spalte = Math.max(0, ...liste.filter(([n]) => n).map(([n]) => ctx.measureText(n).width)) + Math.round(ref * 0.04);
       liste.forEach(([n, w], i) => {
         const zy = yy + (i + 1) * zh - Math.round(zh * 0.2);
+        if (!n) {  // eigene Zeile: ganze Breite
+          const ep = passend(ctx, w, breite, zg, 700, 10);
+          text(ctx, ep.text, x, zy, ep.g, 700);
+          return;
+        }
         text(ctx, n, x, zy, zg, 600);
         const wp = passend(ctx, w, breite - spalte, zg, n === "Rest" ? 800 : 700, 10);
         text(ctx, wp.text, x + spalte, zy, wp.g, n === "Rest" ? 800 : 700);
       });
     };
+    let weg = [];
     if (hoch) {
       const qMin = o.qr ? Math.round(W * 0.32) : 0;
-      const liste = zeilen(s, o.rest || 0, Math.max(1, Math.min(3, Math.floor((unten - y - qMin) / zh))));
+      const liste = zeilen(s, o, Math.max(1, Math.min(6, Math.floor((unten - y - qMin) / zh))));
       werte(liste, m, y, innen);
+      weg = liste.weg;
       y += liste.length * zh + Math.round(ref * 0.03);
       const q = o.qr ? Math.min(unten - y, Math.round(W * 0.45)) : 0;
       if (q >= 48) qr(ctx, o.qr, W - m - q, unten - q, q);
     } else {
       const q = o.qr ? Math.min(unten - y, Math.round(W * 0.3)) : 0;
-      const liste = zeilen(s, o.rest || 0, Math.max(1, Math.min(5, Math.floor((unten - y) / zh))));
+      const liste = zeilen(s, o, Math.max(1, Math.min(6, Math.floor((unten - y) / zh))));
       werte(liste, m, unten - liste.length * zh, innen - q - Math.round(ref * 0.03));
+      weg = liste.weg;
       if (q) qr(ctx, o.qr, W - m - q, unten - q, q);
     }
 
     schwarzWeiss(ctx, W, H);
-    return { breite: W, hoehe: H };
+    return { breite: W, hoehe: H, weg };
   }
 
   // Thermodruck kennt nur Schwarz und Weiß – die Vorschau zeigt genau das
@@ -196,6 +246,15 @@ const Etikett = (() => {
 
   /** 1-Bit-Raster für den Drucker: 1 = schwarz, Breite auf 8 Punkte aufgerundet, Base64. */
   function raster(canvas) {
+    if (canvas.dataset.drehen === "1") {  // hochkant: 90° im Uhrzeigersinn auf die Rolle drehen
+      const g = document.createElement("canvas");
+      g.width = canvas.height; g.height = canvas.width;
+      const c = g.getContext("2d");
+      c.fillStyle = "#fff"; c.fillRect(0, 0, g.width, g.height);
+      c.translate(g.width, 0); c.rotate(Math.PI / 2);
+      c.drawImage(canvas, 0, 0);
+      canvas = g;
+    }
     const W = canvas.width, H = canvas.height;
     const bpr = Math.ceil(W / 8);
     const p = canvas.getContext("2d").getImageData(0, 0, W, H).data;
@@ -211,7 +270,8 @@ const Etikett = (() => {
   // Beispiel für den Testdruck
   const TEST = { hersteller: "FilamentLager", material: "PLA", besonderheiten: ["Test"], farbe: "Testetikett",
     hex: "#4CAF50", fcode: "", duese_min: 190, duese_max: 230, bett_min: 55, bett_max: 65, flow: 0.98, td: -1,
-    trocknen_c: -1, trocknen_h: -1, durchmesser: 1.75, gewicht: 1000 };
+    trocknen_c: -1, trocknen_h: -1, durchmesser: 1.75, gewicht: 1000, leer_g: 250, ort: "Regal 1",
+    getrocknet: new Date().toISOString().slice(0, 10) };
 
-  return { FORMATE, zeichnen, raster, TEST };
+  return { FORMATE, FELDER, STANDARD_FELDER, trocknen, datum, zeichnen, raster, TEST };
 })();

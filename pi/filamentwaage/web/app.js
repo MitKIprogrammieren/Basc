@@ -336,8 +336,11 @@ function detail() {
   if (!s) { ziel.innerHTML = ""; return; }
   const chips = [s.material ? `<span class="chip">${esc(s.material)}</span>` : "",
     ...s.besonderheiten.slice(0, 2).map((b) => `<span class="chip b">${esc(b)}</span>`)].join("");
-  let trocknen = s.trocknen_c > 0 ? `${s.trocknen_c} °C` : "–";
-  if (s.trocknen_c > 0 && s.trocknen_h > 0) trocknen += ` · ${s.trocknen_h} h`;
+  const tw = Etikett.trocknen(s);
+  let trocknen = tw ? `${tw.richtwert ? "~" : ""}${tw.c} °C${tw.h > 0 ? ` · ${tw.h} h` : ""}` : "–";
+  const getr = Etikett.datum(s.getrocknet);
+  const heute = new Date();
+  const heuteIso = `${heute.getFullYear()}-${String(heute.getMonth() + 1).padStart(2, "0")}-${String(heute.getDate()).padStart(2, "0")}`;
   const zeile = (n, w) => `<div class="info-zeile"><span>${n}</span><span>${esc(w || "–")}</span></div>`;
   ziel.innerHTML = `
     <section class="panel gruen links300">
@@ -354,12 +357,30 @@ function detail() {
     </section>
     <section class="spalte gap10 wachsen minw0">
       <div class="reihe gap10"><div class="wert-kachel"><span class="ueber">Düse</span><b>${bereich(s.duese_min, s.duese_max, " °C")}</b></div>
-        <div class="wert-kachel"><span class="ueber">Trocknen</span><b>${trocknen}</b></div></div>
-      <div class="info-liste">${zeile("Reste", s.reste.map(gramm).join(", "))}${zeile("Bambu-ID", s.bambu_id)}${zeile("Farbcode", s.fcode)}
+        <div class="wert-kachel"><span class="ueber">Trocknen${tw && tw.richtwert ? " (Richtwert)" : ""}</span><b>${trocknen}</b></div></div>
+
+      <div class="info-liste">
+        <div class="info-zeile mitte"><span>Zuletzt getrocknet</span><span class="reihe gap8 mitte">${getr || "–"}
+          <button class="mini-knopf" id="d-getrocknet"${s.getrocknet === heuteIso ? " disabled" : ""}>Heute</button></span></div>
+        <div class="info-zeile mitte"><span>Lagerort</span>${S.ortBearbeiten === s.uid
+          ? `<span class="reihe gap6 mitte wachsen" style="justify-content:flex-end"><input id="d-ort" class="et-eigene klein" data-tastatur="frei" maxlength="40" placeholder="z. B. Regal 2 oben" value="${esc(s.ort || "")}" aria-label="Lagerort"><button class="mini-knopf" id="d-ort-ok">OK</button></span>`
+          : `<span class="reihe gap8 mitte">${esc(s.ort || "–")}<button class="mini-knopf" id="d-ort-an">Ändern</button></span>`}</div>
+        ${zeile("Reste", s.reste.map(gramm).join(", "))}${zeile("Bambu-ID", s.bambu_id)}${zeile("Farbcode", s.fcode)}
         ${zeile("EAN", s.codes[0])}${zeile("NFC-Tags", s.nfc.length ? `${s.nfc.length} zugeordnet` : "")}</div>
       <button class="knopf rahmen h50" id="d-etikett">${icon("etikett")}Etikett drucken</button>
     </section>`;
   $("d-zurueck").onclick = () => zeige("lager");
+  $("d-getrocknet").onclick = () => post("/api/feld", { sorte: s.uid, feld: "getrocknet", wert: heuteIso });
+  if ($("d-ort-an")) $("d-ort-an").onclick = () => { S.ortBearbeiten = s.uid; detail(); $("d-ort").focus(); };
+  if ($("d-ort-ok")) {
+    $("d-ort-ok").onclick = () => {
+      S.ortBearbeiten = null;
+      tastatur(false);
+      post("/api/feld", { sorte: s.uid, feld: "ort", wert: $("d-ort").value.trim() });
+      detail();
+    };
+    $("d-ort").onkeydown = (e) => { if (e.key === "Enter") $("d-ort-ok").click(); };
+  }
   $("d-wiegen").onclick = () => { S.auswahlUid = s.uid; zeige("wiegen"); };
   $("d-etikett").onclick = () => {
     const a = S.aktiv;
@@ -701,29 +722,79 @@ async function etSetzen(teil) {
   if (S.seite === "einst") einst();
 }
 
+// Etikett-Optionen: welche Angaben, eigene Zeile, hochkant – je Browser gemerkt
+function etOptionen() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem("fl_etikett") || "null"); } catch (e) { /* ohne Speicher */ }
+  o = o && typeof o === "object" ? o : {};
+  if (!Array.isArray(o.felder)) o.felder = Etikett.STANDARD_FELDER.slice();
+  o.eigene = typeof o.eigene === "string" ? o.eigene : "";
+  o.hochkant = !!o.hochkant;
+  return o;
+}
+function etOptionenSpeichern(o) {
+  try { localStorage.setItem("fl_etikett", JSON.stringify(o)); } catch (e) { /* nur bis zum Neuladen */ }
+}
+
 function etikettOeffnen(sorte, rest) {
-  S.etDialog = { sorte, rest: rest || 0, format: (S.et && S.et.format) || "expanded" };
+  S.etDialog = { sorte, rest: rest || 0, format: (S.et && S.et.format) || "expanded", opt: etOptionen() };
   $("etikett").classList.remove("versteckt");
   etikettZeichnen();
 }
-async function etikettZeichnen() {
+function etOptionenHtml(d) {
+  const f = Etikett.FORMATE[d.format];
+  const o = d.opt;
+  const quer = f.b > f.h;
+  const aus = quer ? `<div class="spalte gap6"><span class="ueber">Ausrichtung</span>${seg("et-hoch", o.hochkant ? 1 : 0, [[0, "Quer"], [1, "Hochkant"]])}</div>` : "";
+  const chips = Etikett.FELDER.map(([k, n]) =>
+    `<button class="et-feld${o.felder.includes(k) ? " an" : ""}" data-feld="${k}" aria-pressed="${o.felder.includes(k)}">${esc(n)}</button>`).join("");
+  const eigene = o.felder.includes("eigene")
+    ? `<input id="et-eigene" class="et-eigene" data-tastatur="frei" maxlength="40" placeholder="Eigener Text, z. B. Für Halloween-Deko" value="${esc(o.eigene)}">` : "";
+  return `${aus}<div class="spalte gap6"><span class="ueber">Angaben auf dem Etikett</span><div class="et-felder">${chips}</div>${eigene}<span id="et-weg" class="sub14 et-weg"></span></div>`;
+}
+async function etikettZeichnen(nurVorschau) {
   const d = S.etDialog;
   if (!d) return;
   const f = Etikett.FORMATE[d.format];
-  $("et-titel").textContent = d.sorte === Etikett.TEST ? "Testdruck" : kurzname(d.sorte);
-  $("et-info").textContent = [`${f.b} × ${f.h} mm`, d.rest ? `Rest ${gramm(d.rest)}` : "",
-    !S.et ? "" : S.et.verbindung === "datei" ? "Testmodus ohne Drucker" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker eingestellt"].filter(Boolean).join(" · ");
-  $("et-formate").innerHTML = Object.entries(Etikett.FORMATE).map(([k, v]) =>
-    `<button class="et-format${k === d.format ? " an" : ""}" data-format="${k}"><b>${v.name}</b><small>${v.b} × ${v.h} mm</small></button>`).join("");
-  await Etikett.zeichnen($("et-canvas"), d.sorte, {
+  if (!nurVorschau) {
+    $("et-titel").textContent = d.sorte === Etikett.TEST ? "Testdruck" : kurzname(d.sorte);
+    const hoch = d.opt.hochkant && f.b > f.h;
+    $("et-info").textContent = [`${f.b} × ${f.h} mm${hoch ? " · hochkant" : ""}`, d.rest ? `Rest ${gramm(d.rest)}` : "",
+      !S.et ? "" : S.et.bruecke ? "über Druckbrücke" : S.et.verbindung === "datei" ? "Testmodus ohne Drucker" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker eingestellt"].filter(Boolean).join(" · ");
+    $("et-formate").innerHTML = Object.entries(Etikett.FORMATE).map(([k, v]) =>
+      `<button class="et-format${k === d.format ? " an" : ""}" data-format="${k}"><b>${v.name}</b><small>${v.b} × ${v.h} mm</small></button>`).join("");
+    $("et-optionen").innerHTML = etOptionenHtml(d);
+    const ein = $("et-eigene");
+    if (ein) ein.oninput = () => { d.opt.eigene = ein.value; etOptionenSpeichern(d.opt); etikettZeichnen(true); };
+  }
+  const erg = await Etikett.zeichnen($("et-canvas"), d.sorte, {
     format: d.format, rest: d.rest, qr: S.et ? S.et.lager_url : "",
     bildVersion: S.et && S.et.bilder ? S.et.bilder[d.sorte.hersteller] || 0 : 0,
+    felder: d.opt.felder, eigene: d.opt.eigene, hochkant: d.opt.hochkant,
+    leerStandard: S.z ? S.z.leer_standard_g : 0,
   });
+  const weg = $("et-weg");
+  if (weg) weg.textContent = erg && erg.weg && erg.weg.length ? `Passt nicht mehr drauf: ${erg.weg.join(", ")}` : "";
 }
 $("et-formate").onclick = (e) => {
   const b = e.target.closest("[data-format]");
   if (!b || !S.etDialog) return;
   S.etDialog.format = b.dataset.format;
+  etikettZeichnen();
+};
+$("et-optionen").onclick = (e) => {
+  const d = S.etDialog;
+  if (!d) return;
+  const f = e.target.closest("[data-feld]");
+  const h = e.target.closest('[data-seg="et-hoch"]');
+  if (f) {
+    const k = f.dataset.feld;
+    const an = new Set(d.opt.felder);
+    an.has(k) ? an.delete(k) : an.add(k);
+    d.opt.felder = Etikett.FELDER.map(([x]) => x).filter((x) => an.has(x));
+  } else if (h) d.opt.hochkant = h.dataset.v === "1";
+  else return;
+  etOptionenSpeichern(d.opt);
   etikettZeichnen();
 };
 $("et-zu").onclick = () => { $("etikett").classList.add("versteckt"); S.etDialog = null; };

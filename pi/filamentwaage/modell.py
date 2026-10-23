@@ -87,6 +87,8 @@ class Sorte:
     leer_g: int = -1
     fcode: str = ""
     bambu_id: str = ""
+    ort: str = ""
+    getrocknet: str = ""
     codes: list = field(default_factory=list)
     nfc: list = field(default_factory=list)
 
@@ -109,7 +111,7 @@ class Sorte:
             "bett_min": self.bett_min, "bett_max": self.bett_max, "flow": self.flow, "td": self.td,
             "trocknen_c": self.trocknen_c, "trocknen_h": self.trocknen_h,
             "durchmesser": self.durchmesser, "leer_g": self.leer_g, "fcode": self.fcode,
-            "bambu_id": self.bambu_id, "codes": self.codes, "nfc": self.nfc,
+            "bambu_id": self.bambu_id, "ort": self.ort, "getrocknet": self.getrocknet, "codes": self.codes, "nfc": self.nfc,
             "bestand_g": self.bestand_g,
         }
 
@@ -164,6 +166,8 @@ def sorte_aus_eintrag(uid, summary, beschreibung):
         s.durchmesser = float(d["durchmesser"])
     s.fcode = str(d.get("fcode") or "")
     s.bambu_id = str(d.get("bambu_id") or "")
+    s.ort = str(d.get("ort") or "")
+    s.getrocknet = str(d.get("getrocknet") or "")
     s.codes = [str(c) for c in d.get("codes") or [] if isinstance(c, str)]
     s.nfc = [str(c) for c in d.get("nfc") or [] if isinstance(c, str)]
     return s
@@ -323,3 +327,30 @@ def spulen_aendern(beschreibung, delta):
     if _int(d.get("refills"), 0) > neu:
         d["refills"] = neu
     return Aenderung(True, _schreiben(d), f"{neu} Spule" + ("" if neu == 1 else "n"))
+
+
+def feld_setzen(beschreibung, feld, wert):
+    """Lagerort ("ort") oder Trocknungsdatum ("getrocknet", JJJJ-MM-TT) setzen; leer = löschen."""
+    if feld not in ("ort", "getrocknet"):
+        return Aenderung(meldung="Unbekanntes Feld")
+    wert = str(wert or "").strip()
+    if len(wert) > 60:
+        return Aenderung(meldung="Text zu lang")
+    if feld == "getrocknet" and wert:
+        import re
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", wert):
+            return Aenderung(meldung="Datum ungültig")
+    d = _lesen(beschreibung)
+    if d is None:
+        return Aenderung(meldung="Eintrag nicht lesbar")
+    if str(d.get(feld) or "") == wert:
+        return Aenderung(meldung="Unverändert")
+    if wert:
+        d[feld] = wert
+    else:
+        d.pop(feld, None)
+    if feld == "ort":
+        text = "Lagerort gespeichert" if wert else "Lagerort entfernt"
+    else:
+        text = "Als getrocknet vermerkt" if wert else "Trocknungsdatum entfernt"
+    return Aenderung(True, _schreiben(d), text)

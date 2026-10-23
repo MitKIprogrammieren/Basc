@@ -125,6 +125,8 @@ void Lager::eintrag(const std::string& uid, const std::string& summary, const st
     if (doc["durchmesser"].is<float>()) f.durchmesser = doc["durchmesser"].as<float>();
     f.fcode = doc["fcode"] | "";
     f.bambu_id = doc["bambu_id"] | "";
+    f.ort = doc["ort"] | "";
+    f.getrocknet = doc["getrocknet"] | "";
     for (JsonVariantConst c : doc["codes"].as<JsonArrayConst>()) {
         if (c.is<const char*>()) f.codes.push_back(c.as<const char*>());
     }
@@ -309,5 +311,27 @@ Aenderung spulen_aendern(const std::string& beschreibung, int delta) {
     a.geaendert = true;
     a.beschreibung = schreiben(doc);
     a.meldung = std::to_string(neu) + (neu == 1 ? " Spule" : " Spulen");
+    return a;
+}
+
+Aenderung feld_setzen(const std::string& beschreibung, const std::string& feld, const std::string& wert) {
+    Aenderung a;
+    if (feld != "ort" && feld != "getrocknet") { a.meldung = "Unbekanntes Feld"; return a; }
+    if (wert.size() > 60) { a.meldung = "Text zu lang"; return a; }
+    if (feld == "getrocknet" && !wert.empty()) {
+        bool ok = wert.size() == 10 && wert[4] == '-' && wert[7] == '-';
+        for (size_t i = 0; ok && i < 10; i++) ok = (i == 4 || i == 7) || (wert[i] >= '0' && wert[i] <= '9');
+        if (!ok) { a.meldung = "Datum ungültig"; return a; }
+    }
+    JsonDocument doc;
+    if (!lesen(beschreibung, doc)) { a.meldung = "Eintrag nicht lesbar"; return a; }
+    std::string alt = doc[feld] | "";
+    if (alt == wert) { a.meldung = "Unverändert"; return a; }
+    if (wert.empty()) doc.remove(feld);
+    else doc[feld] = wert;
+    a.geaendert = true;
+    a.beschreibung = schreiben(doc);
+    a.meldung = feld == "ort" ? (wert.empty() ? "Lagerort entfernt" : "Lagerort gespeichert")
+                              : (wert.empty() ? "Trocknungsdatum entfernt" : "Als getrocknet vermerkt");
     return a;
 }
