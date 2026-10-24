@@ -15,6 +15,6 @@ public:
 private:
     bool schreiben(uint8_t reg, uint8_t wert);
     int lesen8(uint8_t reg);
-    bool bit(uint8_t reg, uint8_t nr, bool an);
+    bool bit_setzen(uint8_t reg, uint8_t nr, bool an);
     bool da_ = false;
 };
