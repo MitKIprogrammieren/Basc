@@ -1,6 +1,6 @@
 // FilamentLager-Waage – Sensorplatine (Waveshare ESP32-S3-Zero)
 //
-// Misst das Gewicht (HX711) und liest NFC-Tags mit zwei PN532 im HSU-Modus.
+// Misst das Gewicht (NAU7802 über I²C) und liest NFC-Tags mit zwei PN532 im HSU-Modus.
 // Antwortet auf Anfragen über USB (Raspberry Pi), RS485 (5"-Display) und WLAN (Pad 7).
 // Zusätzlich die komplette Waagen-Oberfläche unter http://filamentwaage.local (oberflaeche.cpp).
 // Protokoll: eine JSON-Zeile pro Nachricht, siehe docs/PROTOKOLL.md.
@@ -39,7 +39,6 @@ static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
         if (kanal[i]) rmtWrite(kanal[i], daten, 24);
 }
 #include <ArduinoJson.h>
-#include <HX711.h>
 #include "nau7802.h"
 #include <Preferences.h>
 #include <esp_heap_caps.h>
@@ -62,8 +61,7 @@ static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
 
 namespace {
 
-HX711 g_hx;
-Nau7802 g_nau;  // statt HX711, wenn beim Start an denselben Pins gefunden
+Nau7802 g_nau;  // Wägezellen-Wandler an WAAGE_SDA/WAAGE_SCL
 Preferences g_prefs;
 Pn532Hsu g_nfc_r, g_nfc_l;
 
@@ -244,8 +242,8 @@ void befehl(Stream* s, const char* zeile) {
         d["fw"] = FW_VERSION;
         d["nfc_l"] = g_nfc_l.bereit();
         d["nfc_r"] = g_nfc_r.bereit();
-        d["hx711"] = g_nau.da() ? g_nau.bereit() : g_hx.is_ready();
-        d["waage_chip"] = g_nau.da() ? "NAU7802" : "HX711";
+        d["hx711"] = g_nau.da();  // Feldname bleibt für ältere Gegenstellen: „Wandler gefunden“
+        d["waage_chip"] = g_nau.da() ? "NAU7802" : "keiner";
         d["roh"] = g_roh_median;
         d["offset"] = g_offset;
         d["faktor"] = g_faktor;
@@ -552,6 +550,28 @@ void alles_zuruecksetzen() {
 }
 #endif
 
+// NAU7802 suchen – auch mit vertauschtem SDA/SCL. Beim Start mehrfach, danach regelmäßig aus loop(),
+// damit ein später angestecktes Modul ohne Neustart erkannt wird.
+void waage_suchen(bool beim_start) {
+    static bool gemeldet = false;
+    for (int v = 0; v < (beim_start ? 3 : 1); v++) {
+        if (v) delay(100);
+        if (g_nau.begin(WAAGE_SDA, WAAGE_SCL)) {
+            Serial.println("# Waage: NAU7802 gefunden (SDA=GPIO" + String(WAAGE_SDA) + ", SCL=GPIO" + String(WAAGE_SCL) + ")");
+            return;
+        }
+        if (g_nau.begin(WAAGE_SCL, WAAGE_SDA)) {
+            Serial.println("# Waage: NAU7802 gefunden – SDA und SCL sind vertauscht angeschlossen, geht trotzdem");
+            return;
+        }
+    }
+    if (!gemeldet) {
+        gemeldet = true;
+        Serial.println("# Waage: kein NAU7802 an GPIO" + String(WAAGE_SDA) + "/" + String(WAAGE_SCL) +
+                       " – Verkabelung prüfen (VIN 3V3, GND, SDA, SCL); suche alle 5 s weiter");
+    }
+}
+
 void setup() {
     esp_reset_reason_t grund = esp_reset_reason();
     g_start_grund = grund_text(grund);
@@ -589,23 +609,7 @@ void setup() {
 
     schritt(5);
     kal_laden();
-    // NAU7802 (I²C: SDA = HX711_DOUT, SCL = HX711_SCK) hat Vorrang, sonst HX711
-    // Mehrfach versuchen (der NAU7802 braucht nach dem Einschalten einen Moment) und auch mit vertauschten Leitungen.
-    bool nau = false;
-    for (int v = 0; v < 3 && !nau; v++) {
-        if (v) delay(100);
-        if (g_nau.begin(HX711_DOUT, HX711_SCK)) {
-            nau = true;
-            Serial.println("# Waage: NAU7802 gefunden (SDA=GPIO" + String(HX711_DOUT) + ", SCL=GPIO" + String(HX711_SCK) + ")");
-        } else if (g_nau.begin(HX711_SCK, HX711_DOUT)) {
-            nau = true;
-            Serial.println("# Waage: NAU7802 gefunden – SDA und SCL sind vertauscht angeschlossen, geht trotzdem");
-        }
-    }
-    if (!nau) {
-        Serial.println("# Waage: kein NAU7802 an GPIO" + String(HX711_DOUT) + "/" + String(HX711_SCK) + " – nehme HX711");
-        g_hx.begin(HX711_DOUT, HX711_SCK);
-    }
+    waage_suchen(true);
     schritt(6);
 
     bool r = g_nfc_r.begin(Serial1, NFC_R_RX, NFC_R_TX, NFC_R_RST);
@@ -633,15 +637,16 @@ void loop() {
         g_rtc_neustarts = 0;
         Serial.println("# Start: läuft");
     }
-    static uint32_t nau_frage = 0;  // NAU7802 nur alle 10 ms fragen (I²C), HX711 wie bisher
+    static uint32_t nau_frage = 0, nau_suche = 0;  // NAU7802 alle 10 ms fragen; fehlt er, alle 5 s neu suchen
     bool neu = false;
     if (g_nau.da()) {
         if (millis() - nau_frage >= 10) { nau_frage = millis(); neu = g_nau.bereit(); }
-    } else {
-        neu = g_hx.is_ready();
+    } else if (millis() - nau_suche >= 5000) {
+        nau_suche = millis();
+        waage_suchen(false);
     }
     if (neu) {
-        long roh = g_nau.da() ? g_nau.lesen() : g_hx.read();
+        long roh = g_nau.lesen();
         messen(roh);
         vorgang_weiter(roh);
     }

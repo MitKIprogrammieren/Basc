@@ -1,5 +1,5 @@
 // Minimaler Treiber für den NAU7802 (24-Bit-Wandler für Wägezellen, I²C-Adresse 0x2A).
-// Wird statt des HX711 benutzt, wenn er beim Start an SDA/SCL antwortet.
+// Die Sensorplatine sucht ihn beim Start und danach alle 5 s an WAAGE_SDA/WAAGE_SCL.
 #pragma once
 #include <Arduino.h>
 #include <Wire.h>

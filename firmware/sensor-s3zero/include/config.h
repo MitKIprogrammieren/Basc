@@ -3,11 +3,11 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.9.4"
+#define FW_VERSION "2.10.0"
 
-// Wägezelle über HX711 – oder NAU7802 an denselben Pins (DOUT = SDA, SCK = SCL), wird beim Start erkannt
-#define HX711_DOUT 1
-#define HX711_SCK 2
+// Wägezelle über NAU7802 (I²C, Adresse 0x2A)
+#define WAAGE_SDA 1
+#define WAAGE_SCL 2
 
 // NFC-Leser rechts (PN532 im HSU-Modus, beide Schalter OFF)
 #define NFC_R_RX 4   // an PN532 TXD

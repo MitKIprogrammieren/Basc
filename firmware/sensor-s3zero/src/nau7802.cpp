@@ -34,7 +34,7 @@ bool Nau7802::begin(int sda, int scl) {
     Wire.beginTransmission(ADR);
     if (Wire.endTransmission() != 0) {
         Wire.end();
-        return false;  // kein NAU7802 – Pins bleiben frei für den HX711
+        return false;  // kein NAU7802 an diesen Pins
     }
     // Ablauf nach Datenblatt 9.1: Reset, Digital-Teil an, warten bis bereit
     if (!bit_setzen(PU_CTRL, RR, true)) return false;
@@ -51,7 +51,7 @@ bool Nau7802::begin(int sda, int scl) {
     bit_setzen(PU_CTRL, PUA, true);
     schreiben(CTRL1, (0b100 << 3) | 0b111);  // interner LDO 3,3 V, Verstärkung 128
     bit_setzen(PU_CTRL, AVDDS, true);               // Analogteil aus dem internen LDO
-    schreiben(CTRL2, 0b000 << 4);            // 10 Messungen je Sekunde – wie der HX711, ruhiger Wert
+    schreiben(CTRL2, 0b000 << 4);            // 10 Messungen je Sekunde – ruhiger Wert
     schreiben(ADC, 0x30);                    // Chopper-Takt aus (Empfehlung des Herstellers)
     bit_setzen(PGA_PWR, 7, true);                   // 330-pF-Kondensator an Kanal 2 – weniger Rauschen
     delay(10);
