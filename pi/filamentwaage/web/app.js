@@ -501,6 +501,62 @@ $("e-menue").onclick = (e) => {
   einst();
 };
 
+// ------------------------------------------------------------ System-Info (Temperatur, Leistung, Speicher)
+S.sys = null;
+let sysTimer = null;
+async function sysLaden() {
+  if (S.seite !== "einst" || S.eSeite !== "system") { clearInterval(sysTimer); sysTimer = null; return; }
+  try {
+    const r = await fetch("/api/system/info", { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    S.sys = await r.json();
+  } catch (e) { S.sys = S.sys || { fehlt: true }; }
+  const z = $("sys-info");
+  if (z) z.outerHTML = sysInfoHtml();
+}
+function sysBeobachten() {
+  if (S.seite === "einst" && S.eSeite === "system" && !sysTimer) { sysLaden(); sysTimer = setInterval(sysLaden, 3000); }
+}
+const groesse = (b) => (b >= 1073741824 ? `${komma(b / 1073741824, 1)} GB` : b >= 1048576 ? `${komma(b / 1048576, b >= 10485760 ? 0 : 2)} MB` : `${Math.round(b / 1024)} KB`);
+function dauer(s) {
+  const t = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60;
+  return t ? `${t} T ${h} Std` : h ? `${h} Std ${m} Min` : `${m} Min`;
+}
+function sysBalken(p, warn = 75, alarm = 90) {
+  const f = p >= alarm ? "var(--rot)" : p >= warn ? "var(--orange)" : "var(--gruen)";
+  return `<div class="sys-bar"><i style="width:${Math.max(2, Math.min(100, p))}%;background:${f}"></i></div>`;
+}
+function sysInfoHtml() {
+  const d = S.sys;
+  if (!d) return '<div id="sys-info" class="sub14">Systemwerte werden geladen …</div>';
+  if (d.fehlt) return '<div id="sys-info" class="sub14">Systemwerte gibt es ab Firmware 2.11.</div>';
+  const k = [];
+  if (d.temperatur_c != null) {
+    const t = d.temperatur_c, txt = t >= 80 ? "sehr heiß" : t >= 65 ? "warm" : "normal";
+    k.push(`<div class="sys-k"><span class="ueber">Temperatur</span><b>${komma(t, 0)} °C</b><small>Chip · ${txt}</small>${sysBalken(t, 65, 80)}</div>`);
+  }
+  if (d.cpu_mhz) {
+    const unter = d.last != null ? `Auslastung ${d.last} %` : d.schleife_pro_s != null ? `Hauptschleife ${d.schleife_pro_s}/s` : `${d.kerne} Kerne`;
+    k.push(`<div class="sys-k"><span class="ueber">Leistung</span><b>${d.cpu_mhz} MHz</b><small>${d.kerne || 1} Kerne · ${unter}</small>${d.last != null ? sysBalken(d.last) : ""}</div>`);
+  }
+  if (d.wlan_rssi != null) {
+    const r = d.wlan_rssi, q = r >= -55 ? "sehr gut" : r >= -67 ? "gut" : r >= -75 ? "mäßig" : "schwach";
+    k.push(`<div class="sys-k"><span class="ueber">WLAN</span><b>${r} dBm</b><small>${q}${d.sendeleistung_dbm != null ? ` · ${komma(d.sendeleistung_dbm, 1)} dBm Sendeleistung` : ""}</small>${sysBalken(Math.max(0, Math.min(100, (r + 90) * 2.5)), 101, 101)}</div>`);
+  }
+  const sp = (d.speicher || []).map((x) => {
+    const p = x.gesamt ? Math.round(x.belegt * 100 / x.gesamt) : 0;
+    return `<div class="sys-k"><span class="ueber">${esc(x.name)}</span><b>${groesse(x.gesamt - x.belegt)} frei</b>
+      <small>von ${groesse(x.gesamt)} · ${p} % belegt${x.text ? ` · ${esc(x.text)}` : ""}</small>${sysBalken(p)}</div>`;
+  }).join("");
+  const zeilen = [d.laufzeit_s != null ? ["Läuft seit", dauer(d.laufzeit_s)] : null, d.neustart_grund ? ["Letzter Neustart", d.neustart_grund] : null,
+    d.board ? ["Board", d.board] : null].filter(Boolean)
+    .map(([n, w]) => `<div class="info-zeile"><span>${n}</span><span>${esc(w)}</span></div>`).join("");
+  return `<div id="sys-info" class="spalte gap10">
+    <span class="ueber">${esc(d.geraet || "Gerät")}</span><div class="sys-kacheln">${k.join("")}</div>
+    <span class="ueber">Speicher</span><div class="sys-kacheln zwei">${sp}</div>
+    ${zeilen ? `<div class="info-liste" style="flex:0 0 auto">${zeilen}</div>` : ""}</div>`;
+}
+
 function einst() {
   einstMenue();
   const e = S.e;
@@ -581,6 +637,7 @@ function einst() {
         <span class="hinweis">Höher liest Tags aus größerem Abstand. Liest ein Leser den Tag des anderen, eine Stufe herunter.</span></div>`;
   } else {
     h = `<span class="e-titel">System</span>
+      ${sysInfoHtml()}
       <div class="info-liste" style="flex:0 0 auto">
         <div class="info-zeile"><span>Version</span><span>${esc(z.version || "")}</span></div>
         <div class="info-zeile"><span>Sensor</span><span>${z.sensor_ok ? "verbunden" : "antwortet nicht"}</span></div>
@@ -596,6 +653,7 @@ function einst() {
       <button class="knopf rahmen rot h50" data-system="werk">${S.resetFrage ? "Wirklich alles zurücksetzen? Nochmal tippen" : "Werkseinstellungen"}</button>`;
   }
   ziel.innerHTML = h;
+  sysBeobachten();
 }
 
 $("e-inhalt").addEventListener("input", (e) => {

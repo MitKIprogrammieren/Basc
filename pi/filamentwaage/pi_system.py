@@ -290,3 +290,50 @@ def abbuchungen(antwort, todo: str, anzahl=6):
     for x in liste:
         x.pop("_z")
     return liste[:anzahl]
+
+
+def _lesen_text(pfad, standard=""):
+    try:
+        with open(pfad, encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return standard
+
+
+def system_info(app):
+    """Einstellungen → System: Temperatur, Leistung und Speicher des Pi (gleiche Form wie auf der Sensorplatine)."""
+    import shutil
+    d = {"geraet": "Raspberry Pi", "speicher": []}
+    t = _lesen_text("/sys/class/thermal/thermal_zone0/temp")
+    if t.isdigit():
+        d["temperatur_c"] = round(int(t) / 1000, 1)
+    f = _lesen_text("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq")
+    if f.isdigit():
+        d["cpu_mhz"] = int(f) // 1000
+    d["kerne"] = os.cpu_count() or 1
+    try:
+        d["last"] = round(os.getloadavg()[0] / d["kerne"] * 100)
+    except OSError:
+        pass
+    mem = {}
+    for zeile in _lesen_text("/proc/meminfo").splitlines():
+        teile = zeile.split()
+        if len(teile) >= 2 and teile[1].isdigit():
+            mem[teile[0].rstrip(":")] = int(teile[1]) * 1024
+    if mem.get("MemTotal"):
+        frei = mem.get("MemAvailable", mem.get("MemFree", 0))
+        d["speicher"].append({"name": "Arbeitsspeicher", "belegt": mem["MemTotal"] - frei, "gesamt": mem["MemTotal"],
+                              "text": f"Lager {len(app.sorten)} Sorten"})
+    try:
+        du = shutil.disk_usage("/")
+        d["speicher"].append({"name": "SD-Karte", "belegt": du.used, "gesamt": du.total, "text": "Systempartition"})
+    except OSError:
+        pass
+    up = _lesen_text("/proc/uptime").split()
+    if up:
+        try:
+            d["laufzeit_s"] = int(float(up[0]))
+        except ValueError:
+            pass
+    d["board"] = _lesen_text("/proc/device-tree/model").replace("\x00", "").strip("\x00") or "Raspberry Pi"
+    return d

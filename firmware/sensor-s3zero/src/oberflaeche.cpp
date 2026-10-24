@@ -698,6 +698,64 @@ void routen() {
         d["druck"] = drucker_bericht();
         senden(r, 200, d);
     });
+    // Einstellungen → System: Temperatur, Leistung, Speicher (gleiche Form wie auf dem Pi)
+    g_server.on("/api/system/info", HTTP_GET, [](AsyncWebServerRequest* r) {
+        static uint32_t letzte_zeit = 0, letzte_loops = 0;
+        uint32_t jetzt = millis(), loops = g_loops;
+        float rate = letzte_zeit && jetzt > letzte_zeit ? (loops - letzte_loops) * 1000.0f / (jetzt - letzte_zeit) : -1;
+        letzte_zeit = jetzt;
+        letzte_loops = loops;
+        JsonDocument d;
+        d["geraet"] = "Sensorplatine";
+        d["temperatur_c"] = roundf(temperatureRead() * 10) / 10;
+        d["cpu_mhz"] = getCpuFrequencyMhz();
+        d["kerne"] = ESP.getChipCores();
+        if (rate >= 0) d["schleife_pro_s"] = (int)rate;
+        d["aufgaben"] = uxTaskGetNumberOfTasks();
+        if (WiFi.status() == WL_CONNECTED) {
+            d["wlan_rssi"] = WiFi.RSSI();
+            d["sendeleistung_dbm"] = WiFi.getTxPower() / 4.0f;
+        }
+        JsonArray sp = d["speicher"].to<JsonArray>();
+        auto eintrag = [&](const char* name, uint32_t belegt, uint32_t gesamt, const String& text) {
+            JsonObject o = sp.add<JsonObject>();
+            o["name"] = name;
+            o["belegt"] = belegt;
+            o["gesamt"] = gesamt;
+            o["text"] = text;
+        };
+        uint32_t ig = heap_caps_get_total_size(MALLOC_CAP_INTERNAL), ifr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+        eintrag("Arbeitsspeicher", ig - ifr, ig,
+                "größter freier Block " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024) + " KB");
+        if (ESP.getPsramSize()) {
+            size_t sorten, bytes;
+            {
+                std::lock_guard<std::mutex> l(g_mx);
+                sorten = g_lager.sorten.size();
+                bytes = g_lager_json->size();
+            }
+            eintrag("Zusatzspeicher (PSRAM)", ESP.getPsramSize() - ESP.getFreePsram(), ESP.getPsramSize(),
+                    "Lager " + String(sorten) + " Sorten, " + String(bytes / 1024) + " KB");
+        }
+        const esp_partition_t* app = esp_ota_get_running_partition();
+        if (app) eintrag("Firmware", ESP.getSketchSize(), app->size, "Platz für Updates über WLAN");
+        if (g_fs_ok) {
+            int logos = 0;
+            File dir = LittleFS.open("/hersteller");
+            if (dir && dir.isDirectory())
+                for (File f = dir.openNextFile(); f; f = dir.openNextFile()) logos++;
+            eintrag("Oberfläche (Flash)", LittleFS.usedBytes(), LittleFS.totalBytes(), String(logos) + " Herstellerlogos");
+        }
+        d["laufzeit_s"] = millis() / 1000;
+        static const char* const GRUND[] = {"unbekannt", "eingeschaltet", "extern", "neu gestartet", "Absturz",
+                                            "Watchdog (Interrupt)", "Watchdog (Task)", "Watchdog", "Tiefschlaf",
+                                            "Unterspannung", "SDIO"};
+        int g = (int)esp_reset_reason();
+        d["neustart_grund"] = g >= 0 && g < 11 ? GRUND[g] : "unbekannt";
+        d["board"] = String(ESP.getChipModel()) + " · " + String(ESP.getFlashChipSize() / 1048576) + " MB Flash" +
+                     (ESP.getPsramSize() ? " · " + String((ESP.getPsramSize() + 524288) / 1048576) + " MB PSRAM" : String(""));
+        senden(r, 200, d);
+    });
     g_server.on("/api/einstellungen", HTTP_GET, [](AsyncWebServerRequest* r) {
         JsonDocument d;
         einst_json(d);

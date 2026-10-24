@@ -378,6 +378,8 @@ def handler_fuer(app: Anwendung):
                 return self._json(app.ams())
             if pfad == "/api/wlan/netze":
                 return self._json(pi_system.wlan_netze())
+            if pfad == "/api/system/info":
+                return self._json(pi_system.system_info(app))
             if pfad == "/api/diagnose":
                 return self._json({"version": VERSION, "zustand": app.zustand(), "ha_url": app.cfg["home_assistant"]["url"],
                                    "sensor": app.cfg["sensor"]["art"], "netz": _netz()})

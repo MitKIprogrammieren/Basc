@@ -59,6 +59,8 @@ static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
 #include "sensor.h"
 #include "drucker.h"
 
+volatile uint32_t g_loops = 0;  // Durchläufe der Hauptschleife – Einstellungen → System (sensor.h)
+
 namespace {
 
 Nau7802 g_nau;  // Wägezellen-Wandler an WAAGE_SDA/WAAGE_SCL
@@ -631,6 +633,7 @@ void setup() {
 }
 
 void loop() {
+    g_loops++;
     // 15 s ohne Neustart: gilt als gut gestartet
     if (g_rtc_schritt != 8 && millis() > 15000) {
         g_rtc_schritt = 8;
