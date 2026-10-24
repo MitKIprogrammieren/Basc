@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.8.5"
+#define FW_VERSION "2.8.6"
 
 // Wägezelle über HX711
 #define HX711_DOUT 1

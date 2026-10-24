@@ -9,12 +9,34 @@
 
 #include "config.h"
 
-// Zustands-LED: Waveshare S3-Zero (GPIO21) und Super Mini (GPIO48) – an beide senden, die jeweils andere ist unbelegt
+// Zustands-LED: Waveshare S3-Zero (GPIO21) und Super Mini (GPIO48) – an beide senden, die jeweils andere ist unbelegt.
+// Eigener RMT-Kanal je Pin: neopixelWrite() des Arduino-Kerns 2.x bedient nur den ersten Pin, den es je gesehen hat.
+#include "esp32-hal-rmt.h"
 static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
-    neopixelWrite(LED_PIN, r, g, b);
-#ifdef LED_PIN2
-    neopixelWrite(LED_PIN2, r, g, b);
-#endif
+    static rmt_obj_t* kanal[2] = {nullptr, nullptr};
+    static bool versucht = false;
+    const int pins[2] = {LED_PIN, LED_PIN2};
+    if (!versucht) {
+        versucht = true;
+        for (int i = 0; i < 2; i++) {
+            kanal[i] = rmtInit(pins[i], RMT_TX_MODE, RMT_MEM_64);
+            if (kanal[i]) rmtSetTick(kanal[i], 100);  // 100 ns je Takt
+        }
+    }
+    rmt_data_t daten[24];
+    const uint8_t farbe[3] = {g, r, b};  // WS2812: Grün, Rot, Blau
+    int n = 0;
+    for (int f = 0; f < 3; f++)
+        for (int bit = 7; bit >= 0; bit--) {
+            bool eins = farbe[f] & (1 << bit);
+            daten[n].level0 = 1;
+            daten[n].duration0 = eins ? 8 : 4;
+            daten[n].level1 = 0;
+            daten[n].duration1 = eins ? 4 : 8;
+            n++;
+        }
+    for (int i = 0; i < 2; i++)
+        if (kanal[i]) rmtWrite(kanal[i], daten, 24);
 }
 #include <ArduinoJson.h>
 #include <HX711.h>
@@ -305,6 +327,8 @@ void wlan_start() {
     g_wm.setConfigPortalTimeout(0);
     g_wm.setTitle("FilamentLager-Waage");
     g_wm.setShowInfoUpdate(false);
+    g_wm.setConnectTimeout(20);  // nach dem Einschalten braucht der Router manchmal länger
+    g_wm.setConnectRetries(3);
     g_wm.autoConnect(WLAN_SETUP_NAME);
     g_server.begin();
     g_server.setNoDelay(true);
@@ -317,6 +341,19 @@ void wlan_weiter() {
         MDNS.addService("filamentwaage", "tcp", WLAN_PORT);
         MDNS.addService("http", "tcp", WEB_PORT);
         mdns = true;
+    }
+    // Hat der Start-Versuch nicht geklappt, öffnet der WiFiManager sein Setup-WLAN – das blieb bisher offen, auch wenn
+    // das Heim-WLAN kurz darauf doch verbunden war, und die Oberfläche startete nie. Jetzt: verbunden → Setup schließen.
+    static uint32_t verbunden_seit = 0;
+    if (g_wm.getConfigPortalActive() && WiFi.status() == WL_CONNECTED) {
+        if (!verbunden_seit) verbunden_seit = millis();
+        else if (millis() - verbunden_seit > 15000) {
+            Serial.println("WLAN verbunden – Setup-WLAN wird geschlossen, Oberfläche startet");
+            g_wm.stopConfigPortal();
+            verbunden_seit = 0;
+        }
+    } else {
+        verbunden_seit = 0;
     }
     // Oberfläche erst starten, wenn das Setup-WLAN zu ist (WiFiManager belegt dort selbst Port 80)
     if (!g_oberflaeche_laeuft && WiFi.status() == WL_CONNECTED && !g_wm.getConfigPortalActive()) {
