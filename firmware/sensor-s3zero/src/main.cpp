@@ -590,8 +590,22 @@ void setup() {
     schritt(5);
     kal_laden();
     // NAU7802 (I²C: SDA = HX711_DOUT, SCL = HX711_SCK) hat Vorrang, sonst HX711
-    if (g_nau.begin(HX711_DOUT, HX711_SCK)) Serial.println("# Waage: NAU7802 gefunden");
-    else g_hx.begin(HX711_DOUT, HX711_SCK);
+    // Mehrfach versuchen (der NAU7802 braucht nach dem Einschalten einen Moment) und auch mit vertauschten Leitungen.
+    bool nau = false;
+    for (int v = 0; v < 3 && !nau; v++) {
+        if (v) delay(100);
+        if (g_nau.begin(HX711_DOUT, HX711_SCK)) {
+            nau = true;
+            Serial.println("# Waage: NAU7802 gefunden (SDA=GPIO" + String(HX711_DOUT) + ", SCL=GPIO" + String(HX711_SCK) + ")");
+        } else if (g_nau.begin(HX711_SCK, HX711_DOUT)) {
+            nau = true;
+            Serial.println("# Waage: NAU7802 gefunden – SDA und SCL sind vertauscht angeschlossen, geht trotzdem");
+        }
+    }
+    if (!nau) {
+        Serial.println("# Waage: kein NAU7802 an GPIO" + String(HX711_DOUT) + "/" + String(HX711_SCK) + " – nehme HX711");
+        g_hx.begin(HX711_DOUT, HX711_SCK);
+    }
     schritt(6);
 
     bool r = g_nfc_r.begin(Serial1, NFC_R_RX, NFC_R_TX, NFC_R_RST);
