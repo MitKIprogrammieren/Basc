@@ -53,6 +53,11 @@ ln -sf /etc/systemd/system/filamentwaage-erststart.service "$M/etc/systemd/syste
 for d in KlipperScreen klipper moonraker crowsnest klipper-mcu sonar; do
   rm -f "$M/etc/systemd/system/multi-user.target.wants/$d.service"
 done
+# KlipperScreen beiseitelegen: das BTT-Skript /boot/scripts/system_cfg.sh startet es sonst mit
+# "service KlipperScreen restart" wieder, auch wenn es abgeschaltet ist. (mask geht nicht,
+# weil die Unit-Datei selbst in /etc/systemd/system liegt.)
+[ -f "$M/etc/systemd/system/KlipperScreen.service" ] && \
+  mv "$M/etc/systemd/system/KlipperScreen.service" "$M/etc/systemd/system/KlipperScreen.service.btt"
 sync
 umount "$M"; losetup -d "$LOOP"; LOOP=""
 echo "== fertig: $AUS"

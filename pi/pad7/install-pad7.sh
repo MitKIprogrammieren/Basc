@@ -23,8 +23,16 @@ echo "== Benutzer: $BENUTZER"
 
 echo "== Pakete (dauert ein paar Minuten)"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y --no-install-recommends \
+# Paketliste frisch holen – mit veralteter Liste antworten die Debian-Server mit 404.
+# Kurz nach dem Start stimmt die Uhr evtl. noch nicht ("not valid yet"), daher mehrere Versuche.
+for i in 1 2 3 4 5 6; do
+  if apt-get update -q 2>&1 | tee /tmp/apt-update.log | grep -qE '^(E:|Err:)'; then
+    echo "   Paketliste unvollständig (Versuch $i), warte 20 s …"; sleep 20
+  else
+    break
+  fi
+done
+apt-get install -y --fix-missing --no-install-recommends \
   python3 python3-serial curl \
   xserver-xorg xserver-xorg-legacy xinit x11-xserver-utils xserver-xorg-input-libinput \
   chromium fonts-dejavu-core avahi-daemon libnss-mdns
@@ -66,6 +74,14 @@ for d in KlipperScreen klipper moonraker crowsnest nginx klipper-mcu sonar; do
     systemctl disable --now "$d.service" 2>/dev/null && echo "   $d aus" || true
   fi
 done
+# KlipperScreen beiseitelegen: das BTT-Skript /boot/scripts/system_cfg.sh startet es sonst mit
+# "service KlipperScreen restart" wieder, auch wenn es abgeschaltet ist. mask geht nicht,
+# weil die Unit-Datei bei BTT selbst in /etc/systemd/system liegt.
+if [ -f /etc/systemd/system/KlipperScreen.service ]; then
+  systemctl stop KlipperScreen.service 2>/dev/null || true
+  mv /etc/systemd/system/KlipperScreen.service /etc/systemd/system/KlipperScreen.service.btt
+  echo "   KlipperScreen beiseitegelegt (KlipperScreen.service.btt)"
+fi
 
 echo "== X-Server für normalen Benutzer erlauben"
 cat > /etc/X11/Xwrapper.config <<'EOF'
@@ -80,12 +96,15 @@ sed "s/@BENUTZER@/$BENUTZER/" "$HIER/filamentwaage-kiosk.service" > /etc/systemd
 systemctl disable --now getty@tty1.service 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable filamentwaage.service filamentwaage-kiosk.service avahi-daemon.service
+# Ersteinrichtung ist erledigt (auch wenn das Skript von Hand gestartet wurde)
+mkdir -p /var/lib/filamentwaage && date > /var/lib/filamentwaage/installiert
+systemctl disable filamentwaage-erststart.service 2>/dev/null || true
 systemctl restart filamentwaage.service
 
 echo
 echo "Fertig. Das Pad 7 startet jetzt neu und zeigt danach die Waage."
 echo "Protokoll ansehen:  journalctl -u filamentwaage -f"
-echo "Klipper zurück:     sudo systemctl disable filamentwaage-kiosk && sudo systemctl enable KlipperScreen klipper moonraker && sudo reboot"
+echo "Klipper zurück:     sudo mv /etc/systemd/system/KlipperScreen.service.btt /etc/systemd/system/KlipperScreen.service && sudo systemctl disable filamentwaage-kiosk && sudo systemctl enable KlipperScreen klipper moonraker && sudo reboot"
 if [ "${FW_KEIN_NEUSTART:-0}" != 1 ]; then
   sleep 3
   reboot

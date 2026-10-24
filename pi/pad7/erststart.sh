@@ -34,7 +34,19 @@ zeige "  Verbunden (IP $IP). Installiere – das dauert ca. 5–15 Minuten."
 zeige "  Bitte nicht ausschalten."
 zeige ""
 
-if FW_KEIN_NEUSTART=1 bash "$QUELLE/install-pad7.sh" >> "$LOG" 2>&1; then
+# Uhrzeit abwarten (Paketquellen prüfen Datumsangaben), höchstens 2 Minuten
+for i in $(seq 1 24); do
+  [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = yes ] && break
+  sleep 5
+done
+
+ok=0
+for versuch in 1 2 3; do
+  if FW_KEIN_NEUSTART=1 bash "$QUELLE/install-pad7.sh" >> "$LOG" 2>&1; then ok=1; break; fi
+  zeige "  Versuch $versuch fehlgeschlagen – neuer Versuch in 30 s …"
+  sleep 30
+done
+if [ "$ok" = 1 ]; then
   mkdir -p "$(dirname "$MARKE")"
   date > "$MARKE"
   zeige "  Fertig. Neustart in die Waage …"

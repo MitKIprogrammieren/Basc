@@ -97,6 +97,7 @@ Geänderte `config.pad7.toml` auf der SD-Karte übernehmen: das Installationsskr
 
 Zurück zu Klipper:
 ```bash
+sudo mv /etc/systemd/system/KlipperScreen.service.btt /etc/systemd/system/KlipperScreen.service
 sudo systemctl disable filamentwaage-kiosk filamentwaage
 sudo systemctl enable KlipperScreen klipper moonraker getty@tty1
 sudo reboot
