@@ -8,6 +8,14 @@
 #include <Arduino.h>
 
 #include "config.h"
+
+// Zustands-LED: Waveshare S3-Zero (GPIO21) und Super Mini (GPIO48) – an beide senden, die jeweils andere ist unbelegt
+static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
+    neopixelWrite(LED_PIN, r, g, b);
+#ifdef LED_PIN2
+    neopixelWrite(LED_PIN2, r, g, b);
+#endif
+}
 #include <ArduinoJson.h>
 #include <HX711.h>
 #include <Preferences.h>
@@ -338,7 +346,7 @@ void wlan_weiter() {
     if (digitalRead(BOOT_TASTE) == LOW) {
         if (!gedrueckt_seit) gedrueckt_seit = millis();
         else if (millis() - gedrueckt_seit > 5000) {
-            neopixelWrite(LED_PIN, 14, 0, 14);
+            led_farbe(14, 0, 14);
             g_wm.resetSettings();
             delay(300);
             ESP.restart();
@@ -364,10 +372,10 @@ void led() {
     }
     static bool blink = false;
     blink = !blink;
-    if (!wlan_verbunden()) neopixelWrite(LED_PIN, blink ? 14 : 0, blink ? 6 : 0, 0);  // orange blinkend: kein WLAN
-    else if (g_faktor == 0) neopixelWrite(LED_PIN, 12, 0, 0);  // rot: nicht kalibriert
-    else if (tag) neopixelWrite(LED_PIN, 0, 14, 0);            // grün: Tag erkannt
-    else neopixelWrite(LED_PIN, 0, 0, 6);                      // blau: bereit
+    if (!wlan_verbunden()) led_farbe(blink ? 14 : 0, blink ? 6 : 0, 0);  // orange blinkend: kein WLAN
+    else if (g_faktor == 0) led_farbe(12, 0, 0);  // rot: nicht kalibriert
+    else if (tag) led_farbe(0, 14, 0);            // grün: Tag erkannt
+    else led_farbe(0, 0, 6);                      // blau: bereit
 }
 
 }  // namespace

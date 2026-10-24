@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.8.4"
+#define FW_VERSION "2.8.5"
 
 // Wägezelle über HX711
 #define HX711_DOUT 1
@@ -25,7 +25,8 @@
 #define RS485_DE 10  // an DE und /RE; -1 bei Modulen mit automatischer Umschaltung
 #define RS485_BAUD 115200
 
-#define LED_PIN 21  // WS2812 auf dem S3-Zero
+#define LED_PIN 21   // WS2812 auf dem Waveshare S3-Zero
+#define LED_PIN2 48  // WS2812 auf dem ESP32-S3 Super Mini (HW-747) – beide werden angesteuert
 
 // Messung
 #define GLAETTUNG 0.25f      // Anteil des neuen Werts (EMA), kleiner = ruhiger
