@@ -181,6 +181,7 @@ WiFiServer g_server(WLAN_PORT);
 WiFiClient g_client;  // immer nur eine Gegenstelle; eine neue löst die alte ab
 Kanal g_wlan{&g_client, -1, {}, 0};
 WiFiManager g_wm;
+uint32_t g_setup_wlan_ab = 0;  // ab wann das Setup-WLAN öffnen darf (0 = nicht mehr)
 bool g_oberflaeche_laeuft = false;
 #endif
 
@@ -330,15 +331,27 @@ void wlan_start() {
     g_wm.setConfigPortalTimeout(0);
     g_wm.setTitle("FilamentLager-Waage");
     g_wm.setShowInfoUpdate(false);
-    g_wm.setConnectTimeout(20);  // nach dem Einschalten braucht der Router manchmal länger
-    g_wm.setConnectRetries(3);
-    g_wm.autoConnect(WLAN_SETUP_NAME);
+    // Nicht blockieren: Das Setup läuft weiter (USB-Befehle des Webflashers, Messen), während das WLAN verbindet.
+    // Das Setup-WLAN öffnet erst, wenn nach 30 s noch keine Verbindung steht – oder sofort, wenn keins gespeichert ist.
+    if (g_wm.getWiFiIsSaved()) {
+        WiFi.begin();
+        g_setup_wlan_ab = millis() + 30000;
+    } else {
+        g_setup_wlan_ab = millis();
+    }
     g_server.begin();
     g_server.setNoDelay(true);
 }
 
 void wlan_weiter() {
     g_wm.process();
+    if (g_setup_wlan_ab && WiFi.status() != WL_CONNECTED && (int32_t)(millis() - g_setup_wlan_ab) >= 0 &&
+        !g_wm.getConfigPortalActive()) {
+        g_setup_wlan_ab = 0;
+        Serial.println("WLAN nicht erreichbar – Setup-WLAN „" WLAN_SETUP_NAME "“ geöffnet");
+        g_wm.startConfigPortal(WLAN_SETUP_NAME);
+    }
+    if (WiFi.status() == WL_CONNECTED) g_setup_wlan_ab = 0;
     static bool mdns = false;
     if (WiFi.status() == WL_CONNECTED && !mdns && MDNS.begin(WLAN_HOSTNAME)) {
         MDNS.addService("filamentwaage", "tcp", WLAN_PORT);
@@ -492,6 +505,7 @@ void wlan_setzen(const char* ssid, const char* pw) {
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.begin(ssid, pw);
+    g_setup_wlan_ab = millis() + 30000;  // Setup-WLAN nur, wenn auch diese Daten nicht klappen
 }
 
 bool pad_verbunden() { return (bool)g_client && g_client.connected(); }
