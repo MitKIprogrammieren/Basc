@@ -333,7 +333,11 @@ void wlan_start() {
     g_wm.setShowInfoUpdate(false);
     // Nicht blockieren: Das Setup läuft weiter (USB-Befehle des Webflashers, Messen), während das WLAN verbindet.
     // Das Setup-WLAN öffnet erst, wenn nach 30 s noch keine Verbindung steht – oder sofort, wenn keins gespeichert ist.
+    g_prefs.begin("waage", true);
+    bool leise = g_prefs.getBool("wlan_leise", false);  // hat beim letzten Mal nur mit wenig Sendeleistung geklappt
+    g_prefs.end();
     if (g_wm.getWiFiIsSaved()) {
+        if (leise) WiFi.setTxPower(WIFI_POWER_8_5dBm);
         WiFi.begin();
         g_setup_wlan_ab = millis() + 30000;
     } else {
@@ -359,6 +363,11 @@ void wlan_weiter() {
     static int versuche = 0;
     if (WiFi.status() == WL_CONNECTED) {
         if (versuche) Serial.printf("WLAN verbunden nach %d Wiederholung(en)\n", versuche);
+        if (versuche >= 2) {  // erst mit weniger Sendeleistung geklappt: beim nächsten Start gleich so
+            g_prefs.begin("waage", false);
+            g_prefs.putBool("wlan_leise", true);
+            g_prefs.end();
+        }
         versuche = 0;
         letzter_versuch = millis();
     } else if (millis() - letzter_versuch > 10000 && g_wm.getWiFiIsSaved()) {
