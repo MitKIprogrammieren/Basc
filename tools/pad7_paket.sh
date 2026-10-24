@@ -15,6 +15,8 @@ cp "$WURZEL/pi/pad7/install-pad7.sh" "$WURZEL/pi/pad7/kiosk-pad7.sh" \
    "$WURZEL/pi/pad7/filamentwaage-kiosk.service" "$WURZEL/pi/pad7/config.pad7.toml" \
    "$WURZEL/pi/pad7/ANLEITUNG.md" "$WURZEL/pi/pad7/filamentwaage.service" "$WURZEL/pi/pad7/erststart.sh" "$P/"
 cp "$WURZEL/testdaten/"*.json "$P/testdaten/"
+# Versionsnummer wie die Firmware der Sensorplatine (die Oberfläche zeigt sie unter Einstellungen → System)
+sed -n 's/^#define FW_VERSION "\(.*\)"/\1/p' "$WURZEL/firmware/sensor-s3zero/include/config.h" > "$P/VERSION"
 rm -f "$AUS"
 (cd "$TMP" && zip -qr "$AUS" filamentwaage)
 echo "$AUS"

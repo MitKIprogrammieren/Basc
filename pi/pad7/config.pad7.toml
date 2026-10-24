@@ -21,6 +21,16 @@ wlan_port = 4711
 leerspule_g = 250
 lager_neu_laden_s = 60
 
+[etikett]
+# Phomemo-Etikettendrucker. Lässt sich auch später in der Waage unter Einstellungen → Etiketten einstellen.
+# Druckbrücke für den Phomemo M20 Pro (läuft z. B. auf dem Pi-hole-Pi), etwa "http://192.168.178.2:8765".
+# Leer = direkt per Bluetooth vom Pad 7 drucken.
+bruecke = ""
+verbindung = "ble"         # ble = Bluetooth Low Energy, rfcomm = klassisches Bluetooth
+adresse = ""               # leer lassen und in der Waage „Drucker suchen“ tippen
+format = "expanded"        # classic 40×30, expanded 50×30, compact 40×25, vertikal 30×40
+dichte = 10                # Schwärzung 1–15
+
 [server]
 # "0.0.0.0" = Oberfläche auch im Heimnetz öffnen: http://<pad7>:8080
 adresse = "127.0.0.1"

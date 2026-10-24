@@ -39,7 +39,8 @@ das BTT-CB1-System, die Waage-Software und eine automatische Ersteinrichtung.
    Der Bildschirm zeigt „FilamentLager-Waage – Ersteinrichtung“. Das Pad 7 lädt Browser und Bildschirm-Pakete
    (5–15 Minuten, Internet nötig), startet neu und zeigt danach die Waage.
 
-Änderungen an `config.pad7.toml` auf der Karte gelten nach jedem Neustart. Anmeldung per SSH: `biqu` / `biqu`
+Änderungen an `config.pad7.toml` auf der Karte werden beim nächsten Start übernommen. Was du im Menü der Waage
+einstellst (z. B. Home Assistant), bleibt erhalten, solange die Datei auf der Karte nicht geändert wird. Anmeldung per SSH: `biqu` / `biqu`
 (Passwort danach ändern: `passwd`). Protokoll der Ersteinrichtung: `/var/log/filamentwaage-erststart.log`.
 
 ## 2b. Ohne fertiges Image: SD-Karte selbst vorbereiten

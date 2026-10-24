@@ -7,8 +7,9 @@ Wants=network-online.target
 User=@BENUTZER@
 SupplementaryGroups=dialout bluetooth
 WorkingDirectory=/opt/filamentwaage
-# Einstellungen von der SD-Karte (BOOT/filamentwaage/config.pad7.toml) bei jedem Start übernehmen
-ExecStartPre=+/bin/sh -c 'for d in /boot /boot/firmware; do f=$$d/filamentwaage/config.pad7.toml; if [ -f $$f ]; then install -m 600 -o @BENUTZER@ $$f /etc/filamentwaage/config.toml; break; fi; done; true'
+# Einstellungen von der SD-Karte (BOOT/filamentwaage/config.pad7.toml) übernehmen – aber nur, wenn die Datei
+# seit der letzten Übernahme am PC geändert wurde. Sonst bleiben die im Menü der Waage gespeicherten Werte.
+ExecStartPre=+/bin/sh -c 'for d in /boot /boot/firmware; do f=$$d/filamentwaage/config.pad7.toml; [ -f $$f ] || continue; if ! cmp -s $$f /var/lib/filamentwaage/config.sd.toml; then install -m 600 -o @BENUTZER@ $$f /etc/filamentwaage/config.toml && install -D -m 600 $$f /var/lib/filamentwaage/config.sd.toml; fi; break; done; true'
 ExecStart=/usr/bin/python3 -m filamentwaage /etc/filamentwaage/config.toml
 StateDirectory=filamentwaage
 Restart=always
