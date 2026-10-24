@@ -22,6 +22,11 @@ Wird in beiden Bauarten empfohlen. Sie sitzt im Sockel der Waage bei Wägezelle 
 | | DT (DOUT) | GPIO1 |
 | | SCK | GPIO2 |
 | Wägezelle → HX711 | rot / schwarz / weiß / grün | E+ / E− / A− / A+ |
+| **oder** NAU7802 (Adafruit) | VIN / GND | 3V3 / GND |
+| | SDA | GPIO1 |
+| | SCL | GPIO2 |
+| | AV, DRDY | frei |
+| Wägezelle → NAU7802 | rot / schwarz / weiß / grün | E+ / E− / A− / A+ (B± frei) |
 | PN532 rechts (V3, HSU) | TXD | GPIO4 |
 | | RXD | GPIO5 |
 | | RST – nicht anschließen | (GPIO6 frei) |
@@ -35,6 +40,8 @@ Wird in beiden Bauarten empfohlen. Sie sitzt im Sockel der Waage bei Wägezelle 
 | | DE + /RE (zusammen) | GPIO10 |
 | | VCC / GND | 3V3 / GND |
 
+- **HX711 oder NAU7802:** Die Firmware erkennt beim Start selbst, welcher Wandler dran ist (ab 2.9.0).
+- **ESP32-S3 Super Mini** statt S3-Zero: gleiche GPIO-Nummern, die Zustands-LED sitzt dort an GPIO48 (wird mit angesteuert).
 - **PN532-Schalter:** beide auf **OFF** (= HSU/UART). Auf der Platine stehen an den vier Pins
   oft `SCL/SDA` – im HSU-Modus führen genau diese Pins TXD/RXD.
 - **Kreuzen:** TXD des Lesers geht an den RX-Pin des S3-Zero und umgekehrt (siehe Tabelle).

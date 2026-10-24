@@ -3,9 +3,9 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.8.6"
+#define FW_VERSION "2.9.0"
 
-// Wägezelle über HX711
+// Wägezelle über HX711 – oder NAU7802 an denselben Pins (DOUT = SDA, SCK = SCL), wird beim Start erkannt
 #define HX711_DOUT 1
 #define HX711_SCK 2
 

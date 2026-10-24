@@ -40,6 +40,7 @@ static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
 }
 #include <ArduinoJson.h>
 #include <HX711.h>
+#include "nau7802.h"
 #include <Preferences.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
@@ -62,6 +63,7 @@ static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
 namespace {
 
 HX711 g_hx;
+Nau7802 g_nau;  // statt HX711, wenn beim Start an denselben Pins gefunden
 Preferences g_prefs;
 Pn532Hsu g_nfc_r, g_nfc_l;
 
@@ -241,7 +243,8 @@ void befehl(Stream* s, const char* zeile) {
         d["fw"] = FW_VERSION;
         d["nfc_l"] = g_nfc_l.bereit();
         d["nfc_r"] = g_nfc_r.bereit();
-        d["hx711"] = g_hx.is_ready();
+        d["hx711"] = g_nau.da() ? g_nau.bereit() : g_hx.is_ready();
+        d["waage_chip"] = g_nau.da() ? "NAU7802" : "HX711";
         d["roh"] = g_roh_median;
         d["offset"] = g_offset;
         d["faktor"] = g_faktor;
@@ -546,7 +549,9 @@ void setup() {
 
     schritt(5);
     kal_laden();
-    g_hx.begin(HX711_DOUT, HX711_SCK);
+    // NAU7802 (I²C: SDA = HX711_DOUT, SCL = HX711_SCK) hat Vorrang, sonst HX711
+    if (g_nau.begin(HX711_DOUT, HX711_SCK)) Serial.println("# Waage: NAU7802 gefunden");
+    else g_hx.begin(HX711_DOUT, HX711_SCK);
     schritt(6);
 
     bool r = g_nfc_r.begin(Serial1, NFC_R_RX, NFC_R_TX, NFC_R_RST);
@@ -574,8 +579,15 @@ void loop() {
         g_rtc_neustarts = 0;
         Serial.println("# Start: läuft");
     }
-    if (g_hx.is_ready()) {
-        long roh = g_hx.read();
+    static uint32_t nau_frage = 0;  // NAU7802 nur alle 10 ms fragen (I²C), HX711 wie bisher
+    bool neu = false;
+    if (g_nau.da()) {
+        if (millis() - nau_frage >= 10) { nau_frage = millis(); neu = g_nau.bereit(); }
+    } else {
+        neu = g_hx.is_ready();
+    }
+    if (neu) {
+        long roh = g_nau.da() ? g_nau.lesen() : g_hx.read();
         messen(roh);
         vorgang_weiter(roh);
     }
