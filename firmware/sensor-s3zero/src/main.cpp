@@ -352,6 +352,23 @@ void wlan_weiter() {
         g_wm.startConfigPortal(WLAN_SETUP_NAME);
     }
     if (WiFi.status() == WL_CONNECTED) g_setup_wlan_ab = 0;
+    // Ein fehlgeschlagener Verbindungsversuch wird vom ESP32 nicht von selbst wiederholt (früher tat das der
+    // WiFiManager). Alle 10 s neu versuchen; ab dem 3. Versuch mit weniger Sendeleistung – kleine Boards wie der
+    // ESP32-S3 Super Mini verbinden sich mit voller Leistung oft nicht (Antenne zu nah am Spannungsregler).
+    static uint32_t letzter_versuch = millis();
+    static int versuche = 0;
+    if (WiFi.status() == WL_CONNECTED) {
+        if (versuche) Serial.printf("WLAN verbunden nach %d Wiederholung(en)\n", versuche);
+        versuche = 0;
+        letzter_versuch = millis();
+    } else if (millis() - letzter_versuch > 10000 && g_wm.getWiFiIsSaved()) {
+        letzter_versuch = millis();
+        versuche++;
+        Serial.printf("WLAN: Versuch %d, Status %d\n", versuche + 1, (int)WiFi.status());
+        if (versuche == 2) WiFi.setTxPower(WIFI_POWER_8_5dBm);
+        WiFi.disconnect(false);
+        WiFi.begin();
+    }
     static bool mdns = false;
     if (WiFi.status() == WL_CONNECTED && !mdns && MDNS.begin(WLAN_HOSTNAME)) {
         MDNS.addService("filamentwaage", "tcp", WLAN_PORT);
