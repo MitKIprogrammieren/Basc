@@ -329,6 +329,38 @@ void bruecke_nach_ha() {
         }
         setzen("sensor.m20_pro_drucke_heute", d);
     }
+    // Pi, auf dem die Brücke läuft (Pi-hole): Temperatur, Auslastung, Speicher, SD-Karte
+    JsonObject sy = z["system"];
+    if (erreichbar && !sy.isNull()) {
+        auto wert = [&](const char* entity, const char* name, float w, const char* einheit, const char* klasse,
+                        const char* icon) {
+            JsonDocument d;
+            d["state"] = roundf(w * 10) / 10;
+            d["attributes"]["friendly_name"] = name;
+            d["attributes"]["unit_of_measurement"] = einheit;
+            d["attributes"]["state_class"] = "measurement";
+            if (klasse) d["attributes"]["device_class"] = klasse;
+            if (icon) d["attributes"]["icon"] = icon;
+            d["attributes"]["geraet"] = sy["geraet"] | "";
+            setzen(entity, d);
+        };
+        if (sy["temperatur_c"].is<float>())
+            wert("sensor.druckbruecke_temperatur", "Druckbrücke Temperatur", sy["temperatur_c"].as<float>(), "°C", "temperature", nullptr);
+        if (sy["auslastung"].is<int>())
+            wert("sensor.druckbruecke_auslastung", "Druckbrücke Auslastung", sy["auslastung"].as<int>(), "%", nullptr, "mdi:cpu-64-bit");
+        double mg = sy["speicher_gesamt"] | 0.0, mf = sy["speicher_frei"] | 0.0;
+        if (mg > 0) wert("sensor.druckbruecke_speicher", "Druckbrücke Speicher belegt", 100.0 - mf * 100.0 / mg, "%", nullptr, "mdi:memory");
+        double sg = sy["sd_gesamt"] | 0.0, sf = sy["sd_frei"] | 0.0;
+        if (sg > 0) wert("sensor.druckbruecke_sd", "Druckbrücke SD-Karte belegt", 100.0 - sf * 100.0 / sg, "%", nullptr, "mdi:sd");
+        if (sy["laufzeit_s"].is<long>()) {
+            JsonDocument d;
+            d["state"] = (long)(sy["laufzeit_s"].as<long>() / 3600);
+            d["attributes"]["friendly_name"] = "Druckbrücke läuft seit";
+            d["attributes"]["unit_of_measurement"] = "h";
+            d["attributes"]["icon"] = "mdi:timer-outline";
+            setzen("sensor.druckbruecke_laufzeit", d);
+        }
+    }
 }
 
 void arbeiter(void*) {

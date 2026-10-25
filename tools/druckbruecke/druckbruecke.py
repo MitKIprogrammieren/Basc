@@ -35,7 +35,7 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 CFG_PFAD = os.environ.get("DRUCK_CONFIG", "/etc/filamentwaage-druck.json")
 STANDARD = {"drucker": "", "kanal": 1, "port": 8765, "dpi": 300, "dauerhaft": True}
 log = logging.getLogger("druckbruecke")
@@ -114,6 +114,57 @@ class Verlauf:
 
 
 VERLAUF = Verlauf()
+
+
+def _datei(pfad):
+    try:
+        with open(pfad, encoding="utf-8", errors="replace") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+_CPU_ALT = None
+
+
+def system_info():
+    """Temperatur, Auslastung, Speicher und SD-Karte des Pi, auf dem die Brücke läuft."""
+    global _CPU_ALT
+    import shutil
+    d = {}
+    t = _datei("/sys/class/thermal/thermal_zone0/temp")
+    if t.isdigit():
+        d["temperatur_c"] = round(int(t) / 1000, 1)
+    f = _datei("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq")
+    if f.isdigit():
+        d["cpu_mhz"] = int(f) // 1000
+    d["kerne"] = os.cpu_count() or 1
+    # Auslastung aus /proc/stat seit der letzten Abfrage (genauer als der Load-Durchschnitt)
+    zeile = _datei("/proc/stat").split("\n", 1)[0].split()
+    if zeile and zeile[0] == "cpu":
+        werte = [int(x) for x in zeile[1:]]
+        ruhe, gesamt = werte[3] + (werte[4] if len(werte) > 4 else 0), sum(werte)
+        if _CPU_ALT and gesamt > _CPU_ALT[1]:
+            d["auslastung"] = round(100 * (1 - (ruhe - _CPU_ALT[0]) / (gesamt - _CPU_ALT[1])))
+        _CPU_ALT = (ruhe, gesamt)
+    mem = {}
+    for z in _datei("/proc/meminfo").splitlines():
+        teile = z.split()
+        if len(teile) >= 2 and teile[1].isdigit():
+            mem[teile[0].rstrip(":")] = int(teile[1]) * 1024
+    if mem.get("MemTotal"):
+        d["speicher_gesamt"] = mem["MemTotal"]
+        d["speicher_frei"] = mem.get("MemAvailable", mem.get("MemFree", 0))
+    try:
+        du = shutil.disk_usage("/")
+        d["sd_gesamt"], d["sd_frei"] = du.total, du.free
+    except OSError:
+        pass
+    up = _datei("/proc/uptime").split()
+    if up:
+        d["laufzeit_s"] = int(float(up[0]))
+    d["geraet"] = _datei("/proc/device-tree/model").replace("\x00", "") or "Raspberry Pi"
+    return d
 
 
 def signal_messen():
@@ -421,7 +472,7 @@ main{max-width:640px;margin:0 auto;padding:18px 16px 28px;display:flex;flex-dire
 h1{font-size:20px;font-weight:600;margin:0}
 .pill{padding:4px 12px;border-radius:999px;font-size:13px;background:var(--linie);color:var(--sub)}
 .pill.an{background:#1e3024;color:var(--gruen-t)}.pill.aus{background:#3a1f1f;color:var(--rot)}.pill.frei{background:#3a2e1a;color:var(--orange)}
-.kacheln{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.kacheln{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.kacheln.vier{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}.kacheln.vier .gross{font-size:21px;white-space:nowrap}
 .k{background:var(--panel);border:2px solid var(--rand);border-radius:16px;padding:12px 14px;min-width:0}
 .ue{font-size:11px;letter-spacing:.08em;color:var(--sub);text-transform:uppercase}
 .gross{font-size:26px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}.gross small{font-size:14px;color:var(--sub);font-weight:500}
@@ -447,6 +498,15 @@ pre{color:var(--sub);font-size:12px;white-space:pre-wrap;margin:0}
   <div class="k"><div class="ue">Gedruckt</div><div class="gross" id="dr">–</div><div class="klein" id="dr-t"></div></div>
  </div>
  <div class="k"><div class="ue" style="margin-bottom:4px">Letzte Drucke</div><div id="verlauf"><span class="klein">noch keine</span></div></div>
+ <div class="ue" style="margin-top:4px">Pi-hole · Druckbrücke</div>
+ <div class="kacheln vier">
+  <div class="k"><div class="ue">Temperatur</div><div class="gross" id="sy-t">–</div><div class="klein" id="sy-t2"></div><div class="balken"><div id="sy-tb" style="width:0"></div></div></div>
+  <div class="k"><div class="ue">Auslastung</div><div class="gross" id="sy-c">–</div><div class="klein" id="sy-c2"></div><div class="balken"><div id="sy-cb" style="width:0"></div></div></div>
+  <div class="k"><div class="ue">Speicher</div><div class="gross" id="sy-m">–</div><div class="klein" id="sy-m2"></div><div class="balken"><div id="sy-mb" style="width:0"></div></div></div>
+  <div class="k"><div class="ue">SD-Karte</div><div class="gross" id="sy-s">–</div><div class="klein" id="sy-s2"></div><div class="balken"><div id="sy-sb" style="width:0"></div></div></div>
+ </div>
+ <div class="k" style="padding:4px 14px"><div class="zeile"><span class="klein" style="margin:0">Läuft seit</span><span id="sy-u">–</span></div>
+  <div class="zeile"><span class="klein" style="margin:0">Gerät</span><span id="sy-g">–</span></div></div>
  <div class="fuss"><span id="geraet"></span><span id="ver"></span></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="rahmen neu" id="nv">&#x21bb; Neu verbinden</button><button class="primaer" id="t">Testdruck</button>
   <button class="rahmen" id="f">Für Phomemo-App freigeben (10 min)</button></div>
@@ -481,6 +541,16 @@ async function lade(){
  const g=z.geraet||{};
  $('geraet').textContent=[g.typ,g.firmware&&'Firmware '+g.firmware,g.seriennummer&&'SN '+g.seriennummer].filter(Boolean).join(' · ');
  $('ver').textContent='Druckbrücke '+z.version;
+ const sy=z.system||{};
+ const gr=b=>b>=1073741824?(b/1073741824).toFixed(1).replace('.',',')+' GB':Math.round(b/1048576)+' MB';
+ const bal=(id,p,w,a)=>{const e=$(id);e.style.width=Math.max(2,Math.min(100,p))+'%';e.style.background=p>=a?'var(--rot)':p>=w?'var(--orange)':'var(--gruen)';};
+ if(sy.temperatur_c!=null){$('sy-t').textContent=Math.round(sy.temperatur_c)+' °C';$('sy-t2').textContent=sy.temperatur_c>=80?'sehr heiß':sy.temperatur_c>=65?'warm':'normal';bal('sy-tb',sy.temperatur_c,65,80);}
+ if(sy.auslastung!=null){$('sy-c').textContent=sy.auslastung+' %';bal('sy-cb',sy.auslastung,75,90);}
+ $('sy-c2').textContent=(sy.kerne||1)+' Kerne'+(sy.cpu_mhz?' · '+sy.cpu_mhz+' MHz':'');
+ if(sy.speicher_gesamt){const p=Math.round(100-sy.speicher_frei*100/sy.speicher_gesamt);$('sy-m').innerHTML=gr(sy.speicher_frei)+' <small>frei</small>';$('sy-m2').textContent='von '+gr(sy.speicher_gesamt)+' · '+p+' % belegt';bal('sy-mb',p,75,90);}
+ if(sy.sd_gesamt){const p=Math.round(100-sy.sd_frei*100/sy.sd_gesamt);$('sy-s').innerHTML=gr(sy.sd_frei)+' <small>frei</small>';$('sy-s2').textContent='von '+gr(sy.sd_gesamt)+' · '+p+' % belegt';bal('sy-sb',p,75,90);}
+ if(sy.laufzeit_s!=null){const s2=sy.laufzeit_s,t=Math.floor(s2/86400),h=Math.floor(s2/3600)%24,m=Math.floor(s2/60)%60;$('sy-u').textContent=t?t+' T '+h+' Std':h?h+' Std '+m+' Min':m+' Min';}
+ $('sy-g').textContent=sy.geraet||'–';
  $('a').textContent=z.antworten||'';
 }
 $('t').onclick=()=>fetch('/test',{method:'POST'}).then(lade);
@@ -549,7 +619,7 @@ class Handler(BaseHTTPRequestHandler):
                                         "befehl": AKKU_BEFEHL or ""},
                                "signal": {"rssi": SIGNAL["rssi"], "text": signal_text(SIGNAL["rssi"]),
                                           "stand": SIGNAL["zeit"]},
-                               "drucke": VERLAUF.zusammenfassung(), **z})
+                               "drucke": VERLAUF.zusammenfassung(), "system": system_info(), **z})
         self._json({"ok": False, "text": "nicht gefunden"}, 404)
 
     def do_POST(self):
