@@ -266,6 +266,64 @@ void waage_nach_ha() {
         serializeJson(d, body);
         ha.zustand_setzen(entity, body, fehler);
     };
+    // einmal nach jedem Start: Ereignis mit dem Grund – Home Assistant meldet Abstürze aufs Handy
+    static bool start_gemeldet = false;
+    if (!start_gemeldet) {
+        static const char* const GRUND[] = {"unbekannt", "eingeschaltet", "extern", "neu gestartet", "Absturz",
+                                            "Watchdog (Interrupt)", "Watchdog (Task)", "Watchdog", "Tiefschlaf",
+                                            "Unterspannung", "SDIO"};
+        int g = (int)esp_reset_reason();
+        JsonDocument e;
+        e["grund"] = g >= 0 && g < 11 ? GRUND[g] : "unbekannt";
+        e["absturz"] = g == ESP_RST_PANIC || g == ESP_RST_INT_WDT || g == ESP_RST_TASK_WDT || g == ESP_RST_WDT ||
+                       g == ESP_RST_BROWNOUT;
+        e["version"] = FW_VERSION;
+        std::string body;
+        serializeJson(e, body);
+        start_gemeldet = ha.ereignis_senden("filamentwaage_neustart", body, fehler);
+    }
+    // Trocknen fällig: angebrochene Spulen aus feuchteempfindlichem Material, nie oder vor über 30 Tagen getrocknet
+    {
+        time_t jetzt = time(nullptr);
+        if (jetzt > 1700000000) {
+            JsonDocument d;
+            JsonArray liste = d["attributes"]["sorten"].to<JsonArray>();
+            int anzahl = 0;
+            {
+                std::lock_guard<std::mutex> l(g_mx);
+                for (const Filament& f : g_lager.sorten) {
+                    if (f.reste.empty()) continue;
+                    String m = String(f.material.c_str());
+                    m.toUpperCase();
+                    bool empfindlich = m.indexOf("PETG") >= 0 || m.indexOf("TPU") >= 0 || m.indexOf("TPE") >= 0 ||
+                                       m.indexOf("PA") >= 0 || m.indexOf("NYLON") >= 0 || m.indexOf("PC") >= 0 ||
+                                       m.indexOf("PVA") >= 0 || m.indexOf("BVOH") >= 0;
+                    if (!empfindlich) continue;
+                    int tage = -1;
+                    struct tm t = {};
+                    if (f.getrocknet.size() == 10 && sscanf(f.getrocknet.c_str(), "%d-%d-%d", &t.tm_year, &t.tm_mon, &t.tm_mday) == 3) {
+                        t.tm_year -= 1900;
+                        t.tm_mon -= 1;
+                        t.tm_hour = 12;
+                        tage = (int)((jetzt - mktime(&t)) / 86400);
+                    }
+                    if (tage >= 0 && tage < TROCKNEN_NACH_TAGEN) continue;
+                    anzahl++;
+                    if (liste.size() < 30)
+                        liste.add(String((f.hersteller + " " + f.kurzname()).c_str()) +
+                                  (tage < 0 ? String(" – nie getrocknet") : " – vor " + String(tage) + " Tagen"));
+                }
+            }
+            d["state"] = anzahl;
+            d["attributes"]["friendly_name"] = "Filament: Trocknen fällig";
+            d["attributes"]["unit_of_measurement"] = "Sorten";
+            d["attributes"]["icon"] = "mdi:water-off";
+            d["attributes"]["nach_tagen"] = TROCKNEN_NACH_TAGEN;
+            std::string body;
+            serializeJson(d, body);
+            ha.zustand_setzen("sensor.filamentwaage_trocknen_faellig", body, fehler);
+        }
+    }
     wert("sensor.filamentwaage_temperatur", "Waage Temperatur", temperatureRead(), "°C", "temperature", nullptr);
     wert("sensor.filamentwaage_wlan", "Waage WLAN", WiFi.RSSI(), "dBm", "signal_strength", nullptr);
     uint32_t ig = heap_caps_get_total_size(MALLOC_CAP_INTERNAL), ifr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);

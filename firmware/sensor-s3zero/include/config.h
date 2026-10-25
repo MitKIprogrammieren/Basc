@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.13.0"
+#define FW_VERSION "2.14.0"
 
 // Wägezelle über NAU7802 (I²C, Adresse 0x2A)
 #define WAAGE_SDA 1
@@ -44,3 +44,6 @@
 #define LAGER_NEU_LADEN_S 60
 #define ETIKETT_KOPF_PX 384         // Druckbreite des Phomemo in Punkten (48 mm bei 203 dpi)        // so oft holt die Oberfläche das Lager aus Home Assistant
 #define BOOT_TASTE 0
+
+// Trocknungs-Erinnerung: angebrochene PETG/TPU/PA/PC/PVA-Spulen gelten nach so vielen Tagen als fällig
+#define TROCKNEN_NACH_TAGEN 30

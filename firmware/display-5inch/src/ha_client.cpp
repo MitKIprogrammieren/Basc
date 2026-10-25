@@ -82,3 +82,16 @@ bool HaClient::zustand_setzen(const std::string& entity, const std::string& body
     std::string antwort;
     return post("/api/states/" + entity, body, antwort, fehler);
 }
+
+bool HaClient::ereignis_senden(const std::string& name, const std::string& body, std::string& fehler) {
+    std::string antwort;
+    return post("/api/events/" + name, body, antwort, fehler);
+}
+
+bool HaClient::liste_laden(const std::string& entity, std::string& antwort, std::string& fehler) {
+    JsonDocument b;
+    b["entity_id"] = entity;
+    std::string body;
+    serializeJson(b, body);
+    return post("/api/services/todo/get_items?return_response", body, antwort, fehler);
+}
