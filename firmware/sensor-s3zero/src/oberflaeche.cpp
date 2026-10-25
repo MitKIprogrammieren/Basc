@@ -324,6 +324,11 @@ void waage_nach_ha() {
             ha.zustand_setzen("sensor.filamentwaage_trocknen_faellig", body, fehler);
         }
     }
+    {  // Gewicht auf der Waage (brutto, mit Spule) – Schichtlohn zeigt es im Lager an
+        Messwert m = messwert();
+        if (m.hx711_ok && m.kalibriert)
+            wert("sensor.filamentwaage_gewicht", "Waage Gewicht", m.gramm < 0 ? 0.0f : m.gramm, "g", "weight", "mdi:scale");
+    }
     wert("sensor.filamentwaage_temperatur", "Waage Temperatur", temperatureRead(), "°C", "temperature", nullptr);
     wert("sensor.filamentwaage_wlan", "Waage WLAN", WiFi.RSSI(), "dBm", "signal_strength", nullptr);
     uint32_t ig = heap_caps_get_total_size(MALLOC_CAP_INTERNAL), ifr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
