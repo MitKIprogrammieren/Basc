@@ -73,7 +73,7 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 CFG_PFAD = os.environ.get("DRUCK_CONFIG", "/etc/filamentwaage-druck.json")
 STANDARD = {"drucker": "", "kanal": 1, "port": 8765, "dpi": 300, "dauerhaft": True}
 log = logging.getLogger("druckbruecke")
@@ -163,6 +163,22 @@ def _datei(pfad):
 
 
 _CPU_ALT = None
+WAAGE_IP = ""
+
+
+def waage_info():
+    """Systemwerte der Waage (ESP32) für die Statusseite – Adresse aus der Konfiguration, sonst von ihrer letzten Anfrage."""
+    import urllib.request
+    ziele = [CFG.get("waage", "")] + (["http://" + WAAGE_IP] if WAAGE_IP else []) + ["http://filamentwaage.local"]
+    for basis in [z for z in ziele if z]:
+        try:
+            with urllib.request.urlopen(basis.rstrip("/") + "/api/system/info", timeout=3) as r:
+                d = json.loads(r.read().decode("utf-8", "replace"))
+                d["adresse"] = basis
+                return d
+        except (OSError, ValueError):
+            continue
+    return {"fehlt": True}
 
 
 def system_info():
@@ -545,6 +561,15 @@ pre{color:var(--sub);font-size:12px;white-space:pre-wrap;margin:0}
  </div>
  <div class="k" style="padding:4px 14px"><div class="zeile"><span class="klein" style="margin:0">Läuft seit</span><span id="sy-u">–</span></div>
   <div class="zeile"><span class="klein" style="margin:0">Gerät</span><span id="sy-g">–</span></div></div>
+ <div class="ue" style="margin-top:4px">Waage · ESP32 <span id="wa-a" style="text-transform:none;letter-spacing:0"></span></div>
+ <div class="kacheln vier" id="wa-k">
+  <div class="k"><div class="ue">Temperatur</div><div class="gross" id="wa-t">–</div><div class="klein" id="wa-t2"></div><div class="balken"><div id="wa-tb" style="width:0"></div></div></div>
+  <div class="k"><div class="ue">WLAN</div><div class="gross" id="wa-w">–</div><div class="klein" id="wa-w2"></div><div class="balken"><div id="wa-wb" style="width:0"></div></div></div>
+  <div class="k"><div class="ue">Arbeitsspeicher</div><div class="gross" id="wa-m">–</div><div class="klein" id="wa-m2"></div><div class="balken"><div id="wa-mb" style="width:0"></div></div></div>
+  <div class="k"><div class="ue">PSRAM</div><div class="gross" id="wa-p">–</div><div class="klein" id="wa-p2"></div><div class="balken"><div id="wa-pb" style="width:0"></div></div></div>
+ </div>
+ <div class="k" style="padding:4px 14px"><div class="zeile"><span class="klein" style="margin:0">Läuft seit</span><span id="wa-u">–</span></div>
+  <div class="zeile"><span class="klein" style="margin:0">Board</span><span id="wa-g">–</span></div></div>
  <div class="fuss"><span id="geraet"></span><span id="ver"></span></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="rahmen neu" id="nv">&#x21bb; Neu verbinden</button><button class="primaer" id="t">Testdruck</button>
   <button class="rahmen" id="f">Für Phomemo-App freigeben (10 min)</button></div>
@@ -553,6 +578,22 @@ pre{color:var(--sub);font-size:12px;white-space:pre-wrap;margin:0}
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let waZeit=0;
+async function waage(){
+ if(Date.now()-waZeit<5000)return; waZeit=Date.now();
+ let w; try{w=await (await fetch('/waage',{cache:'no-store'})).json();}catch(e){return;}
+ if(w.fehlt){$('wa-a').textContent='· nicht erreichbar';return;}
+ $('wa-a').textContent='· '+(w.adresse||'').replace('http://','');
+ const gr=b=>b>=1048576?(b/1048576).toFixed(1).replace('.',',')+' MB':Math.round(b/1024)+' KB';
+ const bal=(id,p,wn,a)=>{const e=$(id);e.style.width=Math.max(2,Math.min(100,p))+'%';e.style.background=p>=a?'var(--rot)':p>=wn?'var(--orange)':'var(--gruen)';};
+ if(w.temperatur_c!=null){$('wa-t').textContent=Math.round(w.temperatur_c)+' °C';$('wa-t2').textContent=w.temperatur_c>=80?'sehr heiß':w.temperatur_c>=65?'warm':'normal';bal('wa-tb',w.temperatur_c,65,80);}
+ if(w.wlan_rssi!=null){const r=w.wlan_rssi;$('wa-w').textContent=r+' dBm';$('wa-w2').textContent=(r>=-55?'sehr gut':r>=-67?'gut':r>=-75?'mäßig':'schwach')+(w.sendeleistung_dbm!=null?' · '+String(w.sendeleistung_dbm).replace('.',',')+' dBm':'');bal('wa-wb',Math.max(0,(r+90)*2.5),101,101);}
+ const sp=w.speicher||[];
+ const f=(n,id)=>{const x=sp.find(e=>e.name.startsWith(n));if(!x)return;const p=Math.round(x.belegt*100/x.gesamt);$(id).innerHTML=gr(x.gesamt-x.belegt)+' <small>frei</small>';$(id+'2').textContent='von '+gr(x.gesamt)+' · '+p+' %';bal(id+'b',p,75,90);};
+ f('Arbeitsspeicher','wa-m');f('Zusatzspeicher','wa-p');
+ if(w.laufzeit_s!=null){const s2=w.laufzeit_s,t=Math.floor(s2/86400),h=Math.floor(s2/3600)%24,m=Math.floor(s2/60)%60;$('wa-u').textContent=t?t+' T '+h+' Std':h?h+' Std '+m+' Min':m+' Min';}
+ $('wa-g').textContent=w.board||'–';
+}
 async function lade(){
  let z; try{z=await (await fetch('/status',{cache:'no-store'})).json();}catch(e){$('verb').textContent='Druckbrücke nicht erreichbar';$('verb').className='pill aus';return;}
  const v=$('verb');
@@ -589,6 +630,7 @@ async function lade(){
  if(sy.sd_gesamt){const p=Math.round(100-sy.sd_frei*100/sy.sd_gesamt);$('sy-s').innerHTML=gr(sy.sd_frei)+' <small>frei</small>';$('sy-s2').textContent='von '+gr(sy.sd_gesamt)+' · '+p+' % belegt';bal('sy-sb',p,75,90);}
  if(sy.laufzeit_s!=null){const s2=sy.laufzeit_s,t=Math.floor(s2/86400),h=Math.floor(s2/3600)%24,m=Math.floor(s2/60)%60;$('sy-u').textContent=t?t+' T '+h+' Std':h?h+' Std '+m+' Min':m+' Min';}
  $('sy-g').textContent=sy.geraet||'–';
+ waage();
  $('a').textContent=z.antworten||'';
 }
 $('t').onclick=()=>fetch('/test',{method:'POST'}).then(lade);
@@ -633,7 +675,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             return self.wfile.write(body)
+        if self.path.split("?")[0] == "/waage":
+            return self._json(waage_info())
         if self.path.split("?")[0] == "/status":
+            if "ESP32HTTPClient" in (self.headers.get("User-Agent") or ""):
+                global WAAGE_IP
+                WAAGE_IP = self.client_address[0]  # die Waage fragt jede Minute – so kennt die Brücke ihre Adresse
             with LOCK:
                 z = dict(ZUSTAND)
             frei = max(0, int(VERBINDUNG.frei_bis - time.time()))

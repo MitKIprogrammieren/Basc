@@ -248,6 +248,44 @@ bool aendern(const std::string& uid, const std::function<Aenderung(const std::st
 
 // Holt den Status der Druckbrücke und meldet ihn als Sensoren an Home Assistant (ohne YAML).
 // Die Sensoren entstehen über die REST-API; nach einem HA-Neustart sind sie nach spätestens einer Minute wieder da.
+// Systemwerte der Waage selbst (ESP32) als Sensoren in Home Assistant
+void waage_nach_ha() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    HaClient ha;
+    std::string fehler;
+    if (!client_fuer(ha_cfg(), ha, fehler)) return;
+    auto wert = [&](const char* entity, const char* name, float w, const char* einheit, const char* klasse, const char* icon) {
+        JsonDocument d;
+        d["state"] = roundf(w * 10) / 10;
+        d["attributes"]["friendly_name"] = name;
+        d["attributes"]["unit_of_measurement"] = einheit;
+        d["attributes"]["state_class"] = "measurement";
+        if (klasse) d["attributes"]["device_class"] = klasse;
+        if (icon) d["attributes"]["icon"] = icon;
+        std::string body;
+        serializeJson(d, body);
+        ha.zustand_setzen(entity, body, fehler);
+    };
+    wert("sensor.filamentwaage_temperatur", "Waage Temperatur", temperatureRead(), "°C", "temperature", nullptr);
+    wert("sensor.filamentwaage_wlan", "Waage WLAN", WiFi.RSSI(), "dBm", "signal_strength", nullptr);
+    uint32_t ig = heap_caps_get_total_size(MALLOC_CAP_INTERNAL), ifr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    if (ig) wert("sensor.filamentwaage_arbeitsspeicher", "Waage Arbeitsspeicher belegt", 100.0f - ifr * 100.0f / ig, "%", nullptr, "mdi:memory");
+    if (ESP.getPsramSize())
+        wert("sensor.filamentwaage_psram", "Waage PSRAM belegt", 100.0f - ESP.getFreePsram() * 100.0f / ESP.getPsramSize(), "%", nullptr, "mdi:memory");
+    {
+        JsonDocument d;
+        d["state"] = (long)(millis() / 3600000UL);
+        d["attributes"]["friendly_name"] = "Waage läuft seit";
+        d["attributes"]["unit_of_measurement"] = "h";
+        d["attributes"]["icon"] = "mdi:timer-outline";
+        d["attributes"]["version"] = FW_VERSION;
+        d["attributes"]["ip"] = WiFi.localIP().toString();
+        std::string body;
+        serializeJson(d, body);
+        ha.zustand_setzen("sensor.filamentwaage_laufzeit", body, fehler);
+    }
+}
+
 void bruecke_nach_ha() {
     String basis = drucker_bruecke();
     if (!basis.length() || WiFi.status() != WL_CONNECTED) return;
@@ -406,7 +444,10 @@ void arbeiter(void*) {
                 break;
             }
             case Art::LADEN:
-                if (a->zahl == 1) bruecke_nach_ha();  // jede Minute: Druckerwerte als Sensoren in HA
+                if (a->zahl == 1) {  // jede Minute: Werte der Waage und der Druckbrücke als Sensoren in HA
+                    waage_nach_ha();
+                    bruecke_nach_ha();
+                }
                 break;
         }
         if (a->art != Art::TEST) {
