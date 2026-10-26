@@ -312,3 +312,24 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .rolle.rlogo { width: 30px; height: 30px; }
 .rolle.rgross { width: 100%; height: 100%; }
 .rolle.rgross.leer { opacity: .55; }
+
+/* Lager: Auswahllisten für Material und Sortierung, Treffer markieren */
+.suche-n { font-size: 12px; color: var(--sub); white-space: nowrap; }
+.zeile mark { background: #4a3c12; color: #ffd77a; border-radius: 3px; padding: 0 1px; }
+.dd-reihe { flex: 0 0 auto; }
+.dd-halter { position: relative; }
+.dd { height: 40px; display: flex; align-items: center; gap: 7px; padding: 0 12px; border-radius: 12px; border: 2px solid var(--rand);
+  background: var(--panel); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.dd small { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--sub); font-weight: 600; }
+.dd b { font-weight: 700; } .dd .dd-n { color: var(--sub); font-size: 13px; }
+.dd.auf { border-color: var(--gruen); }
+.dd-panel { position: absolute; top: 46px; left: 0; z-index: 30; min-width: 220px; max-height: 300px; overflow-y: auto;
+  background: var(--kachel); border: 2px solid var(--rand); border-radius: 14px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+.dd-panel.rechts { left: auto; right: 0; }
+.dd-o { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px; border: 0; border-radius: 9px;
+  background: transparent; color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.dd-o small { color: var(--sub); font-size: 12px; }
+.dd-o.an { background: var(--nav-akt); color: var(--gruen-t); font-weight: 700; } .dd-o.an small { color: var(--gruen-t); }
+.dd-trenner { height: 1px; background: var(--linie); margin: 4px 6px; }
+.filter.sortknopf { display: inline-flex; align-items: center; gap: 6px; }
+#filter { position: relative; }

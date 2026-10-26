@@ -287,37 +287,208 @@ $("btn-etikett").onclick = () => {
 };
 
 // ------------------------------------------------------------ Lager
+// ------------------------------------------------------------ Lager: Suche, Filter, Sortierung
+// Einstellungen je Gerät: Stil der Filter (Auswahlliste oder Knöpfe wie früher) und Sortierung
+function lagerOpt() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem("fl_lager") || "null"); } catch (e) { /* ohne Speicher */ }
+  o = o && typeof o === "object" ? o : {};
+  if (!["liste", "knoepfe"].includes(o.stil)) o.stil = "liste";
+  if (!["treffer", "name", "hersteller", "bestand", "farbe"].includes(o.sort)) o.sort = "name";
+  if (typeof o.mat !== "string") o.mat = "alle";
+  return o;
+}
+S.lager = lagerOpt();
+function lagerOptSpeichern() { try { localStorage.setItem("fl_lager", JSON.stringify(S.lager)); } catch (e) { /* nur bis zum Neuladen */ } }
+
+const normal = (t) => String(t || "").toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9#+]+/g, " ").trim();
+// Farben und Begriffe deutsch ↔ englisch – jede Gruppe gilt als gleichwertig
+const SYNONYME = [["schwarz", "black", "noir"], ["weiss", "white", "weis"], ["grau", "gray", "grey"], ["rot", "red"],
+  ["blau", "blue"], ["gruen", "green"], ["gelb", "yellow"], ["orange"], ["lila", "violett", "purple", "violet"],
+  ["rosa", "pink", "magenta"], ["braun", "brown"], ["silber", "silver"], ["gold", "golden"], ["beige", "creme", "cream", "ivory", "elfenbein"],
+  ["transparent", "klar", "clear", "translucent", "durchsichtig"], ["natur", "natural", "naturel"], ["holz", "wood"],
+  ["seide", "silk"], ["matt", "matte"], ["glitzer", "sparkle", "galaxy", "glitter"], ["metall", "metallic", "metal"],
+  ["carbon", "cf", "kohlefaser"], ["glas", "gf", "glasfaser"], ["leuchtend", "glow", "nachtleuchtend"], ["marmor", "marble"]];
+const SYN = new Map();
+for (const g of SYNONYME) for (const w of g) SYN.set(w, g);
+const STICHWORTE = { angebrochen: (s) => s.reste.length > 0, rest: (s) => s.reste.length > 0, reste: (s) => s.reste.length > 0,
+  leer: (s) => s.spulen === 0, aufgebraucht: (s) => s.spulen === 0, voll: (s) => s.spulen > 0 && !s.reste.length,
+  nfc: (s) => s.nfc.length > 0 };
+
+function suchIndex(s) {
+  if (s._idx) return s._idx;
+  const felder = [[s.hersteller, 3], [s.material, 3], [s.farbe, 3], [(s.besonderheiten || []).join(" "), 2], [s.summary, 1],
+    [s.fcode, 2], [s.bambu_id, 1], [(s.codes || []).join(" "), 1], [s.ort, 2], [(s.nfc || []).join(" "), 1]];
+  const tok = [];
+  for (const [t, g] of felder) for (const w of normal(t).split(" ")) if (w) tok.push([w, g]);
+  return (s._idx = tok);
+}
+function abstand(a, b, max) {  // Levenshtein mit frühem Abbruch
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let v = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const n = [i];
+    let klein = i;
+    for (let j = 1; j <= b.length; j++) {
+      n[j] = Math.min(v[j] + 1, n[j - 1] + 1, v[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      klein = Math.min(klein, n[j]);
+    }
+    if (klein > max) return max + 1;
+    v = n;
+  }
+  return v[b.length];
+}
+function synonymGruppe(wort) {
+  if (SYN.has(wort)) return SYN.get(wort);
+  if (wort.length < 4) return null;
+  const grenze = wort.length >= 7 ? 2 : 1;  // Tippfehler: „schwraz“ → schwarz/black
+  for (const [k, g] of SYN) if (k.length >= 4 && abstand(wort, k, grenze) <= grenze) return [wort, ...g];
+  return null;
+}
+function wortPunkte(idx, wort) {
+  const varianten = synonymGruppe(wort) || [wort];
+  let best = 0;
+  for (const [t, g] of idx) {
+    for (const w of varianten) {
+      let p = 0;
+      if (t === w) p = 10;
+      else if (t.startsWith(w)) p = 6;
+      else if (w.length >= 3 && t.includes(w)) p = 3;
+      else if (w.length >= 4 && abstand(w, t.slice(0, w.length + 1), w.length >= 7 ? 2 : 1) <= (w.length >= 7 ? 2 : 1)) p = 2;
+      best = Math.max(best, p * g);
+    }
+  }
+  return best;
+}
+/** Treffer mit Punktzahl oder null. Stichwörter (angebrochen, leer, voll, nfc, „ohne nfc“) filtern direkt. */
+function suchTreffer(s, frage) {
+  const woerter = normal(frage).split(" ").filter(Boolean);
+  let punkte = 0;
+  for (let i = 0; i < woerter.length; i++) {
+    const w = woerter[i];
+    if (w === "ohne" && woerter[i + 1] === "nfc") { if (s.nfc.length) return null; i++; continue; }
+    if (STICHWORTE[w]) { if (!STICHWORTE[w](s)) return null; punkte += 5; continue; }
+    const p = wortPunkte(suchIndex(s), w);
+    if (!p) return null;
+    punkte += p;
+  }
+  return punkte;
+}
+function markiere(text, frage) {
+  let h = esc(text);
+  const woerter = normal(frage).split(" ").filter((w) => w.length >= 2 && !STICHWORTE[w] && w !== "ohne");
+  const alle = [...new Set(woerter.flatMap((w) => synonymGruppe(w) || [w]))].sort((a, b) => b.length - a.length);
+  if (!alle.length) return h;
+  const muster = alle.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ae/g, "(?:ae|ä)").replace(/oe/g, "(?:oe|ö)")
+    .replace(/ue/g, "(?:ue|ü)").replace(/ss/g, "(?:ss|ß)")).join("|");
+  return h.replace(new RegExp(`(${muster})`, "gi"), "<mark>$1</mark>");
+}
+function farbton(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex || "");
+  if (!m) return [9, 0];
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+  if (d < 0.08) return [8, 1 - l];  // Grautöne ans Ende, hell nach dunkel
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [Math.floor(((h * 60 + 360) % 360) / 30), l];
+}
+const materialName = (s) => (s.material || "Ohne Material").trim().toUpperCase();
+function materialListe() {
+  const z = new Map();
+  for (const s of S.sorten) z.set(materialName(s), (z.get(materialName(s)) || 0) + 1);
+  return [...z.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+function passtMaterial(s) {
+  if (S.lager.stil === "knoepfe") return passtFilter(s, S.filter);
+  if (S.lager.mat === "alle") return true;
+  if (S.lager.mat === "angebrochen") return s.reste.length > 0;
+  return materialName(s) === S.lager.mat;
+}
+const SORTIERUNG = [["treffer", "Treffer"], ["name", "Name"], ["hersteller", "Hersteller"], ["bestand", "Bestand"], ["farbe", "Farbe"]];
+function sortieren(liste, frage) {
+  const art = frage && S.lager.sortWahl !== true ? "treffer" : S.lager.stil === "knoepfe" ? "keine" : S.lager.sort;
+  const nach = (f) => (a, b) => String(f(a.s)).localeCompare(String(f(b.s)), "de", { numeric: true, sensitivity: "base" });
+  const vgl = {
+    treffer: (a, b) => b.p - a.p || nach(kurzname)(a, b),
+    name: nach((s) => `${kurzname(s)} ${s.hersteller}`),
+    hersteller: nach((s) => `${s.hersteller} ${kurzname(s)}`),
+    bestand: (a, b) => (a.s.spulen === 0) - (b.s.spulen === 0) || a.s.bestand_g - b.s.bestand_g || nach(kurzname)(a, b),
+    farbe: (a, b) => { const x = farbton(a.s.hex), y = farbton(b.s.hex); return x[0] - y[0] || x[1] - y[1]; },
+  }[art] || (() => 0);
+  return liste.sort(vgl);
+}
+let ddOffen = "";
+const DD_ICON = {
+  runter: '<path d="m6 9 6 6 6-6"/>', hoch: '<path d="m6 15 6-6 6 6"/>',
+  sortieren: '<path d="M7 4v16M3 8l4-4 4 4"/><path d="M14 6h7M14 12h5M14 18h3"/>',
+};
+const ddIcon = (n) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DD_ICON[n]}</svg>`;
 function filterLeiste() {
-  $("filter").innerHTML = FILTER.map((f, i) =>
-    `<button class="filter${i === S.filter ? " an" : ""}" data-f="${i}">${f}</button>`).join("");
+  const f = $("filter");
+  f.className = S.lager.stil === "knoepfe" ? "reihe gap8" : "reihe gap8 dd-reihe";
+  if (S.lager.stil === "knoepfe") {
+    f.innerHTML = FILTER.map((x, i) => `<button class="filter${i === S.filter ? " an" : ""}" data-f="${i}">${x}</button>`).join("");
+    return;
+  }
+  const mats = materialListe();
+  const aktMat = S.lager.mat === "alle" ? ["Alle", S.sorten.length] : S.lager.mat === "angebrochen"
+    ? ["Angebrochen", S.sorten.filter((s) => s.reste.length).length] : [S.lager.mat, (mats.find(([m]) => m === S.lager.mat) || [0, 0])[1]];
+  const sucht = $("suche").value.trim() && S.lager.sortWahl !== true;
+  const sortName = SORTIERUNG.find(([k]) => k === (sucht ? "treffer" : S.lager.sort))[1];
+  f.innerHTML = `<div class="dd-halter"><button class="dd${ddOffen === "mat" ? " auf" : ""}" data-dd="mat"><small>Material</small><b>${esc(aktMat[0])}</b><span class="dd-n">${aktMat[1]}</span>${ddIcon(ddOffen === "mat" ? "hoch" : "runter")}</button>${ddOffen === "mat" ? ddPanel("mat", mats) : ""}</div>
+    <div class="dd-halter"><button class="dd${ddOffen === "sort" ? " auf" : ""}" data-dd="sort"><small>Sortieren</small><b>${sortName}</b>${ddIcon(ddOffen === "sort" ? "hoch" : "runter")}</button>${ddOffen === "sort" ? ddPanel("sort") : ""}</div>`;
+}
+function ddPanel(art, mats) {
+  if (art === "sort") return `<div class="dd-panel rechts">${SORTIERUNG.map(([k, t]) =>
+    `<button class="dd-o${S.lager.sort === k ? " an" : ""}" data-sort="${k}"><span>${t}</span><small>${{ treffer: "beim Suchen", bestand: "wenig zuerst", farbe: "nach Farbton" }[k] || ""}</small></button>`).join("")}</div>`;
+  const anz = S.sorten.filter((s) => s.reste.length).length;
+  return `<div class="dd-panel">${[["alle", "Alle", S.sorten.length], ["angebrochen", "Angebrochen", anz]].map(([k, t, n]) =>
+    `<button class="dd-o${S.lager.mat === k ? " an" : ""}" data-mat="${k}"><span>${t}</span><small>${n}</small></button>`).join("")}
+    <div class="dd-trenner"></div>${mats.map(([m, n]) =>
+    `<button class="dd-o${S.lager.mat === m ? " an" : ""}" data-mat="${esc(m)}"><span>${esc(m)}</span><small>${n}</small></button>`).join("")}</div>`;
 }
 $("filter").onclick = (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
-  S.filter = Number(b.dataset.f);
-  liste();
+  const d = e.target.closest("[data-dd]"), m = e.target.closest("[data-mat]"), so = e.target.closest("[data-sort]"), b = e.target.closest("[data-f]");
+  if (d) { ddOffen = ddOffen === d.dataset.dd ? "" : d.dataset.dd; filterLeiste(); return; }
+  if (m) { S.lager.mat = m.dataset.mat; ddOffen = ""; lagerOptSpeichern(); return liste(); }
+  if (so) { S.lager.sort = so.dataset.sort; S.lager.sortWahl = $("suche").value.trim() ? true : undefined; ddOffen = ""; lagerOptSpeichern(); return liste(); }
+  if (b) { S.filter = Number(b.dataset.f); liste(); }
 };
+document.addEventListener("click", (e) => {
+  // composedPath statt closest: das angeklickte Element ist nach dem Neuzeichnen schon aus dem Dokument
+  if (ddOffen && !e.composedPath().includes($("filter"))) { ddOffen = ""; filterLeiste(); }
+});
 
 function liste() {
   filterLeiste();
-  const q = $("suche").value.trim().toLowerCase();
+  const q = $("suche").value.trim();
+  if (!q) delete S.lager.sortWahl;
   let n = 0, weitere = 0;
   const html = [];
   const vorschlag = S.auswahlModus && S.vorschlag ? S.vorschlag : null;
-  const reihe = vorschlag ? [vorschlag, ...S.sorten.filter((x) => x !== vorschlag)] : S.sorten;
+  const treffer = [];
+  for (const s of S.sorten) {
+    if (s === vorschlag) continue;
+    if (!passtMaterial(s)) continue;
+    const p = q ? suchTreffer(s, q) : 0;
+    if (p === null) continue;
+    treffer.push({ s, p });
+  }
+  sortieren(treffer, q);
+  const reihe = vorschlag ? [vorschlag, ...treffer.map((t) => t.s)] : treffer.map((t) => t.s);
   for (const s of reihe) {
-    if (!passtFilter(s, S.filter) && s !== vorschlag) continue;
-    if (q && !`${s.summary} ${s.hersteller} ${s.farbe}`.toLowerCase().includes(q)) continue;
     if (n >= MAX_ZEILEN) { weitere++; continue; }
     n++;
     html.push(`<div class="zeile${s === vorschlag ? " vorschlag" : ""}" data-uid="${esc(s.uid)}">
       ${rolle(s.hex, s.besonderheiten, "r30")}
-      <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${esc(kurzname(s))}</span>
-        <span class="sub14 ellipse">${esc(unterzeile(s))}</span></div>
+      <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${markiere(kurzname(s), q)}</span>
+        <span class="sub14 ellipse">${markiere(unterzeile(s) + (s.ort ? ` · ${s.ort}` : ""), q)}</span></div>
       ${s === vorschlag ? '<span class="chip ams">Vorschlag aus AMS</span>' : s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
       <div class="rechts"><div class="anz${s.spulen ? "" : " leer"}">${spulenText(s.spulen)}</div>
         <div class="sub14">${esc(restText(s))}</div></div></div>`);
   }
+  if (q) $("suche-n").textContent = `${treffer.length} Treffer`; else $("suche-n").textContent = "";
   if (!n) html.push(`<div class="leer-hinweis">${S.sorten.length ? "Keine passende Sorte" : "Lager wird geladen …"}</div>`);
   if (weitere) html.push(`<div class="leer-hinweis">… und ${weitere} weitere – Suche verwenden</div>`);
   $("liste").innerHTML = html.join("");
@@ -655,7 +826,10 @@ function einst() {
       <div class="e-block"><span class="ueber gross-ss">TEXTGRÖẞE</span><div class="seg">${TEXTGROESSEN.map(([k, t]) =>
         `<button class="${k === textGroesse() ? "an" : ""}" data-text="${k}">${t}</button>`).join("")}</div>
         <span class="hinweis">Kleiner zeigt mehr auf einmal – praktisch im Browser am Mac. Gilt nur für dieses Gerät.</span></div>
-      <div class="e-block"><span class="ueber">Lagerliste</span>${seg("kompakt", e.kompakt, [[false, "Normal"], [true, "Kompakt"]])}</div>`;
+      <div class="e-block"><span class="ueber">Lagerliste</span>${seg("kompakt", e.kompakt, [[false, "Normal"], [true, "Kompakt"]])}</div>
+      <div class="e-block"><span class="ueber">Filter im Lager</span><div class="seg">${[["liste", "Auswahlliste"], ["knoepfe", "Knöpfe (wie bisher)"]].map(([k, t]) =>
+        `<button class="${S.lager.stil === k ? "an" : ""}" data-lagerstil="${k}">${t}</button>`).join("")}</div>
+        <span class="hinweis">Auswahlliste zeigt alle Materialien aus deinem Lager. Gilt nur für dieses Gerät.</span></div>`;
   } else if (S.eSeite === "wlan") {
     const w = e.wlan || {};
     h = `<div class="e-zeile"><span class="e-titel wachsen">WLAN</span>${pill(!!w.ssid, w.ssid ? "verbunden" : "getrennt")}</div>
@@ -754,6 +928,7 @@ $("e-inhalt").onclick = async (e) => {
   if (d.et) return etEinstKlick(d);
   if (d.br) return brAktion(d.br, b);
   if (d.akzent) return einstSetzen({ akzent: d.akzent });
+  if (d.lagerstil) { S.lager.stil = d.lagerstil; lagerOptSpeichern(); return einst(); }
   if (d.text) {
     if (KIOSK) { await einstSetzen({ textgroesse_kiosk: d.text }); skalieren(); return einst(); }
     try { localStorage.setItem("fl_textgroesse", d.text); } catch (e) { /* ohne Speicher nur bis zum Neuladen */ }
