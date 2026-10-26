@@ -297,8 +297,7 @@ function herstellerLogo(name, frage) {
 }
 const logosAn = () => S.lager.logos !== false;
 
-// Logo durchsichtig machen und in der Schriftfarbe der Zeile einfärben (wie vorher der Name).
-// Weißer/heller Hintergrund wird entfernt; helle Logos auf durchsichtigem Grund bleiben erkennbar.
+// Logo in Originalfarben, aber ohne weißen Hintergrund (durchsichtig).
 const LOGO_FARBIG = new Map();
 function logoFaerben(img) {
   const box = img.parentNode;
@@ -315,18 +314,46 @@ function logoFaerben(img) {
     const x = c.getContext("2d", { willReadFrequently: true });
     x.drawImage(img, 0, 0, w, h);
     const d = x.getImageData(0, 0, w, h), p = d.data;
-    // Hintergrund bestimmen: Ecken durchsichtig → Logo steht schon frei
-    const ecke = (i) => p[i * 4 + 3];
-    const frei = [0, w - 1, (h - 1) * w, h * w - 1].filter((i) => ecke(i) < 40).length >= 2;
-    let summe = 0, n = 0;
-    for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 128) { summe += 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]; n++; }
-    const hellesLogo = frei && n && summe / n > 150;
-    const m = farbe.match(/\d+(\.\d+)?/g) || ["230", "230", "230"];
-    const [r, g, b] = m.map(Number);
-    for (let i = 0; i < p.length; i += 4) {
-      const lum = (0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]) / 255;
-      let a = hellesLogo ? lum : Math.min(1, Math.max(0, (0.93 - lum) / 0.6));
-      p[i] = r; p[i + 1] = g; p[i + 2] = b; p[i + 3] = Math.round(p[i + 3] * a);
+    // Weißen/hellen Hintergrund vom Rand her entfernen (Flutfüllung) – Farben des Logos bleiben original.
+    const hell = (i) => {
+      const r = p[i * 4], g = p[i * 4 + 1], b = p[i * 4 + 2];
+      return p[i * 4 + 3] > 0 && Math.min(r, g, b) > 200 && Math.max(r, g, b) - Math.min(r, g, b) < 30;
+    };
+    const weg = new Uint8Array(w * h), stapel = [];
+    for (let i = 0; i < w; i++) stapel.push(i, (h - 1) * w + i);
+    for (let j = 0; j < h; j++) stapel.push(j * w, j * w + w - 1);
+    while (stapel.length) {
+      const i = stapel.pop();
+      if (weg[i] || !(p[i * 4 + 3] < 30 || hell(i))) continue;
+      weg[i] = 1;
+      const xx = i % w, yy = (i - xx) / w;
+      if (xx > 0) stapel.push(i - 1); if (xx < w - 1) stapel.push(i + 1);
+      if (yy > 0) stapel.push(i - w); if (yy < h - 1) stapel.push(i + w);
+    }
+    // Kantenglättung: Pixel neben dem Hintergrund je nach Helligkeit teilweise durchsichtig
+    for (let i = 0; i < w * h; i++) {
+      if (weg[i]) { p[i * 4 + 3] = 0; continue; }
+      const xx = i % w, yy = (i - xx) / w;
+      const rand = (xx > 0 && weg[i - 1]) || (xx < w - 1 && weg[i + 1]) || (yy > 0 && weg[i - w]) || (yy < h - 1 && weg[i + w]);
+      if (rand) {
+        const lum = (0.299 * p[i * 4] + 0.587 * p[i * 4 + 1] + 0.114 * p[i * 4 + 2]) / 255;
+        p[i * 4 + 3] = Math.round(p[i * 4 + 3] * Math.min(1, Math.max(0, (1 - lum) / 0.25)));
+      }
+    }
+    // Schwarze/dunkelgraue Logos wären auf dem dunklen Hintergrund unsichtbar:
+    // nur unbunte dunkle Pixel in Schriftfarbe aufhellen, bunte Teile bleiben wie sie sind.
+    let dunkel = 0, sichtbar = 0;
+    for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 128) {
+      sichtbar++;
+      if (0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2] < 90) dunkel++;
+    }
+    if (sichtbar && dunkel / sichtbar > 0.5) {
+      const m = farbe.match(/\d+(\.\d+)?/g) || ["230", "230", "230"];
+      const [fr, fg, fb] = m.map(Number);
+      for (let i = 0; i < p.length; i += 4) {
+        const r = p[i], g = p[i + 1], b = p[i + 2];
+        if (Math.max(r, g, b) - Math.min(r, g, b) < 40 && 0.299 * r + 0.587 * g + 0.114 * b < 140) { p[i] = fr; p[i + 1] = fg; p[i + 2] = fb; }
+      }
     }
     x.putImageData(d, 0, 0);
     const url = c.toDataURL("image/png");
