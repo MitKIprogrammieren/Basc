@@ -287,6 +287,16 @@ $("btn-etikett").onclick = () => {
 };
 
 // ------------------------------------------------------------ Lager
+// Herstellerlogo aus Home Assistant (config/www/hersteller → /local/hersteller), über die Waage geholt.
+// Fehlt das Bild, bleibt der Name stehen.
+function herstellerLogo(name, frage) {
+  if (!name) return "";
+  const v = S.et && S.et.bilder ? S.et.bilder[name] || 0 : 0;
+  return `<span class="hlogo"><img src="/api/hersteller_bild?name=${encodeURIComponent(name)}${v ? `&v=${v}` : ""}" alt="" loading="lazy"
+    onload="if(!this.naturalWidth)this.parentNode.classList.add('fehlt')" onerror="this.parentNode.classList.add('fehlt')"><span class="hname">${frage ? markiere(name, frage) : esc(name)}</span></span>`;
+}
+const logosAn = () => S.lager.logos !== false;
+
 // ------------------------------------------------------------ Lager: Suche, Filter, Sortierung
 // Einstellungen je Gerät: Stil der Filter (Auswahlliste oder Knöpfe wie früher) und Sortierung
 function lagerOpt() {
@@ -483,7 +493,8 @@ function liste() {
     html.push(`<div class="zeile${s === vorschlag ? " vorschlag" : ""}" data-uid="${esc(s.uid)}">
       ${rolle(s.hex, s.besonderheiten, "r30")}
       <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${markiere(kurzname(s), q)}</span>
-        <span class="sub14 ellipse">${markiere(unterzeile(s) + (s.ort ? ` · ${s.ort}` : ""), q)}</span></div>
+        <span class="sub14 ellipse unterzeile">${logosAn() && s.hersteller ? herstellerLogo(s.hersteller, q) + markiere([...s.besonderheiten.slice(0, 2), s.ort].filter(Boolean).map((x) => ` · ${x}`).join(""), q)
+          : markiere(unterzeile(s) + (s.ort ? ` · ${s.ort}` : ""), q)}</span></div>
       ${s === vorschlag ? '<span class="chip ams">Vorschlag aus AMS</span>' : s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
       <div class="rechts"><div class="anz${s.spulen ? "" : " leer"}">${spulenText(s.spulen)}</div>
         <div class="sub14">${esc(restText(s))}</div></div></div>`);
@@ -583,7 +594,7 @@ function detail() {
   ziel.innerHTML = `
     <section class="panel gruen links300">
       <div class="reihe gap10 mitte"><button class="knopf rahmen zurueck" id="d-zurueck" aria-label="Zurück zum Lager">‹</button>
-        <div class="spalte minw0"><span class="name20 ellipse">${esc(kurzname(s))}</span><span class="sub14">${esc(s.hersteller)}</span></div></div>
+        <div class="spalte minw0"><span class="name20 ellipse">${esc(kurzname(s))}</span><span class="sub14">${logosAn() ? herstellerLogo(s.hersteller) : esc(s.hersteller)}</span></div></div>
       <div class="reihe gap12 mitte">${rolle(s.hex, s.besonderheiten, "r64")}
         <div class="spalte gap6"><div class="chips">${chips}</div><span class="sub14">${komma(s.durchmesser, 2)} mm · ${gramm(s.gewicht)}</span></div></div>
       <div class="reihe gap10"><div class="kachel"><b>${s.spulen}</b><span>Spulen</span></div>
@@ -829,7 +840,10 @@ function einst() {
       <div class="e-block"><span class="ueber">Lagerliste</span>${seg("kompakt", e.kompakt, [[false, "Normal"], [true, "Kompakt"]])}</div>
       <div class="e-block"><span class="ueber">Filter im Lager</span><div class="seg">${[["liste", "Auswahlliste"], ["knoepfe", "Knöpfe (wie bisher)"]].map(([k, t]) =>
         `<button class="${S.lager.stil === k ? "an" : ""}" data-lagerstil="${k}">${t}</button>`).join("")}</div>
-        <span class="hinweis">Auswahlliste zeigt alle Materialien aus deinem Lager. Gilt nur für dieses Gerät.</span></div>`;
+        <span class="hinweis">Auswahlliste zeigt alle Materialien aus deinem Lager. Gilt nur für dieses Gerät.</span></div>
+      <div class="e-block"><span class="ueber">Herstellerlogos im Lager</span><div class="seg">${[[true, "Logo"], [false, "Nur Name"]].map(([k, t]) =>
+        `<button class="${logosAn() === k ? "an" : ""}" data-logos="${k}">${t}</button>`).join("")}</div>
+        <span class="hinweis">Logos kommen aus Home Assistant (config/www/hersteller). Fehlt eins, steht der Name da.</span></div>`;
   } else if (S.eSeite === "wlan") {
     const w = e.wlan || {};
     h = `<div class="e-zeile"><span class="e-titel wachsen">WLAN</span>${pill(!!w.ssid, w.ssid ? "verbunden" : "getrennt")}</div>
@@ -928,6 +942,7 @@ $("e-inhalt").onclick = async (e) => {
   if (d.et) return etEinstKlick(d);
   if (d.br) return brAktion(d.br, b);
   if (d.akzent) return einstSetzen({ akzent: d.akzent });
+  if (d.logos) { S.lager.logos = d.logos === "true"; lagerOptSpeichern(); return einst(); }
   if (d.lagerstil) { S.lager.stil = d.lagerstil; lagerOptSpeichern(); return einst(); }
   if (d.text) {
     if (KIOSK) { await einstSetzen({ textgroesse_kiosk: d.text }); skalieren(); return einst(); }
