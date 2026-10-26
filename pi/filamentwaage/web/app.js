@@ -199,7 +199,11 @@ function wiegen() {
 
   const farbe = proz < 15 && da ? "var(--rot)" : "var(--gruen)";
   $("ring").style.background = `conic-gradient(${farbe} 0 ${proz}%, var(--rand2) ${proz}% 100%)`;
-  $("spule").style.background = sorte ? sorte.hex : "var(--rand)";
+  const rk = sorte ? sorte.uid : "";
+  if ($("spule").dataset.k !== rk || !$("spule").firstChild) {  // nur neu zeichnen, wenn sich die Sorte ändert
+    $("spule").dataset.k = rk;
+    $("spule").innerHTML = sorte ? rolle(sorte.hex, sorte.besonderheiten, "rgross") : rolle("#3a4048", ["matt"], "rgross leer");
+  }
   $("zahl").textContent = da ? netto : 0;
   $("proz").textContent = !z.sensor_ok ? "Sensor antwortet nicht"
     : !da ? "Spule auflegen" : `${proz} % von ${gramm(soll)}${z.stabil ? "" : " · misst …"}`;
@@ -516,6 +520,25 @@ function designAnwenden() {
   app.style.setProperty("--chip-g", mischen(f, "#15181c", 0.82));
   app.style.filter = S.e.helligkeit < 100 ? `brightness(${0.35 + 0.65 * S.e.helligkeit / 100})` : "";
   $("liste").classList.toggle("kompakt-liste", !!S.e.kompakt);
+  logoSetzen(f);
+}
+// Logo und Favicon: eine Filamentrolle in der Akzentfarbe
+function logoSetzen(farbe) {
+  const l = document.querySelector(".kopf .logo");
+  if (l && l.dataset.f !== farbe) { l.dataset.f = farbe; l.innerHTML = rolle(farbe, [], "rlogo"); }
+  let fav = document.querySelector('link[rel="icon"]');
+  if (!fav) { fav = document.createElement("link"); fav.rel = "icon"; fav.type = "image/svg+xml"; document.head.appendChild(fav); }
+  fav.href = "data:image/svg+xml," + encodeURIComponent(favicon(farbe));
+}
+function favicon(c) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44"><g transform="rotate(-16 22 22)">
+<ellipse cx="27" cy="22" rx="9.4" ry="17.4" fill="#2b2f35" stroke="#7d8591" stroke-width="1.4"/>
+<path d="M18 6.4H27A8.3 15.6 0 0 1 27 37.6H18Z" fill="${c}"/>
+<path d="M18 6.4H27A8.3 15.6 0 0 1 27 37.6H18" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="1"/>
+<ellipse cx="18" cy="22" rx="9.4" ry="17.4" fill="#33373e" stroke="#a3abb6" stroke-width="1.4"/>
+<ellipse cx="18" cy="22" rx="8.3" ry="15.6" fill="${c}"/>
+<ellipse cx="18" cy="22" rx="5.2" ry="9.6" fill="#4b5058" stroke="#000" stroke-opacity=".45"/>
+<ellipse cx="18" cy="22" rx="2.6" ry="4.8" fill="#1d2024" stroke="#a3abb6" stroke-width=".9"/></g></svg>`;
 }
 
 function menueText(n) {
@@ -1267,3 +1290,5 @@ einstLaden();
 etLaden();
 amsLaden();
 setInterval(amsLaden, 30000);
+
+logoSetzen("#4caf50");  // bis die Einstellungen da sind

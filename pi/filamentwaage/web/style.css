@@ -27,8 +27,8 @@ button { font-family: inherit; color: inherit; }
   padding: 0 18px; border-bottom: 1px solid var(--linie); }
 .kopf-links, .kopf-rechts { display: flex; align-items: center; gap: 10px; }
 .kopf-rechts { gap: 12px; font-size: 12px; color: var(--sub); }
-.logo { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--gruen); display: grid; place-items: center; }
-.logo span { width: 6px; height: 6px; border-radius: 50%; background: var(--gruen); }
+.logo { width: 30px; height: 30px; display: grid; place-items: center; margin: -4px -2px -4px -6px; }
+
 .titel { font-weight: 700; font-size: 17px; }
 .sub { font-size: 13px; color: var(--sub); }
 .status { display: flex; align-items: center; gap: 6px; }
@@ -76,8 +76,7 @@ button { font-family: inherit; color: inherit; }
 .ring { width: 168px; height: 168px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center;
   background: conic-gradient(var(--gruen) 0 0%, var(--rand2) 0% 100%); }
 .ring-innen { width: 140px; height: 140px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; }
-.spule { width: 92px; height: 92px; border-radius: 50%; border: 3px solid var(--rand2); background: var(--rand);
-  display: grid; place-items: center; }
+.spule { width: 128px; height: 128px; display: grid; place-items: center; }
 .nabe { width: 26px; height: 26px; border-radius: 50%; background: var(--panel); }
 .zahl-zeile { display: flex; align-items: baseline; gap: 8px; }
 .zahl { font-size: 92px; font-weight: 800; line-height: .95; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
@@ -263,7 +262,7 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .app.eng .wiegen-karte { gap: 14px; padding: 16px; }
 .app.eng .ring { width: 140px; height: 140px; }
 .app.eng .ring-innen { width: 116px; height: 116px; }
-.app.eng .spule { width: 76px; height: 76px; }
+.app.eng .spule { width: 104px; height: 104px; }
 .app.eng .zahl { font-size: 80px; }
 .app.eng .rechts270 { width: 248px; }
 .app.eng .menue { width: 232px; }
@@ -310,3 +309,6 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .rolle.r34 { width: 50px; height: 50px; margin: -8px; }
 .rolle.r64 { width: 84px; height: 84px; margin: -10px; }
 .k-rolle { display: inline-flex; flex: 0 0 auto; }
+.rolle.rlogo { width: 30px; height: 30px; }
+.rolle.rgross { width: 100%; height: 100%; }
+.rolle.rgross.leer { opacity: .55; }
