@@ -145,15 +145,39 @@ const Etikett = (() => {
     const img = new Image();
     img.src = `/api/hersteller_bild?name=${encodeURIComponent(hersteller)}&v=${version}`;
     try { await img.decode(); } catch (e) { return null; }
-    bilder.set(hersteller, { version, img });
-    return img;
+    const druck = fuerDruck(img);
+    bilder.set(hersteller, { version, img: druck });
+    return druck;
+  }
+
+  // Thermodruck: Alles, was nicht weißer/durchsichtiger Hintergrund ist, wird schwarz –
+  // so verschwinden helle Farben (z. B. oranges „berlin“) nicht beim Schwarz-Weiß-Umwandeln.
+  function fuerDruck(img) {
+    try {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const x = c.getContext("2d");
+      x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+      for (let i = 0; i < p.length; i += 4) {
+        const r = p[i], g = p[i + 1], b = p[i + 2], a = p[i + 3];
+        const hell = Math.min(r, g, b), bunt = Math.max(r, g, b) - hell;
+        // Deckkraft × „Abstand von Weiß“ (Helligkeit oder Farbigkeit)
+        const tinte = (a / 255) * Math.max((255 - hell) / 255, bunt / 120 > 1 ? 1 : bunt / 120);
+        const v = tinte > 0.3 ? 0 : 255;
+        p[i] = p[i + 1] = p[i + 2] = v; p[i + 3] = 255;
+      }
+      x.putImageData(d, 0, 0);
+      return c;
+    } catch (e) { return img; }
   }
 
   // Kopfzeile: hinterlegtes Bild des Herstellers, sonst der Name in fetter Schrift
   function kopf(ctx, s, img, x, y, b, h) {
     if (img) {
-      const f = Math.min(b / img.naturalWidth, h / img.naturalHeight);
-      const w = Math.round(img.naturalWidth * f), hh = Math.round(img.naturalHeight * f);
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      const f = Math.min(b / iw, h / ih);
+      const w = Math.round(iw * f), hh = Math.round(ih * f);
       ctx.imageSmoothingEnabled = true;
       ctx.drawImage(img, x, y + Math.round((h - hh) / 2), w, hh);
       return;
