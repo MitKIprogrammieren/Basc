@@ -781,8 +781,12 @@ const char SEITE_OHNE_DATEIEN[] =
 
 void routen() {
     g_server.on("/", HTTP_GET, [](AsyncWebServerRequest* r) {
-        if (g_fs_ok && (LittleFS.exists("/index.html.gz") || LittleFS.exists("/index.html")))
-            r->send(LittleFS, "/index.html", "text/html; charset=utf-8");
+        if (g_fs_ok && (LittleFS.exists("/index.html.gz") || LittleFS.exists("/index.html"))) {
+            // Startseite nie zwischenspeichern – sie verweist mit Prüfsummen auf die aktuellen JS/CSS-Dateien
+            AsyncWebServerResponse* res = r->beginResponse(LittleFS, "/index.html", "text/html; charset=utf-8");
+            res->addHeader("Cache-Control", "no-cache");
+            r->send(res);
+        }
         else
             r->send(200, "text/html; charset=utf-8", SEITE_OHNE_DATEIEN);
     });
