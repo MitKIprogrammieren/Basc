@@ -125,6 +125,56 @@ function kopf() {
   $("uhr").textContent = z.uhrzeit || "--:--";
 }
 
+// ------------------------------------------------------------ Filamentrolle statt Farbquadrat (wie in SchichtLohn)
+// Die Muster (Seide, Metallic, CF, GF, Glitzer, Transparent) liegen einmal im Dokument, jede Rolle verweist nur darauf.
+function rollenMuster() {
+  if (document.getElementById("rollen-muster")) return;
+  const d = document.createElement("div");
+  d.id = "rollen-muster";
+  d.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+  d.innerHTML = `<svg width="0" height="0" aria-hidden="true"><defs>
+<linearGradient id="rlSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".7" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".38"/></linearGradient>
+<linearGradient id="rlShM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".02"/><stop offset=".6" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient>
+<linearGradient id="rlSilk" x1="0" y1="0" x2="1" y2="1"><stop offset=".22" stop-color="#fff" stop-opacity="0"/><stop offset=".42" stop-color="#fff" stop-opacity=".62"/><stop offset=".5" stop-color="#fff" stop-opacity=".18"/><stop offset=".6" stop-color="#fff" stop-opacity=".45"/><stop offset=".78" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="rlMetal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".3" stop-color="#000" stop-opacity=".12"/><stop offset=".5" stop-color="#fff" stop-opacity=".35"/><stop offset=".75" stop-color="#000" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity=".25"/></linearGradient>
+<pattern id="rlCf" width="2.8" height="2.8" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><path d="M.1 .5h1.1M1.3 1.75h.8" stroke="#000" stroke-opacity=".26" stroke-width=".3"/><path d="M.6 1.15h.6" stroke="#fff" stroke-opacity=".1" stroke-width=".25"/></pattern>
+<pattern id="rlGf" width="2.8" height="2.8" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)"><path d="M.1 .5h1.1M1.3 1.75h.8" stroke="#fff" stroke-opacity=".3" stroke-width=".26"/><path d="M.6 1.15h.5" stroke="#000" stroke-opacity=".08" stroke-width=".25"/></pattern>
+<pattern id="rlChk" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#c9cdd3"/><rect width="1.5" height="1.5" fill="#868c94"/><rect x="1.5" y="1.5" width="1.5" height="1.5" fill="#868c94"/></pattern>
+<pattern id="rlGlit" width="3.2" height="3.2" patternUnits="userSpaceOnUse"><circle cx=".7" cy=".8" r=".32" fill="#fff" fill-opacity=".95"/><circle cx="2.3" cy="2.2" r=".22" fill="#fff" fill-opacity=".75"/><circle cx="2.6" cy=".5" r=".16" fill="#ffe9a8" fill-opacity=".85"/></pattern>
+</defs></svg>`;
+  document.body.appendChild(d);
+}
+/** Filamentrolle als SVG. groesse: CSS-Klasse r22 / r30 / r34 / r64 */
+function rolle(hex, bes, groesse = "r30") {
+  rollenMuster();
+  const c = /^#[0-9a-f]{6}/i.test(String(hex || "")) ? String(hex).slice(0, 7) : "#9e9e9e";
+  const fl = (bes || []).map((x) => String(x).toLowerCase());
+  const hat = (re) => fl.some((x) => re.test(x));
+  const trans = hat(/^(transparent|klar|translucent)$/), matt = hat(/^matte?$/), seide = hat(/^(seide|silk)$/),
+    cf = hat(/^cf$/), gf = hat(/^gf$/), glitzer = hat(/^(glitzer|sparkle|galaxy)$/), metal = hat(/^(metallic|metall)$/);
+  const ov = [];
+  if (seide) ov.push("url(#rlSilk)"); if (metal) ov.push("url(#rlMetal)"); if (cf) ov.push("url(#rlCf)");
+  if (gf) ov.push("url(#rlGf)"); if (glitzer) ov.push("url(#rlGlit)");
+  const BAND = "M18 6.4H27A8.3 15.6 0 0 1 27 37.6H18Z";
+  const lag = (form) => ov.map((u) => form.replace("FILL", u)).join("");
+  const op = trans ? ' fill-opacity=".58"' : "";
+  return `<span class="rolle ${groesse}" role="img" aria-label="Filamentfarbe"><svg viewBox="0 0 44 44" aria-hidden="true"><g transform="rotate(-16 22 22)" stroke-linejoin="round">
+<ellipse cx="27" cy="22" rx="9.4" ry="17.4" fill="#2b2f35" stroke="#7d8591" stroke-width="1"/>
+${trans ? `<path d="${BAND}" fill="url(#rlChk)"/>` : ""}<path d="${BAND}" fill="${c}"${op}/>
+<path d="${BAND}" fill="url(#${matt ? "rlShM" : "rlSh"})"/>${lag(`<path d="${BAND}" fill="FILL"/>`)}
+<path d="M21.5 6.4A8.3 15.6 0 0 1 21.5 37.6M25 6.4A8.3 15.6 0 0 1 25 37.6" fill="none" stroke="#000" stroke-opacity=".1" stroke-width=".55"/>
+<path d="M18 6.4H27A8.3 15.6 0 0 1 27 37.6H18" fill="none" stroke="#000" stroke-opacity=".45" stroke-width=".7" stroke-linecap="round"/>
+<ellipse cx="18" cy="22" rx="9.4" ry="17.4" fill="#33373e" stroke="#a3abb6" stroke-width="1"/>
+${trans ? `<ellipse cx="18" cy="22" rx="8.3" ry="15.6" fill="url(#rlChk)"/>` : ""}<ellipse cx="18" cy="22" rx="8.3" ry="15.6" fill="${c}"${op}/>
+${matt ? `<ellipse cx="18" cy="22" rx="8.3" ry="15.6" fill="#000" fill-opacity=".06"/>` : ""}${lag(`<ellipse cx="18" cy="22" rx="8.3" ry="15.6" fill="FILL"/>`)}
+<ellipse cx="18" cy="22" rx="6.9" ry="12.9" fill="none" stroke="#000" stroke-opacity=".14" stroke-width=".6"/>
+<ellipse cx="18" cy="22" rx="8.3" ry="15.6" fill="none" stroke="#000" stroke-opacity=".35" stroke-width=".7"/>
+<ellipse cx="18" cy="22" rx="5.2" ry="9.6" fill="#4b5058" stroke="#000" stroke-opacity=".45" stroke-width=".8"/>
+<ellipse cx="18" cy="22" rx="2.6" ry="4.8" fill="#1d2024" stroke="#a3abb6" stroke-width=".7"/>
+<ellipse cx="18" cy="22" rx="1" ry="1.9" fill="#0b0c0e"/>
+${matt ? "" : `<path d="M12.2 11.6c1.3-2.9 3.1-4.7 4.9-5.1" stroke="#fff" stroke-opacity="${seide || metal ? ".85" : ".5"}" stroke-width="${seide || metal ? "1.3" : ".9"}" fill="none" stroke-linecap="round"/>`}</g></svg></span>`;
+}
+
 // ------------------------------------------------------------ Wiegen
 function karteChips(chips) {
   $("k-chips").innerHTML = chips.map(([t, a]) => `<span class="chip ${a}">${esc(t)}</span>`).join("");
@@ -163,7 +213,9 @@ function wiegen() {
   const haupt = $("btn-haupt");
   if (sorte) {
     $("k-titel").textContent = tag ? `Erkannt · NFC ${leser}` : "Gewählte Sorte";
-    $("k-swatch").style.background = sorte.hex;
+    $("k-swatch").className = "k-rolle";
+    $("k-swatch").style.background = "";
+    $("k-swatch").innerHTML = rolle(sorte.hex, sorte.besonderheiten, "r34");
     $("k-name").textContent = kurzname(sorte);
     $("k-sub").textContent = sorte.hersteller;
     const c = sorte.besonderheiten.slice(0, 2).map((b) => [b, ""]);
@@ -177,6 +229,8 @@ function wiegen() {
     $("btn-wahl").textContent = "Andere Sorte";
   } else if (tag) {
     $("k-titel").textContent = `Neuer Tag · NFC ${leser}`;
+    $("k-swatch").className = "swatch s34";
+    $("k-swatch").innerHTML = "";
     $("k-swatch").style.background = "var(--rand)";
     $("k-name").textContent = "Neue Spule";
     $("k-sub").textContent = `UID ${tag}`;
@@ -189,6 +243,8 @@ function wiegen() {
     $("btn-wahl").textContent = "Sorte wählen";
   } else {
     $("k-titel").textContent = "Keine Spule erkannt";
+    $("k-swatch").className = "swatch s34";
+    $("k-swatch").innerHTML = "";
     $("k-swatch").style.background = "var(--rand2)";
     $("k-name").textContent = da ? "Ohne NFC-Tag" : "Teller ist leer";
     $("k-sub").textContent = da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen";
@@ -251,7 +307,7 @@ function liste() {
     if (n >= MAX_ZEILEN) { weitere++; continue; }
     n++;
     html.push(`<div class="zeile${s === vorschlag ? " vorschlag" : ""}" data-uid="${esc(s.uid)}">
-      <div class="swatch s30" style="background:${esc(s.hex)}"></div>
+      ${rolle(s.hex, s.besonderheiten, "r30")}
       <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${esc(kurzname(s))}</span>
         <span class="sub14 ellipse">${esc(unterzeile(s))}</span></div>
       ${s === vorschlag ? '<span class="chip ams">Vorschlag aus AMS</span>' : s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
@@ -284,7 +340,7 @@ function reste() {
   for (const s of S.sorten) for (const g of s.reste) alle.push([s, g]);
   alle.sort((a, b) => b[1] - a[1]);
   $("reste").innerHTML = alle.length ? alle.slice(0, 7).map(([s, g]) => `<div class="rest-zeile">
-      <div class="swatch s22" style="background:${esc(s.hex)}"></div>
+      ${rolle(s.hex, s.besonderheiten, "r22")}
       <div class="wachsen minw0"><div class="ellipse" style="font-size:13px;font-weight:600">${esc(kurzname(s))}</div>
         <div class="balken"><div style="width:${Math.max(2, (g * 100) / s.gewicht)}%;background:${g < 250 ? "var(--rot)" : "var(--orange)"}"></div></div></div>
       <span style="font-size:13px;font-weight:700;width:50px;text-align:right">${gramm(g)}</span></div>`).join("")
@@ -353,7 +409,7 @@ function detail() {
     <section class="panel gruen links300">
       <div class="reihe gap10 mitte"><button class="knopf rahmen zurueck" id="d-zurueck" aria-label="Zurück zum Lager">‹</button>
         <div class="spalte minw0"><span class="name20 ellipse">${esc(kurzname(s))}</span><span class="sub14">${esc(s.hersteller)}</span></div></div>
-      <div class="reihe gap12 mitte"><div class="swatch s64" style="background:${esc(s.hex)}"></div>
+      <div class="reihe gap12 mitte">${rolle(s.hex, s.besonderheiten, "r64")}
         <div class="spalte gap6"><div class="chips">${chips}</div><span class="sub14">${komma(s.durchmesser, 2)} mm · ${gramm(s.gewicht)}</span></div></div>
       <div class="reihe gap10"><div class="kachel"><b>${s.spulen}</b><span>Spulen</span></div>
         <div class="kachel"><b>${s.reste.length}</b><span>angebrochen</span></div></div>
@@ -614,7 +670,7 @@ function einst() {
       ${d ? `<div class="e-block"><span class="ueber">AMS-Belegung</span>
         <div class="tabs">${dr.filter((x) => (e.drucker || []).includes(x.id)).map((x) => `<button class="${x.id === S.amsDrucker ? "an" : ""}" data-drucker="${x.id}">${esc(x.name)}</button>`).join("")}</div>
         ${(d.ams || []).map((a) => `<div class="e-zeile"><span class="sub14 wachsen">${esc(a.name)}</span>${a.feuchte != null ? `<span class="sub14">${a.feuchte} % Feuchte</span>` : ""}</div>
-          <div class="ams">${a.slots.map((sl) => `<div class="slot${sl.leer ? " leer" : ""}"><div class="spule-klein" style="background:${sl.leer ? "transparent" : esc(sl.hex)}"></div>
+          <div class="ams">${a.slots.map((sl) => `<div class="slot${sl.leer ? " leer" : ""}">${sl.leer ? '<div class="spule-klein"></div>' : rolle(sl.hex, [], "r30")}
             <b>${esc(a.kurz)}${sl.slot}${sl.aktiv ? " · aktiv" : ""}</b><small>${sl.leer ? "leer" : esc(sl.name)}</small>${sl.leer ? "" : `<small>${sl.rest >= 0 ? sl.rest + " % laut AMS" : ""}</small>`}</div>`).join("")}</div>`).join("") || '<span class="sub14">Kein AMS</span>'}</div>` : ""}
       <div class="e-block"><span class="ueber">Abbuchen nach dem Druck</span>
         <div class="e-zeile"><span class="e-name">Verbrauch wird nach jedem Druck automatisch abgezogen</span>${pill(e.abbuchung_aktiv, e.abbuchung_aktiv ? "aktiv" : "aus")}</div>
