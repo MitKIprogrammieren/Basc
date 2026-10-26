@@ -1,0 +1,16 @@
+[Unit]
+Description=FilamentLager-Waage – Bildschirm (Sonic Pad)
+After=filamentwaage.service systemd-user-sessions.service
+Wants=filamentwaage.service
+Conflicts=getty@tty1.service
+
+[Service]
+User=@BENUTZER@
+SupplementaryGroups=video input tty
+WorkingDirectory=/opt/filamentwaage
+ExecStart=/usr/bin/xinit /opt/filamentwaage/kiosk-sonicpad.sh -- :0 -nolisten tcp -nocursor -s 0 -dpms vt1 -keeptty
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

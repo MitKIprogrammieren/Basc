@@ -1,0 +1,37 @@
+# FilamentLager-Waage auf dem Creality Sonic Pad (SonicPad-Debian)
+# Vor dem Paketbau (tools/sonicpad_paket.sh) bearbeiten – oder später auf dem Pad in /etc/filamentwaage/config.toml.
+# Das Installationsskript kopiert sie beim ersten Mal nach /etc/filamentwaage/config.toml.
+
+[home_assistant]
+url = "http://homeassistant.local:8123"
+# Langlebiges Zugriffstoken: HA → Profil → Sicherheit → Langlebige Zugriffstokens
+token = ""
+todo = "todo.filament"
+zertifikat_pruefen = true
+
+[sensor]
+# Die Sensorplatine (ESP32-S3-Zero) in der Waage funkt per WLAN.
+art = "wlan"
+# Name der Waage im Heimnetz. Klappt das nicht, hier die IP-Adresse aus der FritzBox eintragen,
+# z. B. "192.168.178.57" (und in der FritzBox "immer dieselbe IP-Adresse zuweisen" anhaken).
+wlan_adresse = "filamentwaage.local"
+wlan_port = 4711
+
+[waage]
+leerspule_g = 250
+lager_neu_laden_s = 60
+
+[etikett]
+# Phomemo-Etikettendrucker. Lässt sich auch später in der Waage unter Einstellungen → Etiketten einstellen.
+# Druckbrücke für den Phomemo M20 Pro (läuft z. B. auf dem Pi-hole-Pi), etwa "http://192.168.178.2:8765".
+# Leer = direkt per Bluetooth vom Sonic Pad drucken.
+bruecke = ""
+verbindung = "ble"         # ble = Bluetooth Low Energy, rfcomm = klassisches Bluetooth
+adresse = ""               # leer lassen und in der Waage „Drucker suchen“ tippen
+format = "expanded"        # classic 40×30, expanded 50×30, compact 40×25, vertikal 30×40
+dichte = 10                # Schwärzung 1–15
+
+[server]
+# "0.0.0.0" = Oberfläche auch im Heimnetz öffnen: http://<sonicpad>:8080
+adresse = "127.0.0.1"
+port = 8080

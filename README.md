@@ -6,16 +6,16 @@ trägt ihn mit einem Tipp ins Lager ein. Eigenes Design auf 800×480.
 
 ![Bildschirme der Waage](docs/bilder/uebersicht.png)
 
-## Drei Bauarten
+## Vier Bauarten
 
-| | ESP32-Variante | Pi-Variante | Pad-7-Variante |
-|---|---|---|---|
-| Display | Waveshare ESP32-S3-Touch-LCD-5 (5", 800×480) | Raspberry Pi 4 + BTT PI TFT50 V2 | BTT Pad 7 mit CB1 (7", 1024×600) |
-| Oberfläche | LVGL, direkt auf dem ESP32 | Web-Oberfläche im Chromium-Kiosk | wie Pi-Variante |
-| Messung | Sensorplatine (ESP32-S3-Zero) per RS485 | Sensorplatine per USB oder HX711/PN532 am Pi | Sensorplatine per **WLAN** – kein Kabel zum Display |
-| Ordner | `firmware/display-5inch`, `firmware/sensor-s3zero` | `pi/` | `pi/` + `pi/pad7/`, `firmware/sensor-s3zero` |
+| | ESP32-Variante | Pi-Variante | Pad-7-Variante | Sonic-Pad-Variante |
+|---|---|---|---|---|
+| Display | Waveshare ESP32-S3-Touch-LCD-5 (5", 800×480) | Raspberry Pi 4 + BTT PI TFT50 V2 | BTT Pad 7 mit CB1 (7", 1024×600) | Creality Sonic Pad mit SonicPad-Debian (7", 1024×600) |
+| Oberfläche | LVGL, direkt auf dem ESP32 | Web-Oberfläche im Chromium-Kiosk | wie Pi-Variante | wie Pi-Variante |
+| Messung | Sensorplatine (ESP32-S3-Zero) per RS485 | Sensorplatine per USB oder HX711/PN532 am Pi | Sensorplatine per **WLAN** – kein Kabel zum Display | wie Pad 7 |
+| Ordner | `firmware/display-5inch`, `firmware/sensor-s3zero` | `pi/` | `pi/` + `pi/pad7/`, `firmware/sensor-s3zero` | `pi/` + `pi/sonicpad/`, `firmware/sensor-s3zero` |
 
-Beide zeigen dieselben Bildschirme: **Wiegen**, **Lager** (Suche, Filter, angebrochene Rollen),
+Alle zeigen dieselben Bildschirme: **Wiegen**, **Lager** (Suche, Filter, angebrochene Rollen),
 **Sorte im Detail** und **Einstellungen** (Design, WLAN, Home Assistant, Bambu Lab mit AMS-Belegung, Waage, System).
 
 ## Teile
@@ -110,6 +110,16 @@ Ohne fertiges Image:
 3. `tools/pad7_paket.sh` baut `filamentwaage-pad7.zip` – den Ordner daraus auf die Partition BOOT kopieren,
    Token in `config.pad7.toml` eintragen.
 4. Am Pad 7 einmal `sudo bash /boot/filamentwaage/install-pad7.sh` – danach startet es direkt in die Waage.
+
+## Sonic-Pad-Variante einrichten
+
+Wie das Pad 7 ist das Sonic Pad nur Bildschirm. Auf die Creality-Firmware passt kein Browser, daher kommt zuerst
+[SonicPad-Debian](https://github.com/Teichoui/SonicPad-Debian) per PhoenixSuit aufs Pad.
+Schritt für Schritt: [pi/sonicpad/ANLEITUNG.md](pi/sonicpad/ANLEITUNG.md).
+
+1. SonicPad-Debian flashen, in KlipperScreen WLAN verbinden.
+2. `tools/sonicpad_paket.sh` baut `filamentwaage-sonicpad.zip`, per `scp` aufs Pad (`sonic` / `pad`).
+3. Auf dem Pad entpacken und `sudo bash filamentwaage/install-sonicpad.sh --waage=<IP der Waage>` – danach startet es direkt in die Waage.
 
 ## Nur Sensorplatine, Bedienung im Browser
 
