@@ -67,6 +67,17 @@ else:
         aus = ziel / (str(rel) + ".gz")
         aus.parent.mkdir(parents=True, exist_ok=True)
         inhalt = schrift_verkleinern(datei) if datei.suffix.lower() == ".ttf" else datei.read_bytes()
+        if rel.as_posix() == "index.html":
+            # Cache-Brecher: /static/app.js?v=<Prüfsumme> – nach einem Update holt der Browser sofort die neuen Dateien
+            import hashlib
+            import re
+
+            def mit_version(m):
+                d = quelle / m.group(1).decode()
+                h = hashlib.sha1(d.read_bytes()).hexdigest()[:8] if d.is_file() else "0"
+                return b"/static/" + m.group(1) + b"?v=" + h.encode() + b'"'
+
+            inhalt = re.sub(rb'/static/([A-Za-z0-9_.-]+[.](?:js|css))"', mit_version, inhalt)
         # mtime=0: gleiche Eingabe ergibt gleiches Abbild
         with open(aus, "wb") as f, gzip.GzipFile(fileobj=f, mode="wb", compresslevel=9, mtime=0) as gz:
             gz.write(inhalt)
