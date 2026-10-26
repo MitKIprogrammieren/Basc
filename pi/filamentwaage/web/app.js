@@ -293,9 +293,47 @@ function herstellerLogo(name, frage) {
   if (!name) return "";
   const v = S.et && S.et.bilder ? S.et.bilder[name] || 0 : 0;
   return `<span class="hlogo"><img src="/api/hersteller_bild?name=${encodeURIComponent(name)}${v ? `&v=${v}` : ""}" alt="" loading="lazy"
-    onload="if(!this.naturalWidth)this.parentNode.classList.add('fehlt')" onerror="this.parentNode.classList.add('fehlt')"><span class="hname">${frage ? markiere(name, frage) : esc(name)}</span></span>`;
+    onload="logoFaerben(this)" onerror="this.parentNode.classList.add('fehlt')"><span class="hname">${frage ? markiere(name, frage) : esc(name)}</span></span>`;
 }
 const logosAn = () => S.lager.logos !== false;
+
+// Logo durchsichtig machen und in der Schriftfarbe der Zeile einfärben (wie vorher der Name).
+// Weißer/heller Hintergrund wird entfernt; helle Logos auf durchsichtigem Grund bleiben erkennbar.
+const LOGO_FARBIG = new Map();
+function logoFaerben(img) {
+  const box = img.parentNode;
+  if (!img.naturalWidth) { box.classList.add("fehlt"); return; }
+  if (img.dataset.fertig) return;
+  const farbe = getComputedStyle(box).color;
+  const schluessel = img.src + "|" + farbe;
+  const fertig = (url) => { img.dataset.fertig = "1"; img.src = url; box.classList.add("bereit"); };
+  if (LOGO_FARBIG.has(schluessel)) { fertig(LOGO_FARBIG.get(schluessel)); return; }
+  try {
+    const sk = Math.min(1, 240 / img.naturalHeight, 600 / img.naturalWidth);
+    const w = Math.max(1, Math.round(img.naturalWidth * sk)), h = Math.max(1, Math.round(img.naturalHeight * sk));
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const x = c.getContext("2d", { willReadFrequently: true });
+    x.drawImage(img, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h), p = d.data;
+    // Hintergrund bestimmen: Ecken durchsichtig → Logo steht schon frei
+    const ecke = (i) => p[i * 4 + 3];
+    const frei = [0, w - 1, (h - 1) * w, h * w - 1].filter((i) => ecke(i) < 40).length >= 2;
+    let summe = 0, n = 0;
+    for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 128) { summe += 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]; n++; }
+    const hellesLogo = frei && n && summe / n > 150;
+    const m = farbe.match(/\d+(\.\d+)?/g) || ["230", "230", "230"];
+    const [r, g, b] = m.map(Number);
+    for (let i = 0; i < p.length; i += 4) {
+      const lum = (0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]) / 255;
+      let a = hellesLogo ? lum : Math.min(1, Math.max(0, (0.93 - lum) / 0.6));
+      p[i] = r; p[i + 1] = g; p[i + 2] = b; p[i + 3] = Math.round(p[i + 3] * a);
+    }
+    x.putImageData(d, 0, 0);
+    const url = c.toDataURL("image/png");
+    LOGO_FARBIG.set(schluessel, url);
+    fertig(url);
+  } catch (e) { box.classList.add("bereit"); }
+}
 
 // ------------------------------------------------------------ Lager: Suche, Filter, Sortierung
 // Einstellungen je Gerät: Stil der Filter (Auswahlliste oder Knöpfe wie früher) und Sortierung

@@ -336,7 +336,8 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
 /* Herstellerlogo im Lager: auf heller Plakette, damit schwarze und farbige Logos lesbar sind */
 .hlogo { display: inline-flex; align-items: center; vertical-align: middle; margin-right: 4px; }
-.hlogo img { height: 17px; max-width: 86px; object-fit: contain; background: #eceef1; border-radius: 5px; padding: 2px 6px; }
+.hlogo img { height: 15px; max-width: 90px; object-fit: contain; visibility: hidden; }
+.hlogo.bereit img { visibility: visible; }
 .hlogo .hname { display: none; }
 .hlogo.fehlt img { display: none; } .hlogo.fehlt .hname { display: inline; }
 .unterzeile { display: flex; align-items: center; gap: 0; }
