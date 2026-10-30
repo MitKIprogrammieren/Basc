@@ -61,6 +61,10 @@ def hex_zu_rgb(h, standard="#888888"):
     return standard
 
 
+# Zusätzliche Werte, die SchichtLohn pro Sorte speichert – nur durchgereicht für die Etikett-Zeilen
+DRUCKPROFIL = ("mvs", "k", "kammer", "schwund", "buegeln_tempo", "buegeln_flow", "ams", "ams_modelle", "sku")
+
+
 @dataclass
 class Sorte:
     uid: str
@@ -91,6 +95,7 @@ class Sorte:
     getrocknet: str = ""
     codes: list = field(default_factory=list)
     nfc: list = field(default_factory=list)
+    druckprofil: dict = field(default_factory=dict)  # Werte für die Etikett-Zeilen (aus SchichtLohn)
 
     @property
     def kurzname(self):
@@ -112,7 +117,7 @@ class Sorte:
             "trocknen_c": self.trocknen_c, "trocknen_h": self.trocknen_h,
             "durchmesser": self.durchmesser, "leer_g": self.leer_g, "fcode": self.fcode,
             "bambu_id": self.bambu_id, "ort": self.ort, "getrocknet": self.getrocknet, "codes": self.codes, "nfc": self.nfc,
-            "bestand_g": self.bestand_g,
+            "bestand_g": self.bestand_g, **self.druckprofil,
         }
 
 
@@ -170,6 +175,7 @@ def sorte_aus_eintrag(uid, summary, beschreibung):
     s.getrocknet = str(d.get("getrocknet") or "")
     s.codes = [str(c) for c in d.get("codes") or [] if isinstance(c, str)]
     s.nfc = [str(c) for c in d.get("nfc") or [] if isinstance(c, str)]
+    s.druckprofil = {k: d[k] for k in DRUCKPROFIL if isinstance(d.get(k), (bool, int, float, str)) and d.get(k) != ""}
     return s
 
 

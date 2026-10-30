@@ -216,7 +216,7 @@ input[type=range].regler { flex: 1; accent-color: var(--gruen); height: 28px; }
 .etikett-box { max-width: 720px; width: 720px; align-items: stretch; }
 .et-vorschau { width: 380px; height: 300px; flex: 0 0 auto; display: grid; place-items: center; background: var(--kachel);
   border-radius: 14px; }
-#et-canvas { max-width: 350px; max-height: 270px; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 0 0 1px var(--rand); }
+#et-canvas { max-width: 350px; max-height: 270px; border-radius: 8px; box-shadow: 0 0 0 1px var(--rand); }
 .et-formate { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .et-format { position: relative; }
 .et-format.neu { border-style: dashed; color: var(--sub); align-items: center; font-size: 12px; font-weight: 600; }
@@ -341,3 +341,8 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .hlogo .hname { display: none; }
 .hlogo.fehlt img { display: none; } .hlogo.fehlt .hname { display: inline; }
 .unterzeile { display: flex; align-items: center; gap: 0; }
+
+/* Zeile 1–4 und RGB als Auswahllisten (wie in SchichtLohn) */
+.et-zeilen { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.et-zeile { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.et-wahl { height: 38px; border-radius: 10px; border: 1px solid var(--rand); background: var(--karte, transparent); color: inherit; font: inherit; font-size: 14px; padding: 0 10px; min-width: 0; }

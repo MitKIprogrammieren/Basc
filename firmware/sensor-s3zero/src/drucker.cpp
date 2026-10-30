@@ -559,7 +559,7 @@ void drucker_einstellungen(JsonDocument& d) {
     d["dichte"] = g_w.dichte;
     d["kopf_px"] = ETIKETT_KOPF_PX;
     JsonArray f = d["formate"].to<JsonArray>();
-    for (const char* x : {"classic", "expanded", "compact", "vertikal"}) f.add(x);
+    for (const char* x : {"classic", "expanded", "compact", "slim", "slicer", "vertikal", "vertikal_fett", "vertikal_kompakt"}) f.add(x);
     d["druckt"] = g_druckt;
     bool verbunden = false;
     if (g_ble_an)
@@ -571,7 +571,8 @@ void drucker_einstellungen(JsonDocument& d) {
 void drucker_setzen(JsonObjectConst o) {
     std::lock_guard<std::mutex> l(g_mx);
     String format = o["format"] | "";
-    if (format == "classic" || format == "expanded" || format == "compact" || format == "vertikal") g_w.format = format;
+    if (format == "classic" || format == "expanded" || format == "compact" || format == "slim" || format == "slicer" ||
+        format == "vertikal" || format == "vertikal_fett" || format == "vertikal_kompakt") g_w.format = format;
     if (o["dichte"].is<int>()) g_w.dichte = constrain(o["dichte"].as<int>(), 1, 15);
     if (o["bruecke"].is<const char*>()) {
         String b = o["bruecke"].as<const char*>();

@@ -1215,6 +1215,14 @@ function etOptionen() {
   o = o && typeof o === "object" ? o : {};
   if (!Array.isArray(o.felder)) o.felder = Etikett.STANDARD_FELDER.slice();
   if (o.v !== 2) { o.felder = o.felder.filter((k) => k !== "rest"); o.v = 2; }  // Rest ist seit 2.8.2 aus
+  // Zeile 1–4 wie in SchichtLohn; ältere Auswahl („felder“) wird übernommen
+  if (!Array.isArray(o.slots)) {
+    const alt = o.felder.filter((k) => Etikett.FELDER.some(([x]) => x === k));
+    o.slots = (alt.length ? alt : Etikett.STANDARD_SLOTS).slice(0, 4);
+  }
+  while (o.slots.length < 4) o.slots.push("keine");
+  o.slots = o.slots.slice(0, 4);
+  o.rgb = o.rgb === "aus" ? "aus" : "text";
   o.eigene = typeof o.eigene === "string" ? o.eigene : "";
   o.hochkant = !!o.hochkant;
   o.formate = Array.isArray(o.formate) ? o.formate.filter((k) => Etikett.formatVon(k)) : [];
@@ -1238,17 +1246,15 @@ function etOptionenHtml(d) {
   const quer = f.b > f.h;
   const aus = quer ? `<div class="spalte gap6"><span class="ueber">Ausrichtung</span>${seg("et-hoch", o.hochkant ? 1 : 0, [[0, "Quer"], [1, "Hochkant"]])}</div>` : "";
   const wo = { rest: d.rest, eigene: o.eigene, leerStandard: S.z ? S.z.leer_standard_g : 0 };
-  const leer = [];
-  const chips = Etikett.FELDER.map(([k, n]) => {
-    const an = o.felder.includes(k);
-    const ohne = an && k !== "eigene" && !Etikett.hatWert(d.sorte, k, wo);
-    if (ohne) leer.push(n);
-    return `<button class="et-feld${an ? " an" : ""}${ohne ? " ohne" : ""}" data-feld="${k}" aria-pressed="${an}"${ohne ? ' title="Bei dieser Sorte nicht eingetragen"' : ""}>${esc(n)}${ohne ? " –" : ""}</button>`;
-  }).join("");
-  const hinweis = leer.length ? `<span class="et-ohne">Bei dieser Sorte nicht eingetragen: ${esc(leer.join(", "))} – diese Zeilen bleiben leer.</span>` : "";
-  const eigene = o.felder.includes("eigene")
+  const da = (k) => k === "eigene" || k === "rest" || k === "id" || Etikett.hatWert(d.sorte, k, wo);
+  const zeilen = o.slots.map((sl, i) => `<label class="et-zeile"><span class="ueber">Zeile ${i + 1}</span><select class="et-wahl" data-zeile="${i}">
+      ${Etikett.FELDER.map(([k, n]) => `<option value="${k}"${k === sl ? " selected" : ""}>${esc(n)}${da(k) ? "" : " – nicht eingetragen"}</option>`).join("")}
+      <option value="keine"${sl === "keine" ? " selected" : ""}>Keine</option></select></label>`).join("");
+  const rgb = `<label class="et-zeile"><span class="ueber">RGB</span><select class="et-wahl" data-rgb="1">
+      <option value="text"${o.rgb !== "aus" ? " selected" : ""}>Hex-Wert anzeigen</option><option value="aus"${o.rgb === "aus" ? " selected" : ""}>Aus</option></select></label>`;
+  const eigene = o.slots.includes("eigene")
     ? `<input id="et-eigene" class="et-eigene" data-tastatur="frei" maxlength="40" placeholder="Eigener Text, z. B. Für Halloween-Deko" value="${esc(o.eigene)}">` : "";
-  return `${aus}<div class="spalte gap6"><span class="ueber">Angaben auf dem Etikett</span><div class="et-felder">${chips}</div>${hinweis}${eigene}<span id="et-weg" class="sub14 et-weg"></span></div>`;
+  return `${aus}<div class="spalte gap6"><span class="ueber">Angaben auf dem Etikett</span><div class="et-zeilen">${zeilen}${rgb}</div>${eigene}<span id="et-weg" class="sub14 et-weg"></span></div>`;
 }
 async function etikettZeichnen(nurVorschau) {
   const d = S.etDialog;
@@ -1295,14 +1301,18 @@ async function etikettZeichnen(nurVorschau) {
     const ein = $("et-eigene");
     if (ein) ein.oninput = () => { d.opt.eigene = ein.value; etOptionenSpeichern(d.opt); etikettZeichnen(true); };
   }
-  const erg = await Etikett.zeichnen($("et-canvas"), d.sorte, {
-    format: d.format, rest: d.rest, qr: S.et ? S.et.lager_url : "",
-    bildVersion: S.et && S.et.bilder ? S.et.bilder[d.sorte.hersteller] || 0 : 0,
-    felder: d.opt.felder, eigene: d.opt.eigene, hochkant: d.opt.hochkant,
-    leerStandard: S.z ? S.z.leer_standard_g : 0,
-  });
+  const erg = await Etikett.zeichnen($("et-canvas"), d.sorte, Object.assign(etZeichenOpt(d), { skala: 2 }));
   const weg = $("et-weg");
   if (weg) weg.textContent = erg && erg.weg && erg.weg.length ? `Passt nicht mehr drauf: ${erg.weg.join(", ")}` : "";
+}
+// Optionen fürs Zeichnen – Vorschau mit skala 2, Druck in Originalauflösung
+function etZeichenOpt(d) {
+  return {
+    format: d.format, rest: d.rest, qr: S.et ? S.et.lager_url : "",
+    bildVersion: S.et && S.et.bilder ? S.et.bilder[d.sorte.hersteller] || 0 : 0,
+    slots: d.opt.slots, rgb: d.opt.rgb, eigene: d.opt.eigene, hochkant: d.opt.hochkant,
+    leerStandard: S.z ? S.z.leer_standard_g : 0,
+  };
 }
 $("et-formate").onclick = (e) => {
   const d = S.etDialog;
@@ -1333,22 +1343,27 @@ $("et-sort").onclick = (e) => {
 $("et-optionen").onclick = (e) => {
   const d = S.etDialog;
   if (!d) return;
-  const f = e.target.closest("[data-feld]");
   const h = e.target.closest('[data-seg="et-hoch"]');
-  if (f) {
-    const k = f.dataset.feld;
-    const an = new Set(d.opt.felder);
-    an.has(k) ? an.delete(k) : an.add(k);
-    d.opt.felder = Etikett.FELDER.map(([x]) => x).filter((x) => an.has(x));
-  } else if (h) d.opt.hochkant = h.dataset.v === "1";
+  if (h) d.opt.hochkant = h.dataset.v === "1";
   else return;
+  etOptionenSpeichern(d.opt);
+  etikettZeichnen();
+};
+$("et-optionen").onchange = (e) => {
+  const d = S.etDialog;
+  const w = e.target.closest("select.et-wahl");
+  if (!d || !w) return;
+  if (w.dataset.rgb) d.opt.rgb = w.value;
+  else d.opt.slots[Number(w.dataset.zeile)] = w.value;
   etOptionenSpeichern(d.opt);
   etikettZeichnen();
 };
 $("et-zu").onclick = () => { $("etikett").classList.add("versteckt"); S.etDialog = null; };
 $("et-druck").onclick = async () => {
   if (!S.etDialog) return;
-  const r = Etikett.raster($("et-canvas"));
+  const cv = document.createElement("canvas");
+  await Etikett.zeichnen(cv, S.etDialog.sorte, etZeichenOpt(S.etDialog));
+  const r = Etikett.raster(cv);
   const so = S.etDialog.sorte;
   r.titel = so === Etikett.TEST ? "Testdruck" : [kurzname(so), so.hersteller && `(${so.hersteller})`].filter(Boolean).join(" ");
   try {

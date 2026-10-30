@@ -711,6 +711,12 @@ void sorte_json(JsonObject o, const Filament& f) {
     JsonArray n = o["nfc"].to<JsonArray>();
     for (const auto& x : f.nfc) n.add(x);
     o["bestand_g"] = f.bestand_g();
+    // Werte für die Etikett-Zeilen (Flow, TD, K-Wert … aus SchichtLohn) unverändert aus der Beschreibung
+    JsonDocument d;
+    if (!f.description.empty() && !deserializeJson(d, f.description)) {
+        for (const char* k : {"flow", "td", "mvs", "k", "kammer", "schwund", "buegeln_tempo", "buegeln_flow", "ams", "ams_modelle", "sku"})
+            if (!d[k].isNull()) o[k] = d[k];
+    }
 }
 
 String zustand_text() {
