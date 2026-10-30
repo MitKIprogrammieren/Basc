@@ -1215,6 +1215,9 @@ void routen() {
                     LittleFS.end();
                     g_fs_ok = false;
                 }
+                // Ein abgebrochener früherer Versuch hält das Update sonst „belegt“ – dann meldet
+                // Update.begin() nur „No Error“, bis die Waage neu startet.
+                if (Update.isRunning()) Update.abort();
                 s_update_ok = Update.begin(UPDATE_SIZE_UNKNOWN, fs ? U_SPIFFS : U_FLASH);
                 if (!s_update_ok) s_update_fehler = String("Update lässt sich nicht starten: ") + Update.errorString();
             }
