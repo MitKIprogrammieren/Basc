@@ -188,7 +188,7 @@ Protokoll der Sensorplatine: [docs/PROTOKOLL.md](docs/PROTOKOLL.md)
 |---|---|
 | Datenmodell C++ und Python | Tests mit echten Lagerdaten |
 | ESP32-Oberfläche (5" und SC01 Plus) | am PC mit LVGL 8.3 gerendert |
-| SC01-Plus-Firmware | mit der ESP32-S3-Toolchain übersetzt; Pins wie im Arduino_GFX-Beispiel fürs SC01 Plus |
+| SC01-Plus-Firmware | auf echtem SC01 Plus: Display, Touch und Einrichtung per Webflasher laufen |
 | Pi-Dienst und Web-Oberfläche | im Demo-Modus und gegen nachgebautes Home Assistant |
 | WLAN-Verbindung Pi/Pad 7 ↔ Sensorplatine (Python) | Tests gegen nachgebaute Sensorplatine |
 | ESP32-Display-Treiber (5" und SC01 Plus), Touch, WLAN, Sensor-Firmware | **noch nicht auf echter Hardware** – Pins und Display-Timing beim ersten Start prüfen |
