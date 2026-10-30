@@ -106,13 +106,16 @@ const Etikett=(()=>{
   function balken(ctx,s,x,y,b,h){ctx.fillStyle="#000";ctx.fillRect(x,y,b,h);const mp=passend(ctx,materialVon(s),b-Math.round(h*0.3),Math.round(h*0.82),800,9);
     text(ctx,mp.text,x+Math.round(h*0.15),y+Math.round(h*0.5+mp.g*0.36),mp.g,800,"#fff")}
   /* Werteliste: Name links, Wert in eigener Spalte */
-  function werte(ctx,liste,x,y,breite,zh,ref,fett=false){const zg=Math.round(zh*0.82);ctx.font=`600 ${zg}px ${SCHRIFT}`;
+  function werte(ctx,liste,x,y,breite,zh,ref,fett=false){
+    // Name schlicht und etwas kleiner, Wert fett – alle Werte gleich groß, damit die Spalte ruhig wirkt
+    const gn=Math.round(zh*0.62),gw0=Math.round(zh*0.84);ctx.font=`500 ${gn}px ${SCHRIFT}`;
     const spalte=Math.max(0,...liste.filter(([nm])=>nm).map(([nm])=>ctx.measureText(nm).width))+Math.round(ref*0.04);
-    liste.forEach(([nm,w],i)=>{const zy=y+(i+1)*zh-Math.round(zh*0.2);if(!nm){const ep=passend(ctx,w,breite,zg,700,9);text(ctx,ep.text,x,zy,ep.g,700);return}
-      text(ctx,nm,x,zy,zg,fett?700:600);const wp=passend(ctx,w,breite-spalte,zg,nm==="Rest"||fett?800:700,9);text(ctx,wp.text,x+spalte,zy,wp.g,nm==="Rest"||fett?800:700)})}
+    const gw=Math.min(gw0,...liste.map(([nm,w])=>passend(ctx,w,breite-(nm?spalte:0),gw0,800,8).g));
+    liste.forEach(([nm,w],i)=>{const zy=y+(i+1)*zh-Math.round(zh*0.22);if(nm)text(ctx,nm,x,zy,gn,500);
+      const wp=passend(ctx,w,breite-(nm?spalte:0),gw,800,8);text(ctx,wp.text,x+(nm?spalte:0),zy,wp.g,800)})}
   /* Werteliste untereinander: kleiner Name, darunter großer Wert (schmale Etiketten) */
-  function werteGestapelt(ctx,liste,x,y,breite,zh){liste.forEach(([nm,w],i)=>{const y0=y+i*zh;const g1=Math.round(zh*0.3),g2=Math.round(zh*0.5);
-      if(nm)text(ctx,nm,x,y0+g1,g1,600);const wp=passend(ctx,w,breite,g2,800,9);text(ctx,wp.text,x,y0+g1+Math.round(zh*0.08)+wp.g,wp.g,800)})}
+  function werteGestapelt(ctx,liste,x,y,breite,zh,gw){liste.forEach(([nm,w],i)=>{const y0=y+i*zh;const g1=Math.round(zh*0.3),g2=gw||Math.round(zh*0.5);
+      if(nm)text(ctx,nm,x,y0+g1,g1,500);const wp=passend(ctx,w,breite,g2,800,9);text(ctx,wp.text,x,y0+g1+Math.round(zh*0.08)+wp.g,wp.g,800)})}
 
   /** o: { format, slots[4], rgb ("text"|"aus"), qr (Inhalt), id, rest, eigene, leerStandard, hochkant } */
   async function zeichnen(canvas,s,o={}){
@@ -165,16 +168,26 @@ const Etikett=(()=>{
   function hoch(ctx,s,o,img,W,H,hex,f,fett=false,max=f.werte){const ref=W;const m=Math.round(ref*0.055);const innen=W-2*m;let y=m;
     const kh=Math.round(ref*(fett?0.2:0.17));kopf(ctx,s,img,m,y,innen,kh);y+=kh+Math.round(ref*0.03);
     const bh=Math.round(ref*(fett?0.22:0.19));balken(ctx,s,m,y,innen,bh);y+=bh+Math.round(ref*0.03);
-    const fg0=Math.round(ref*(fett?0.13:0.11));const ein=passend(ctx,farbeVon(s),innen,fg0,700,Math.round(fg0*0.8/K));
-    const z=ein.text.endsWith("…")?umbrechen(ctx,farbeVon(s),innen,fg0,700,2):[ein.text];const fg=z.length>1?fg0:ein.g;
-    z.forEach(t=>{y+=Math.round(fg*1.1);text(ctx,t,m,y,fg,700)});if(hex){y+=Math.round(ref*0.095);text(ctx,hex,m,y,Math.round(ref*0.085),700)}y+=Math.round(ref*0.03);
-    const unten=H-m;const platz=unten-y;const q=o.qr?Math.min(platz,Math.round(W*(fett?0.4:0.36))):0;const gap=Math.round(ref*0.03);
-    const breite=innen-(q?q+gap:0);const zh=Math.round(ref*(fett?0.12:0.095));const anz=Math.max(0,Math.min(max,Math.floor(platz/zh)));const liste=zeilen(s,o,anz);
-    const g0=Math.round(zh*0.8);const gg=Math.min(g0,...liste.map(([nm,w])=>passend(ctx,nm?`${nm}  ${w}`:w,breite,g0,fett?800:700,8).g));
-    liste.forEach(([nm,w],i)=>{const t=nm?`${nm}  ${w}`:w;const p=passend(ctx,t,breite,gg,fett?800:700,8);
-      const zy=unten-(liste.length-i-1)*zh-Math.round(zh*0.15);ctx.font=`${fett?800:700} ${p.g}px ${SCHRIFT}`;
-      if(nm&&!p.text.endsWith("…")){text(ctx,nm,m,zy,p.g,600);const nb=ctx.measureText(nm+"  ").width;text(ctx,w,m+nb,zy,p.g,fett?800:700)}else text(ctx,p.text,m,zy,p.g,fett?800:700)});
-    if(q)qr(ctx,o.qr,W-m-q,unten-q,q);return liste.weg}
+    // QR-Code rechts neben Farbe und Hex-Wert, darunter die Werte als ruhige Tabelle in voller Breite:
+    // Name links, Wert in einer Spalte, alle Zeilen gleich groß.
+    const gap=Math.round(ref*0.04);const unten=H-m;const q=o.qr?Math.round(W*(fett?0.34:0.32)):0;const yQ=y;
+    const fb=innen-(q?q+gap:0);const fg0=Math.round(ref*(fett?0.13:0.11));const ein=passend(ctx,farbeVon(s),fb,fg0,700,Math.round(fg0*0.7/K));
+    const z=ein.text.endsWith("…")?umbrechen(ctx,farbeVon(s),fb,fg0,700,2):[ein.text];const fg=z.length>1?fg0:ein.g;
+    z.forEach(t=>{y+=Math.round(fg*1.1);text(ctx,t,m,y,fg,700)});
+    if(hex){const hp=passend(ctx,hex,fb,Math.round(ref*0.085),700,8);y+=Math.round(ref*0.095);text(ctx,hp.text,m,y,hp.g,700)}
+    if(q)qr(ctx,o.qr,W-m-q,yQ,q,"oben-rechts");
+    y=Math.max(y+Math.round(ref*0.04),yQ+q+gap);
+    const platz=unten-y;const alle=zeilen(s,o,max);
+    const zh=Math.max(Math.round(ref*0.085),Math.min(Math.round(ref*(fett?0.15:0.125)),Math.floor(platz/Math.max(1,alle.length))));
+    const liste=zeilen(s,o,Math.min(max,Math.floor(platz/zh)));
+    if(liste.length){ctx.fillStyle="#000";ctx.fillRect(m,y-Math.round(gap*0.6),innen,Math.max(1,Math.round(K)));
+      // Name klein und leicht, Wert groß und fett – alle Werte gleich groß, damit die Spalte ruhig wirkt
+      const gn=Math.round(zh*0.56),gw0=Math.round(zh*0.8);ctx.font=`500 ${gn}px ${SCHRIFT}`;
+      const sp=Math.max(0,...liste.filter(([nm])=>nm).map(([nm])=>ctx.measureText(nm).width))+Math.round(ref*0.04);
+      const gw=Math.min(gw0,...liste.map(([nm,w])=>passend(ctx,w,innen-(nm?sp:0),gw0,800,8).g));
+      liste.forEach(([nm,w],i)=>{const zy=y+(i+1)*zh-Math.round(zh*0.28);if(nm)text(ctx,nm,m,zy,gn,500);
+        const p=passend(ctx,w,innen-(nm?sp:0),gw,800,8);text(ctx,p.text,m+(nm?sp:0),zy,p.g,800)})}
+    return liste.weg}
   function hochfett(ctx,s,o,img,W,H,hex,f){return hoch(ctx,s,o,img,W,H,hex,f,true,2)}
   function hochkompakt(ctx,s,o,img,W,H,hex,f){return hoch(ctx,s,o,img,W,H,hex,f,false,2)}
 
