@@ -1,8 +1,9 @@
-// FilamentLager-Waage – Display-Firmware für das Waveshare ESP32-S3-Touch-LCD-5.
+// FilamentLager-Waage – Display-Firmware für das Waveshare ESP32-S3-Touch-LCD-5 (env:ws5)
+// und das WT32-SC01 Plus (env:sc01plus).
 //
 // Aufgaben:
 //  - Oberfläche (LVGL) auf Kern 1 in loop()
-//  - Sensorplatine über RS485 abfragen (Gewicht, NFC-Tags)
+//  - Sensorplatine über RS485 oder WLAN abfragen (Gewicht, NFC-Tags)
 //  - Home Assistant (todo.filament) in einer eigenen Task auf Kern 0,
 //    damit langsame HTTP-Anfragen die Oberfläche nicht einfrieren
 
@@ -199,11 +200,16 @@ void setup() {
     }
     ui_start(&g_aktionen, &g_lager);
 
-    g_sensor.begin(g_rs485, RS485_RX, RS485_TX, RS485_BAUD);
+#ifdef SENSOR_HOST
+    g_sensor.begin_wlan(SENSOR_HOST, SENSOR_PORT);
+    Serial.println("Sensorplatine per WLAN: " SENSOR_HOST);
+#else
+    g_sensor.begin(g_rs485, RS485_RX, RS485_TX, RS485_BAUD, RS485_DE);
+#endif
     g_sensor.rueckmeldung = [](bool ok, const std::string& t) { ui_meldung(t, !ok); };
 
     WiFi.mode(WIFI_STA);
-    WiFi.setHostname("filamentlager-waage");
+    WiFi.setHostname(GERAETENAME);
     WiFi.begin(WLAN_SSID, WLAN_PASS);
     configTzTime(ZEITZONE, "pool.ntp.org", "time.google.com");
 

@@ -1,9 +1,11 @@
-// Verbindung zur Sensorplatine (ESP32-S3-Zero) über RS485.
+// Verbindung zur Sensorplatine (ESP32-S3-Zero/Super Mini/N16R8).
+// Über RS485 oder über WLAN (TCP-Port 4711, wie beim BTT Pad 7).
 // Das Display fragt alle 100 ms ab, die Sensorplatine antwortet nur auf Anfrage.
-// So senden nie beide gleichzeitig auf der Zweidrahtleitung. Protokoll: docs/PROTOKOLL.md
+// So senden auf RS485 nie beide gleichzeitig. Protokoll: docs/PROTOKOLL.md
 #pragma once
 
 #include <Arduino.h>
+#include <WiFiClient.h>
 
 #include <functional>
 #include <string>
@@ -18,9 +20,13 @@ struct SensorDaten {
 
 class SensorLink {
 public:
-    void begin(HardwareSerial& port, int rx, int tx, uint32_t baud);
+    // RS485: de = Pin der Senderfreigabe, -1 bei Transceivern mit automatischer Umschaltung
+    void begin(HardwareSerial& port, int rx, int tx, uint32_t baud, int de = -1);
+    // WLAN: IP oder Name der Sensorplatine (z. B. "192.168.1.96" oder "filamentwaage.local")
+    void begin_wlan(const char* host, uint16_t tcp_port);
     void loop();  // oft aufrufen
     const SensorDaten& daten() const { return d_; }
+    bool ueber_wlan() const { return wlan_; }
     void tara();
     void kalibrieren(int gramm);
     // Rückmeldung zu Tara/Kalibrieren: (ok, Text)
@@ -29,7 +35,14 @@ public:
 private:
     void senden(const char* zeile);
     void zeile_verarbeiten(const char* z);
-    HardwareSerial* port_ = nullptr;
+    bool wlan_verbinden();
+    Stream* io_ = nullptr;
+    HardwareSerial* seriell_ = nullptr;
+    bool wlan_ = false;
+    WiFiClient client_;
+    std::string host_;
+    uint16_t tcp_port_ = 0;
+    uint32_t letzter_versuch_ = 0;
     SensorDaten d_;
     char puffer_[256];
     size_t laenge_ = 0;

@@ -18,10 +18,12 @@ DIGITS = [ord(c) for c in " %+,-.0123456789g"] + [0x2212]
 
 FONTS = [
     # name,     ttf,                       px, zeichen, fallback (eingebaut, für Symbole)
+    ("fl_12", "Montserrat-Medium.ttf", 12, LATIN, "lv_font_montserrat_12"),  # 3,5" (SC01 Plus)
     ("fl_14", "Montserrat-Medium.ttf", 14, LATIN, "lv_font_montserrat_14"),
     ("fl_16", "Montserrat-SemiBold.ttf", 16, LATIN, "lv_font_montserrat_16"),
     ("fl_20", "Montserrat-Bold.ttf", 20, LATIN, "lv_font_montserrat_20"),
     ("fl_28", "Montserrat-ExtraBold.ttf", 28, LATIN, "lv_font_montserrat_20"),
+    ("fl_52", "Montserrat-ExtraBold.ttf", 52, DIGITS, "NULL"),  # 3,5" (SC01 Plus)
     ("fl_96", "Montserrat-ExtraBold.ttf", 96, DIGITS, "NULL"),
 ]
 

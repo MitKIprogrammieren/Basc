@@ -1,5 +1,6 @@
-// Oberfläche der FilamentLager-Waage, 800×480, LVGL 8.3.
-// Aufbau: Kopfzeile (46 px), Inhalt, Navigation unten (62 px).
+// Oberfläche der FilamentLager-Waage, LVGL 8.3.
+// 800×480 (Waveshare 5") oder mit UI_KOMPAKT=1 480×320 (WT32-SC01 Plus, 3,5").
+// Aufbau: Kopfzeile, Inhalt, Navigation unten.
 // Seiten: Wiegen, Lager, Detail einer Sorte, Einstellungen.
 
 #include "ui.h"
@@ -22,7 +23,32 @@ constexpr uint32_t C_NAV = 0xc9ced4, C_GRUEN = 0x4caf50, C_GRUEN_T = 0x9fe3a2, C
 constexpr uint32_t C_ORANGE = 0xffa726, C_ORANGE_T = 0xffb74d, C_ROT = 0xef5350, C_CHIP = 0x23272d;
 constexpr uint32_t C_CHIP_G = 0x1e3024, C_CHIP_B = 0x1a2a3d, C_BLAU_T = 0x90caf9;
 
+#ifndef UI_KOMPAKT
+#define UI_KOMPAKT 0
+#endif
+
+// Maße: alles ist für 800×480 gezeichnet, S() rechnet es für das 3,5"-Display um.
+// Die Schriften schrumpfen weniger als die Flächen, damit der Text lesbar bleibt.
+#if UI_KOMPAKT
+constexpr int W = 480, H = 320, KOPF_H = 30, NAV_H = 44;
+constexpr int S(int v) { return (v * 65 + 50) / 100; }
+#define F_K (&fl_12)  // klein
+#define F_N (&fl_14)  // normal
+#define F_G (&fl_16)  // groß
+#define F_T (&fl_20)  // Kachelwerte
+#define F_Z (&fl_52)  // Gewicht, „1000 g“ passt neben den Ring
+#else
 constexpr int W = 800, H = 480, KOPF_H = 46, NAV_H = 62;
+constexpr int S(int v) { return v; }
+#define F_K (&fl_14)
+#define F_N (&fl_16)
+#define F_G (&fl_20)
+#define F_T (&fl_28)
+#define F_Z (&fl_96)
+#endif
+// Eigener Wert bzw. Text für das 3,5"-Display, wo S() allein nicht passt
+constexpr int K(int gross, int klein) { return UI_KOMPAKT ? klein : gross; }
+#define KT(gross, klein) (UI_KOMPAKT ? (klein) : (gross))
 constexpr int SPULE_DA_G = 20;  // ab diesem Gewicht liegt etwas auf dem Teller
 constexpr int MAX_ZEILEN = 60;  // Lagerliste: mehr Zeilen nur über die Suche
 
@@ -132,9 +158,9 @@ void einzeilig(lv_obj_t* l, int breite) {
 lv_obj_t* chip(lv_obj_t* p, const std::string& t, uint32_t bg, uint32_t fg, uint32_t rand = 0) {
     lv_obj_t* c = box(p);
     lv_obj_set_size(c, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_hor(c, 8, 0);
-    lv_obj_set_style_pad_ver(c, 3, 0);
-    lv_obj_set_style_radius(c, 7, 0);
+    lv_obj_set_style_pad_hor(c, S(8), 0);
+    lv_obj_set_style_pad_ver(c, S(3), 0);
+    lv_obj_set_style_radius(c, S(7), 0);
     if (rand) {
         lv_obj_set_style_border_color(c, farbe(rand), 0);
         lv_obj_set_style_border_width(c, 1, 0);
@@ -142,7 +168,7 @@ lv_obj_t* chip(lv_obj_t* p, const std::string& t, uint32_t bg, uint32_t fg, uint
         lv_obj_set_style_bg_color(c, farbe(bg), 0);
         lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
     }
-    text(c, &fl_14, fg, t.c_str());
+    text(c, F_K, fg, t.c_str());
     return c;
 }
 
@@ -163,7 +189,7 @@ lv_obj_t* knopf(lv_obj_t* p, const char* t, Art art, lv_event_cb_t cb, void* dat
                 lv_obj_t** lbl_aus = nullptr) {
     lv_obj_t* b = box(p);
     lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_radius(b, 14, 0);
+    lv_obj_set_style_radius(b, S(14), 0);
     lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
     uint32_t fg = C_TEXT;
     if (art == Art::PRIMAER) {
@@ -183,7 +209,7 @@ lv_obj_t* knopf(lv_obj_t* p, const char* t, Art art, lv_event_cb_t cb, void* dat
     lv_obj_set_style_bg_color(b, farbe(C_LINIE), LV_STATE_DISABLED);
     lv_obj_set_style_text_color(b, farbe(0x6b727b), LV_STATE_DISABLED);
     lv_obj_t* l = lv_label_create(b);
-    lv_obj_set_style_text_font(l, art == Art::PRIMAER ? &fl_20 : &fl_16, 0);
+    lv_obj_set_style_text_font(l, art == Art::PRIMAER ? F_G : F_N, 0);
     lv_obj_set_style_text_color(l, farbe(fg), 0);
     lv_label_set_text(l, t);
     lv_obj_center(l);
@@ -253,7 +279,7 @@ void zeige_seite(Seite s);
 // ---------------------------------------------------------------- Kopfzeile
 lv_obj_t* punkt(lv_obj_t* p) {
     lv_obj_t* d = box(p);
-    lv_obj_set_size(d, 8, 8);
+    lv_obj_set_size(d, S(8), S(8));
     lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(d, farbe(C_RAND), 0);
@@ -267,34 +293,41 @@ void baue_kopf(lv_obj_t* scr) {
     lv_obj_set_style_border_width(k, 1, 0);
     lv_obj_set_style_border_color(k, farbe(C_LINIE), 0);
 
-    lv_obj_t* links = zeile(k, 10);
-    lv_obj_align(links, LV_ALIGN_LEFT_MID, 18, 0);
+    lv_obj_t* links = zeile(k, S(10));
+    lv_obj_align(links, LV_ALIGN_LEFT_MID, S(18), 0);
     lv_obj_t* logo = box(links);
-    lv_obj_set_size(logo, 20, 20);
+    lv_obj_set_size(logo, S(20), S(20));
     lv_obj_set_style_radius(logo, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_border_width(logo, 2, 0);
     lv_obj_set_style_border_color(logo, farbe(C_GRUEN), 0);
     lv_obj_t* loch = box(logo);
-    lv_obj_set_size(loch, 6, 6);
+    lv_obj_set_size(loch, S(6), S(6));
     lv_obj_set_style_radius(loch, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(loch, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(loch, farbe(C_GRUEN), 0);
     lv_obj_center(loch);
-    text(links, &fl_20, C_TEXT, "FilamentLager");
-    h_sub = text(links, &fl_14, C_SUB, "Waage");
+    text(links, F_G, C_TEXT, "FilamentLager");
+    h_sub = text(links, F_K, C_SUB, "Waage");
 
-    lv_obj_t* rechts = zeile(k, 14);
-    lv_obj_align(rechts, LV_ALIGN_RIGHT_MID, -18, 0);
+    lv_obj_t* rechts = zeile(k, S(14));
+    lv_obj_align(rechts, LV_ALIGN_RIGHT_MID, -S(18), 0);
     auto status = [&](const char* name, lv_obj_t** dot) {
-        lv_obj_t* z = zeile(rechts, 6);
+        lv_obj_t* z = zeile(rechts, S(6));
         *dot = punkt(z);
-        text(z, &fl_14, C_SUB, name);
+        text(z, F_K, C_SUB, name);
     };
+#if UI_KOMPAKT
+    status("L", &h_nfc_l);
+    status("R", &h_nfc_r);
+    h_wlan = text(rechts, F_K, C_SUB, LV_SYMBOL_WIFI);
+    status("HA", &h_ha);
+#else
     status("NFC L", &h_nfc_l);
     status("NFC R", &h_nfc_r);
-    h_wlan = text(rechts, &fl_14, C_SUB, LV_SYMBOL_WIFI " WLAN");
+    h_wlan = text(rechts, F_K, C_SUB, LV_SYMBOL_WIFI " WLAN");
     status("Home Assistant", &h_ha);
-    h_zeit = text(rechts, &fl_16, C_TEXT, "--:--");
+#endif
+    h_zeit = text(rechts, F_N, C_TEXT, "--:--");
 }
 
 // ---------------------------------------------------------------- Navigation
@@ -308,15 +341,19 @@ void baue_nav(lv_obj_t* scr) {
     lv_obj_t* n = box(scr);
     lv_obj_set_size(n, W, NAV_H);
     lv_obj_align(n, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_pad_left(n, 16, 0);
-    lv_obj_set_style_pad_right(n, 16, 0);
-    lv_obj_set_style_pad_bottom(n, 10, 0);
+    lv_obj_set_style_pad_left(n, S(16), 0);
+    lv_obj_set_style_pad_right(n, S(16), 0);
+    lv_obj_set_style_pad_bottom(n, S(10), 0);
     lv_obj_set_flex_flow(n, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(n, 8, 0);
+    lv_obj_set_style_pad_column(n, S(8), 0);
+#if UI_KOMPAKT
+    const char* namen[3] = {LV_SYMBOL_HOME " Wiegen", LV_SYMBOL_LIST " Lager", LV_SYMBOL_SETTINGS " Einstellungen"};
+#else
     const char* namen[3] = {LV_SYMBOL_HOME "  Wiegen", LV_SYMBOL_LIST "  Lager", LV_SYMBOL_SETTINGS "  Einstellungen"};
+#endif
     for (int i = 0; i < 3; i++) {
         g_nav[i] = knopf(n, namen[i], Art::FLACH, nav_cb, (void*)(intptr_t)i);
-        lv_obj_set_height(g_nav[i], NAV_H - 10);
+        lv_obj_set_height(g_nav[i], NAV_H - S(10));
         lv_obj_set_flex_grow(g_nav[i], 1);
     }
 }
@@ -333,8 +370,8 @@ lv_obj_t* seite(lv_obj_t* scr) {
     lv_obj_t* s = box(scr);
     lv_obj_set_size(s, W, H - KOPF_H - NAV_H);
     lv_obj_set_pos(s, 0, KOPF_H);
-    lv_obj_set_style_pad_hor(s, 16, 0);
-    lv_obj_set_style_pad_ver(s, 14, 0);
+    lv_obj_set_style_pad_hor(s, S(16), 0);
+    lv_obj_set_style_pad_ver(s, S(14), 0);
     lv_obj_add_flag(s, LV_OBJ_FLAG_HIDDEN);
     return s;
 }
@@ -368,36 +405,36 @@ void andere_cb(lv_event_t*) {
 
 void baue_wiegen(lv_obj_t* s) {
     lv_obj_set_flex_flow(s, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(s, 14, 0);
+    lv_obj_set_style_pad_column(s, S(14), 0);
 
     lv_obj_t* karte = box(s);
     panel_stil(karte, C_GRUEN);
     lv_obj_set_height(karte, lv_pct(100));
     lv_obj_set_flex_grow(karte, 1);
-    lv_obj_set_style_pad_hor(karte, 22, 0);
+    lv_obj_set_style_pad_hor(karte, K(22, 10), 0);
     lv_obj_set_flex_flow(karte, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(karte, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(karte, 22, 0);
+    lv_obj_set_style_pad_column(karte, K(22, 10), 0);
 
     lv_obj_t* ring = box(karte);
-    lv_obj_set_size(ring, 168, 168);
+    lv_obj_set_size(ring, K(168, 76), K(168, 76));
     w_arc = lv_arc_create(ring);
     lv_obj_remove_style(w_arc, nullptr, LV_PART_KNOB);
     lv_obj_clear_flag(w_arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(w_arc, 168, 168);
+    lv_obj_set_size(w_arc, K(168, 76), K(168, 76));
     lv_arc_set_rotation(w_arc, 270);
     lv_arc_set_bg_angles(w_arc, 0, 360);
     lv_arc_set_range(w_arc, 0, 100);
     lv_arc_set_value(w_arc, 0);
-    lv_obj_set_style_arc_width(w_arc, 14, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(w_arc, 14, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(w_arc, K(14, 8), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(w_arc, K(14, 8), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(w_arc, farbe(C_RAND2), LV_PART_MAIN);
     lv_obj_set_style_arc_color(w_arc, farbe(C_GRUEN), LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(w_arc, false, LV_PART_INDICATOR);
     lv_obj_set_style_pad_all(w_arc, 0, 0);
     lv_obj_center(w_arc);
     w_spule = box(ring);
-    lv_obj_set_size(w_spule, 92, 92);
+    lv_obj_set_size(w_spule, K(92, 40), K(92, 40));
     lv_obj_set_style_radius(w_spule, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(w_spule, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(w_spule, farbe(C_RAND), 0);
@@ -405,66 +442,71 @@ void baue_wiegen(lv_obj_t* s) {
     lv_obj_set_style_border_color(w_spule, farbe(C_RAND2), 0);
     lv_obj_center(w_spule);
     lv_obj_t* nabe = box(w_spule);
-    lv_obj_set_size(nabe, 26, 26);
+    lv_obj_set_size(nabe, K(26, 12), K(26, 12));
     lv_obj_set_style_radius(nabe, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(nabe, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(nabe, farbe(C_PANEL), 0);
     lv_obj_center(nabe);
 
-    lv_obj_t* sp = spalte(karte, 6);
-    w_kopf = text(sp, &fl_14, C_SUB, "FILAMENT ÜBRIG");
+    lv_obj_t* sp = spalte(karte, S(6));
+    w_kopf = text(sp, F_K, C_SUB, "FILAMENT ÜBRIG");
     ueberschrift(w_kopf);
-    lv_obj_t* zahl = zeile(sp, 8);
+    lv_obj_t* zahl = zeile(sp, S(8));
     lv_obj_set_flex_align(zahl, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
-    w_zahl = text(zahl, &fl_96, C_TEXT, "0");
-    w_einheit = text(zahl, &fl_28, C_SUB, "g");
-    lv_obj_set_style_pad_bottom(w_einheit, 14, 0);
-    w_proz = text(sp, &fl_16, C_SUB, "");
-    lv_obj_t* chips = zeile(sp, 8);
-    lv_obj_set_style_pad_top(chips, 8, 0);
+    w_zahl = text(zahl, F_Z, C_TEXT, "0");
+    w_einheit = text(zahl, F_T, C_SUB, "g");
+    lv_obj_set_style_pad_bottom(w_einheit, S(14), 0);
+    w_proz = text(sp, F_N, C_SUB, "");
+    lv_obj_t* chips = zeile(sp, S(8));
+#if UI_KOMPAKT
+    lv_obj_set_flex_flow(chips, LV_FLEX_FLOW_COLUMN);  // nebeneinander zu breit
+    lv_obj_set_flex_align(chips, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_row(chips, 4, 0);
+#endif
+    lv_obj_set_style_pad_top(chips, S(8), 0);
     w_brutto = chip(chips, "Brutto 0 g", C_CHIP, C_TEXT);
     w_leer = chip(chips, "Leerspule 250 g", C_CHIP, C_TEXT);
 
     lv_obj_t* seite_r = box(s);
-    lv_obj_set_size(seite_r, 270, lv_pct(100));
+    lv_obj_set_size(seite_r, K(270, 190), lv_pct(100));
     lv_obj_set_flex_flow(seite_r, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(seite_r, 10, 0);
+    lv_obj_set_style_pad_row(seite_r, S(10), 0);
 
     lv_obj_t* k = box(seite_r);
     panel_stil(k, C_GRUEN);
     lv_obj_set_width(k, lv_pct(100));
     lv_obj_set_flex_grow(k, 1);
-    lv_obj_set_style_pad_hor(k, 16, 0);
-    lv_obj_set_style_pad_ver(k, 14, 0);
+    lv_obj_set_style_pad_hor(k, S(16), 0);
+    lv_obj_set_style_pad_ver(k, S(14), 0);
     lv_obj_set_flex_flow(k, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(k, 8, 0);
-    w_k_titel = text(k, &fl_14, C_SUB, "");
+    lv_obj_set_style_pad_row(k, S(8), 0);
+    w_k_titel = text(k, F_K, C_SUB, "");
     ueberschrift(w_k_titel);
-    einzeilig(w_k_titel, 234);
-    lv_obj_t* kz = zeile(k, 12);
-    w_k_swatch = farbfeld(kz, 34, 9, C_RAND);
-    lv_obj_t* kt = spalte(kz, 2);
-    w_k_name = text(kt, &fl_20, C_TEXT, "");
-    einzeilig(w_k_name, 188);
-    w_k_sub = text(kt, &fl_14, C_SUB, "");
-    einzeilig(w_k_sub, 188);
+    einzeilig(w_k_titel, S(234));
+    lv_obj_t* kz = zeile(k, S(12));
+    w_k_swatch = farbfeld(kz, S(34), S(9), C_RAND);
+    lv_obj_t* kt = spalte(kz, S(2));
+    w_k_name = text(kt, F_G, C_TEXT, "");
+    einzeilig(w_k_name, S(188));
+    w_k_sub = text(kt, F_K, C_SUB, "");
+    einzeilig(w_k_sub, S(188));
     w_k_chips = box(k);
     lv_obj_set_size(w_k_chips, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(w_k_chips, LV_FLEX_FLOW_ROW_WRAP);
-    lv_obj_set_style_pad_column(w_k_chips, 6, 0);
-    lv_obj_set_style_pad_row(w_k_chips, 6, 0);
+    lv_obj_set_style_pad_column(w_k_chips, S(6), 0);
+    lv_obj_set_style_pad_row(w_k_chips, S(6), 0);
 
     w_haupt = knopf(seite_r, LV_SYMBOL_OK "  Rest speichern", Art::PRIMAER, haupt_cb, nullptr, &w_haupt_lbl);
-    lv_obj_set_size(w_haupt, lv_pct(100), 58);
+    lv_obj_set_size(w_haupt, lv_pct(100), S(58));
     lv_obj_t* r2 = box(seite_r);
-    lv_obj_set_size(r2, lv_pct(100), 50);
+    lv_obj_set_size(r2, lv_pct(100), S(50));
     lv_obj_set_flex_flow(r2, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(r2, 10, 0);
+    lv_obj_set_style_pad_column(r2, S(10), 0);
     w_tara = knopf(r2, "Tara", Art::RAHMEN, tara_cb);
-    lv_obj_set_height(w_tara, 50);
+    lv_obj_set_height(w_tara, S(50));
     lv_obj_set_flex_grow(w_tara, 1);
-    w_wahl = knopf(r2, "Andere Sorte", Art::RAHMEN, andere_cb, nullptr, &w_wahl_lbl);
-    lv_obj_set_height(w_wahl, 50);
+    w_wahl = knopf(r2, KT("Andere Sorte", "Andere"), Art::RAHMEN, andere_cb, nullptr, &w_wahl_lbl);
+    lv_obj_set_height(w_wahl, S(50));
     lv_obj_set_flex_grow(w_wahl, 1);
 }
 
@@ -523,7 +565,7 @@ void wiegen_aktualisieren() {
 
     if (sorte >= 0) {
         const Filament& f = g_lager->sorten[sorte];
-        setze(w_k_titel, tag.empty() ? "GEWÄHLTE SORTE" : std::string("ERKANNT · NFC ") + leser);
+        setze(w_k_titel, tag.empty() ? "GEWÄHLTE SORTE" : std::string(KT("ERKANNT · NFC ", "NFC ")) + leser);
         lv_obj_set_style_bg_color(w_k_swatch, farbe(f.rgb), 0);
         setze(w_k_name, f.kurzname());
         setze(w_k_sub, f.hersteller);
@@ -534,16 +576,16 @@ void wiegen_aktualisieren() {
         karte_chips(c);
         g_haupt = da ? Haupt::SPEICHERN : Haupt::NICHTS;
         setze(w_haupt_lbl, LV_SYMBOL_OK "  Rest speichern");
-        setze(w_wahl_lbl, "Andere Sorte");
+        setze(w_wahl_lbl, KT("Andere Sorte", "Andere"));
     } else if (!tag.empty()) {
-        setze(w_k_titel, std::string("NEUER TAG · NFC ") + leser);
+        setze(w_k_titel, std::string(KT("NEUER TAG · NFC ", "NEU · NFC ")) + leser);
         lv_obj_set_style_bg_color(w_k_swatch, farbe(C_RAND), 0);
         setze(w_k_name, "Neue Spule");
         setze(w_k_sub, "UID " + tag);
         karte_chips({{"Keiner Sorte zugeordnet", 2}});
         g_haupt = Haupt::ZUORDNEN;
         setze(w_haupt_lbl, LV_SYMBOL_LIST "  Sorte zuordnen");
-        setze(w_wahl_lbl, "Sorte wählen");
+        setze(w_wahl_lbl, KT("Sorte wählen", "Wählen"));
     } else {
         setze(w_k_titel, "KEINE SPULE ERKANNT");
         lv_obj_set_style_bg_color(w_k_swatch, farbe(C_RAND2), 0);
@@ -552,7 +594,7 @@ void wiegen_aktualisieren() {
         karte_chips({});
         g_haupt = da ? Haupt::WAEHLEN : Haupt::NICHTS;
         setze(w_haupt_lbl, da ? LV_SYMBOL_LIST "  Sorte wählen" : LV_SYMBOL_OK "  Rest speichern");
-        setze(w_wahl_lbl, "Sorte wählen");
+        setze(w_wahl_lbl, KT("Sorte wählen", "Wählen"));
     }
     knopf_aktiv(w_haupt, g_haupt != Haupt::NICHTS);
 }
@@ -601,67 +643,70 @@ void tastatur_cb(lv_event_t* e) {
 
 void baue_lager(lv_obj_t* s) {
     lv_obj_set_flex_flow(s, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(s, 14, 0);
-    lv_obj_set_style_pad_ver(s, 12, 0);
+    lv_obj_set_style_pad_column(s, S(14), 0);
+    lv_obj_set_style_pad_ver(s, S(12), 0);
 
     lv_obj_t* links = box(s);
     lv_obj_set_height(links, lv_pct(100));
     lv_obj_set_flex_grow(links, 1);
     lv_obj_set_flex_flow(links, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(links, 10, 0);
+    lv_obj_set_style_pad_row(links, S(10), 0);
 
     lv_obj_t* oben = box(links);
-    lv_obj_set_size(oben, lv_pct(100), 40);
+    lv_obj_set_size(oben, lv_pct(100), S(40));
     lv_obj_set_flex_flow(oben, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(oben, 8, 0);
+    lv_obj_set_style_pad_column(oben, S(8), 0);
     l_suche = lv_textarea_create(oben);
     lv_textarea_set_one_line(l_suche, true);
     lv_textarea_set_placeholder_text(l_suche, "Suchen …");
-    lv_obj_set_height(l_suche, 40);
+    lv_obj_set_height(l_suche, S(40));
     lv_obj_set_flex_grow(l_suche, 1);
     lv_obj_set_style_bg_color(l_suche, farbe(C_PANEL), 0);
     lv_obj_set_style_border_color(l_suche, farbe(C_RAND2), 0);
     lv_obj_set_style_border_width(l_suche, 1, 0);
-    lv_obj_set_style_radius(l_suche, 12, 0);
-    lv_obj_set_style_text_font(l_suche, &fl_14, 0);
+    lv_obj_set_style_radius(l_suche, S(12), 0);
+    lv_obj_set_style_text_font(l_suche, F_K, 0);
     lv_obj_set_style_text_color(l_suche, farbe(C_TEXT), 0);
-    lv_obj_set_style_pad_ver(l_suche, 10, 0);
+    lv_obj_set_style_pad_ver(l_suche, S(10), 0);
     lv_obj_add_event_cb(l_suche, suche_cb, LV_EVENT_ALL, nullptr);
     for (int i = 1; i < 5; i++) {
         l_filter[i] = knopf(oben, FILTER[i], Art::RAHMEN, filter_cb, (void*)(intptr_t)i);
-        lv_obj_set_size(l_filter[i], LV_SIZE_CONTENT, 40);
-        lv_obj_set_style_pad_hor(l_filter[i], 10, 0);
-        lv_obj_set_style_radius(l_filter[i], 20, 0);
+        lv_obj_set_size(l_filter[i], LV_SIZE_CONTENT, S(40));
+        lv_obj_set_style_pad_hor(l_filter[i], S(10), 0);
+        lv_obj_set_style_radius(l_filter[i], S(20), 0);
         lv_obj_set_style_border_width(l_filter[i], 1, 0);
-        lv_obj_set_style_text_font(lv_obj_get_child(l_filter[i], 0), &fl_14, 0);
+        lv_obj_set_style_text_font(lv_obj_get_child(l_filter[i], 0), F_K, 0);
     }
     l_filter[0] = knopf(oben, FILTER[0], Art::RAHMEN, filter_cb, (void*)(intptr_t)0);
-    lv_obj_set_size(l_filter[0], LV_SIZE_CONTENT, 40);
-    lv_obj_set_style_pad_hor(l_filter[0], 10, 0);
-    lv_obj_set_style_radius(l_filter[0], 20, 0);
+    lv_obj_set_size(l_filter[0], LV_SIZE_CONTENT, S(40));
+    lv_obj_set_style_pad_hor(l_filter[0], S(10), 0);
+    lv_obj_set_style_radius(l_filter[0], S(20), 0);
     lv_obj_set_style_border_width(l_filter[0], 1, 0);
-    lv_obj_set_style_text_font(lv_obj_get_child(l_filter[0], 0), &fl_14, 0);
+    lv_obj_set_style_text_font(lv_obj_get_child(l_filter[0], 0), F_K, 0);
 
     l_liste = box(links);
     panel_stil(l_liste, C_GRUEN);
     lv_obj_set_width(l_liste, lv_pct(100));
     lv_obj_set_flex_grow(l_liste, 1);
-    lv_obj_set_style_pad_hor(l_liste, 14, 0);
+    lv_obj_set_style_pad_hor(l_liste, S(14), 0);
     lv_obj_set_flex_flow(l_liste, LV_FLEX_FLOW_COLUMN);
     lv_obj_add_flag(l_liste, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(l_liste, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(l_liste, LV_SCROLLBAR_MODE_ACTIVE);
 
     l_reste = box(s);
+#if UI_KOMPAKT
+    lv_obj_add_flag(l_reste, LV_OBJ_FLAG_HIDDEN);  // kein Platz – angebrochene Rollen stehen in der Liste
+#endif
     panel_stil(l_reste, C_ORANGE);
-    lv_obj_set_size(l_reste, 232, lv_pct(100));
-    lv_obj_set_style_pad_hor(l_reste, 14, 0);
-    lv_obj_set_style_pad_ver(l_reste, 12, 0);
+    lv_obj_set_size(l_reste, S(232), lv_pct(100));
+    lv_obj_set_style_pad_hor(l_reste, S(14), 0);
+    lv_obj_set_style_pad_ver(l_reste, S(12), 0);
     lv_obj_set_flex_flow(l_reste, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(l_reste, 6, 0);
+    lv_obj_set_style_pad_row(l_reste, S(6), 0);
 
     l_tastatur = lv_keyboard_create(lv_scr_act());
-    lv_obj_set_size(l_tastatur, W, 220);
+    lv_obj_set_size(l_tastatur, W, S(220));
     lv_obj_align(l_tastatur, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_keyboard_set_textarea(l_tastatur, l_suche);
     lv_obj_add_event_cb(l_tastatur, tastatur_cb, LV_EVENT_ALL, nullptr);
@@ -670,7 +715,7 @@ void baue_lager(lv_obj_t* s) {
 
 void lager_zeile(lv_obj_t* liste, const Filament& f, int index) {
     lv_obj_t* z = box(liste);
-    lv_obj_set_size(z, lv_pct(100), 54);
+    lv_obj_set_size(z, lv_pct(100), S(54));
     lv_obj_add_flag(z, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(z, farbe(C_LINIE), LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(z, LV_OPA_COVER, LV_STATE_PRESSED);
@@ -679,22 +724,22 @@ void lager_zeile(lv_obj_t* liste, const Filament& f, int index) {
     lv_obj_set_style_border_color(z, farbe(C_LINIE), 0);
     lv_obj_set_flex_flow(z, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(z, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(z, 12, 0);
+    lv_obj_set_style_pad_column(z, S(12), 0);
     lv_obj_add_event_cb(z, zeile_cb, LV_EVENT_CLICKED, (void*)(intptr_t)index);
 
-    farbfeld(z, 30, 8, f.rgb);
-    lv_obj_t* mitte = spalte(z, 2);
+    farbfeld(z, S(30), S(8), f.rgb);
+    lv_obj_t* mitte = spalte(z, S(2));
     lv_obj_set_flex_grow(mitte, 1);
-    lv_obj_t* n = text(mitte, &fl_16, C_TEXT, f.kurzname().c_str());
-    einzeilig(n, f.nfc.empty() ? 300 : 250);
-    lv_obj_t* u = text(mitte, &fl_14, C_SUB, unterzeile(f).c_str());
-    einzeilig(u, f.nfc.empty() ? 300 : 250);
+    lv_obj_t* n = text(mitte, F_N, C_TEXT, f.kurzname().c_str());
+    einzeilig(n, f.nfc.empty() ? K(300, 270) : K(250, 228));
+    lv_obj_t* u = text(mitte, F_K, C_SUB, unterzeile(f).c_str());
+    einzeilig(u, f.nfc.empty() ? K(300, 270) : K(250, 228));
     if (!f.nfc.empty()) chip(z, "NFC", C_CHIP_B, C_BLAU_T);
     lv_obj_t* r = spalte(z, 0);
-    lv_obj_set_width(r, 86);
+    lv_obj_set_width(r, K(86, 72));
     lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
-    text(r, &fl_16, f.spulen ? C_TEXT : C_ROT, spulen_text(f.spulen).c_str());
-    text(r, &fl_14, C_SUB, rest_text(f).c_str());
+    text(r, KT(F_N, F_K), f.spulen ? C_TEXT : C_ROT, spulen_text(f.spulen).c_str());
+    text(r, F_K, C_SUB, rest_text(f).c_str());
 }
 
 void lager_liste_bauen() {
@@ -717,19 +762,20 @@ void lager_liste_bauen() {
         n++;
     }
     if (n == 0) {
-        lv_obj_t* l = text(l_liste, &fl_16, C_SUB, g_lager->sorten.empty() ? "Lager wird geladen …" : "Keine passende Sorte");
-        lv_obj_set_style_pad_top(l, 16, 0);
+        lv_obj_t* l = text(l_liste, F_N, C_SUB, g_lager->sorten.empty() ? "Lager wird geladen …" : "Keine passende Sorte");
+        lv_obj_set_style_pad_top(l, S(16), 0);
     }
     if (weitere) {
-        lv_obj_t* l = text(l_liste, &fl_14, C_SUB, ("… und " + std::to_string(weitere) + " weitere – Suche verwenden").c_str());
-        lv_obj_set_style_pad_ver(l, 12, 0);
+        lv_obj_t* l = text(l_liste, F_K, C_SUB, ("… und " + std::to_string(weitere) + " weitere – Suche verwenden").c_str());
+        lv_obj_set_style_pad_ver(l, S(12), 0);
     }
     lv_obj_scroll_to_y(l_liste, 0, LV_ANIM_OFF);
 }
 
 void reste_bauen() {
+    if (UI_KOMPAKT) return;
     lv_obj_clean(l_reste);
-    lv_obj_t* t = text(l_reste, &fl_14, C_ORANGE_T, "ANGEBROCHENE ROLLEN");
+    lv_obj_t* t = text(l_reste, F_K, C_ORANGE_T, "ANGEBROCHENE ROLLEN");
     ueberschrift(t);
     if (!g_lager) return;
     struct R { int sorte; int g; };
@@ -737,27 +783,27 @@ void reste_bauen() {
     for (size_t i = 0; i < g_lager->sorten.size(); i++)
         for (int g : g_lager->sorten[i].reste) alle.push_back({(int)i, g});
     std::sort(alle.begin(), alle.end(), [](const R& a, const R& b) { return a.g > b.g; });
-    if (alle.empty()) text(l_reste, &fl_14, C_SUB, "Keine angebrochenen Rollen");
+    if (alle.empty()) text(l_reste, F_K, C_SUB, "Keine angebrochenen Rollen");
     for (size_t k = 0; k < alle.size() && k < 7; k++) {
         const Filament& f = g_lager->sorten[alle[k].sorte];
-        lv_obj_t* z = zeile(l_reste, 10);
+        lv_obj_t* z = zeile(l_reste, S(10));
         lv_obj_set_width(z, lv_pct(100));
-        lv_obj_set_style_pad_ver(z, 4, 0);
-        farbfeld(z, 22, 6, f.rgb);
-        lv_obj_t* m = spalte(z, 4);
+        lv_obj_set_style_pad_ver(z, S(4), 0);
+        farbfeld(z, S(22), S(6), f.rgb);
+        lv_obj_t* m = spalte(z, S(4));
         lv_obj_set_flex_grow(m, 1);
-        lv_obj_t* n = text(m, &fl_14, C_TEXT, f.kurzname().c_str());
-        einzeilig(n, 118);
+        lv_obj_t* n = text(m, F_K, C_TEXT, f.kurzname().c_str());
+        einzeilig(n, S(118));
         lv_obj_t* bar = lv_bar_create(m);
-        lv_obj_set_size(bar, 118, 4);
+        lv_obj_set_size(bar, S(118), S(4));
         lv_bar_set_range(bar, 0, std::max(1, f.gewicht));
         lv_bar_set_value(bar, std::max(alle[k].g, f.gewicht / 50), LV_ANIM_OFF);
         lv_obj_set_style_bg_color(bar, farbe(C_RAND2), LV_PART_MAIN);
         lv_obj_set_style_bg_color(bar, farbe(alle[k].g < 250 ? C_ROT : C_ORANGE), LV_PART_INDICATOR);
-        lv_obj_set_style_radius(bar, 2, LV_PART_MAIN);
-        lv_obj_set_style_radius(bar, 2, LV_PART_INDICATOR);
-        lv_obj_t* g = text(z, &fl_14, C_TEXT, gramm(alle[k].g).c_str());
-        lv_obj_set_width(g, 50);
+        lv_obj_set_style_radius(bar, S(2), LV_PART_MAIN);
+        lv_obj_set_style_radius(bar, S(2), LV_PART_INDICATOR);
+        lv_obj_t* g = text(z, F_K, C_TEXT, gramm(alle[k].g).c_str());
+        lv_obj_set_width(g, S(50));
         lv_obj_set_style_text_align(g, LV_TEXT_ALIGN_RIGHT, 0);
     }
 }
@@ -778,24 +824,24 @@ void zurueck_cb(lv_event_t*) { zeige_seite(LAGER); }
 
 lv_obj_t* kachel(lv_obj_t* p, const std::string& wert, const char* name, const lv_font_t* f, bool klein_ = false) {
     lv_obj_t* k = box(p);
-    lv_obj_set_style_radius(k, klein_ ? 12 : 16, 0);
+    lv_obj_set_style_radius(k, klein_ ? S(12) : S(16), 0);
     lv_obj_set_style_bg_opa(k, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(k, farbe(klein_ ? C_KACHEL : C_PANEL), 0);
     if (!klein_) {
         lv_obj_set_style_border_color(k, farbe(C_RAND2), 0);
         lv_obj_set_style_border_width(k, 2, 0);
     }
-    lv_obj_set_style_pad_hor(k, klein_ ? 12 : 14, 0);
-    lv_obj_set_style_pad_ver(k, klein_ ? 10 : 12, 0);
+    lv_obj_set_style_pad_hor(k, klein_ ? S(12) : S(14), 0);
+    lv_obj_set_style_pad_ver(k, klein_ ? S(10) : S(12), 0);
     lv_obj_set_flex_flow(k, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(k, 4, 0);
+    lv_obj_set_style_pad_row(k, S(4), 0);
     lv_obj_set_flex_grow(k, 1);
     lv_obj_set_height(k, LV_SIZE_CONTENT);
     if (klein_) {
         text(k, f, C_TEXT, wert.c_str());
-        text(k, &fl_14, C_SUB, name);
+        text(k, F_K, C_SUB, name);
     } else {
-        lv_obj_t* t = text(k, &fl_14, C_SUB, name);
+        lv_obj_t* t = text(k, F_K, C_SUB, name);
         ueberschrift(t);
         text(k, f, C_TEXT, wert.c_str());
     }
@@ -804,15 +850,15 @@ lv_obj_t* kachel(lv_obj_t* p, const std::string& wert, const char* name, const l
 
 void info_zeile(lv_obj_t* p, const char* name, const std::string& wert, bool letzte) {
     lv_obj_t* z = box(p);
-    lv_obj_set_size(z, lv_pct(100), 40);
+    lv_obj_set_size(z, lv_pct(100), S(40));
     if (!letzte) {
         lv_obj_set_style_border_side(z, LV_BORDER_SIDE_BOTTOM, 0);
         lv_obj_set_style_border_width(z, 1, 0);
         lv_obj_set_style_border_color(z, farbe(C_LINIE), 0);
     }
-    lv_obj_t* a = text(z, &fl_14, C_SUB, name);
+    lv_obj_t* a = text(z, F_K, C_SUB, name);
     lv_obj_align(a, LV_ALIGN_LEFT_MID, 0, 0);
-    lv_obj_t* b = text(z, &fl_16, C_TEXT, wert.empty() ? "–" : wert.c_str());
+    lv_obj_t* b = text(z, F_N, C_TEXT, wert.empty() ? "–" : wert.c_str());
     lv_obj_align(b, LV_ALIGN_RIGHT_MID, 0, 0);
 }
 
@@ -828,60 +874,60 @@ void detail_bauen() {
     if (!g_lager || g_detail < 0 || g_detail >= (int)g_lager->sorten.size()) return;
     const Filament& f = g_lager->sorten[g_detail];
     lv_obj_set_flex_flow(d_inhalt, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(d_inhalt, 14, 0);
+    lv_obj_set_style_pad_column(d_inhalt, S(14), 0);
 
     lv_obj_t* l = box(d_inhalt);
     panel_stil(l, C_GRUEN);
-    lv_obj_set_size(l, 300, lv_pct(100));
-    lv_obj_set_style_pad_all(l, 16, 0);
+    lv_obj_set_size(l, K(300, 222), lv_pct(100));
+    lv_obj_set_style_pad_all(l, S(16), 0);
     lv_obj_set_flex_flow(l, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(l, 12, 0);
+    lv_obj_set_style_pad_row(l, S(12), 0);
 
-    lv_obj_t* kopf = zeile(l, 10);
+    lv_obj_t* kopf = zeile(l, S(10));
     knopf(kopf, LV_SYMBOL_LEFT, Art::RAHMEN, zurueck_cb);
-    lv_obj_set_size(lv_obj_get_child(kopf, 0), 44, 44);
+    lv_obj_set_size(lv_obj_get_child(kopf, 0), S(44), S(44));
     lv_obj_t* tn = spalte(kopf, 0);
-    lv_obj_t* name = text(tn, &fl_20, C_TEXT, f.kurzname().c_str());
-    einzeilig(name, 210);
-    text(tn, &fl_14, C_SUB, f.hersteller.c_str());
+    lv_obj_t* name = text(tn, F_G, C_TEXT, f.kurzname().c_str());
+    einzeilig(name, S(210));
+    text(tn, F_K, C_SUB, f.hersteller.c_str());
 
-    lv_obj_t* o = zeile(l, 14);
-    farbfeld(o, 64, 14, f.rgb);
-    lv_obj_t* oc = spalte(o, 6);
-    lv_obj_t* chips = zeile(oc, 6);
+    lv_obj_t* o = zeile(l, S(14));
+    farbfeld(o, S(64), S(14), f.rgb);
+    lv_obj_t* oc = spalte(o, S(6));
+    lv_obj_t* chips = zeile(oc, S(6));
     if (!f.material.empty()) chip(chips, f.material, C_CHIP, C_TEXT);
     for (size_t i = 0; i < f.besonderheiten.size() && i < 2; i++) chip(chips, f.besonderheiten[i], C_CHIP_B, C_BLAU_T);
-    text(oc, &fl_14, C_SUB, (komma(f.durchmesser, 2) + " mm · " + gramm(f.gewicht)).c_str());
+    text(oc, F_K, C_SUB, (komma(f.durchmesser, 2) + " mm · " + gramm(f.gewicht)).c_str());
 
-    lv_obj_t* kz = zeile(l, 10);
+    lv_obj_t* kz = zeile(l, S(10));
     lv_obj_set_width(kz, lv_pct(100));
-    kachel(kz, std::to_string(f.spulen), "Spulen", &fl_28, true);
-    kachel(kz, std::to_string(f.reste.size()), "angebrochen", &fl_28, true);
+    kachel(kz, std::to_string(f.spulen), "Spulen", F_T, true);
+    kachel(kz, std::to_string(f.reste.size()), "angebrochen", F_T, true);
 
     lv_obj_t* kn = box(l);
-    lv_obj_set_size(kn, lv_pct(100), 52);
+    lv_obj_set_size(kn, lv_pct(100), S(52));
     lv_obj_set_flex_flow(kn, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(kn, 8, 0);
+    lv_obj_set_style_pad_column(kn, S(8), 0);
     lv_obj_t* minus = knopf(kn, LV_SYMBOL_MINUS, Art::RAHMEN, spulen_cb, (void*)(intptr_t)-1);
-    lv_obj_set_size(minus, 58, 52);
-    lv_obj_t* w = knopf(kn, "Spule wiegen", Art::PRIMAER, wiegen_cb);
-    lv_obj_set_height(w, 52);
+    lv_obj_set_size(minus, S(58), S(52));
+    lv_obj_t* w = knopf(kn, KT("Spule wiegen", "Wiegen"), Art::PRIMAER, wiegen_cb);
+    lv_obj_set_height(w, S(52));
     lv_obj_set_flex_grow(w, 1);
-    lv_obj_set_style_text_font(lv_obj_get_child(w, 0), &fl_16, 0);
+    lv_obj_set_style_text_font(lv_obj_get_child(w, 0), F_N, 0);
     lv_obj_t* plus = knopf(kn, LV_SYMBOL_PLUS, Art::RAHMEN, spulen_cb, (void*)(intptr_t)1);
-    lv_obj_set_size(plus, 58, 52);
+    lv_obj_set_size(plus, S(58), S(52));
 
     lv_obj_t* r = box(d_inhalt);
     lv_obj_set_height(r, lv_pct(100));
     lv_obj_set_flex_grow(r, 1);
     lv_obj_set_flex_flow(r, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(r, 10, 0);
-    lv_obj_t* t = zeile(r, 10);
+    lv_obj_set_style_pad_row(r, S(10), 0);
+    lv_obj_t* t = zeile(r, S(10));
     lv_obj_set_width(t, lv_pct(100));
-    kachel(t, bereich(f.duese_min, f.duese_max, " °C"), "DÜSE", &fl_28);
+    kachel(t, bereich(f.duese_min, f.duese_max, " °C"), "DÜSE", KT(F_T, F_G));
     std::string trocknen = f.trocknen_c > 0 ? std::to_string(f.trocknen_c) + " °C" : "–";
     if (f.trocknen_c > 0 && f.trocknen_h > 0) trocknen += " · " + std::to_string(f.trocknen_h) + " h";
-    kachel(t, trocknen, "TROCKNEN", &fl_28);
+    kachel(t, trocknen, "TROCKNEN", KT(F_T, F_G));
 
     lv_obj_t* liste = box(r);
     lv_obj_set_width(liste, lv_pct(100));
@@ -890,9 +936,9 @@ void detail_bauen() {
     lv_obj_set_style_bg_opa(liste, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(liste, farbe(C_RAND2), 0);
     lv_obj_set_style_border_width(liste, 2, 0);
-    lv_obj_set_style_radius(liste, 16, 0);
-    lv_obj_set_style_pad_hor(liste, 14, 0);
-    lv_obj_set_style_pad_ver(liste, 4, 0);
+    lv_obj_set_style_radius(liste, S(16), 0);
+    lv_obj_set_style_pad_hor(liste, S(14), 0);
+    lv_obj_set_style_pad_ver(liste, S(4), 0);
     lv_obj_set_flex_flow(liste, LV_FLEX_FLOW_COLUMN);
     std::string reste;
     for (int g : f.reste) reste += (reste.empty() ? "" : ", ") + gramm(g);
@@ -920,47 +966,51 @@ void laden_cb(lv_event_t*) {
 
 void baue_einst(lv_obj_t* s) {
     lv_obj_set_flex_flow(s, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(s, 14, 0);
+    lv_obj_set_style_pad_column(s, S(14), 0);
 
     lv_obj_t* a = box(s);
     panel_stil(a, C_GRUEN);
     lv_obj_set_height(a, lv_pct(100));
     lv_obj_set_flex_grow(a, 1);
-    lv_obj_set_style_pad_all(a, 18, 0);
+    lv_obj_set_style_pad_all(a, S(18), 0);
     lv_obj_set_flex_flow(a, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(a, 12, 0);
-    lv_obj_t* t = text(a, &fl_14, C_SUB, "WAAGE");
+    lv_obj_set_style_pad_row(a, S(12), 0);
+    lv_obj_t* t = text(a, F_K, C_SUB, "WAAGE");
     ueberschrift(t);
-    text(a, &fl_14, C_SUB, "Teller leer machen und Tara drücken. Dann das\nKalibriergewicht auflegen und Kalibrieren drücken.");
+#if UI_KOMPAKT
+    text(a, F_K, C_SUB, "Leerer Teller: Tara.\nGewicht auflegen: Kalibrieren.");
+#else
+    text(a, F_K, C_SUB, "Teller leer machen und Tara drücken. Dann das\nKalibriergewicht auflegen und Kalibrieren drücken.");
+#endif
     lv_obj_t* tara = knopf(a, "Tara", Art::RAHMEN, tara_cb);
-    lv_obj_set_size(tara, lv_pct(100), 50);
+    lv_obj_set_size(tara, lv_pct(100), S(50));
     lv_obj_t* z = box(a);
-    lv_obj_set_size(z, lv_pct(100), 52);
+    lv_obj_set_size(z, lv_pct(100), S(52));
     lv_obj_set_flex_flow(z, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(z, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(z, 8, 0);
+    lv_obj_set_style_pad_column(z, S(8), 0);
     lv_obj_t* m = knopf(z, LV_SYMBOL_MINUS, Art::RAHMEN, kal_cb, (void*)(intptr_t)-100);
-    lv_obj_set_size(m, 58, 52);
-    e_kal_wert = text(z, &fl_28, C_TEXT, "1000 g");
+    lv_obj_set_size(m, S(58), S(52));
+    e_kal_wert = text(z, F_T, C_TEXT, "1000 g");
     lv_obj_set_flex_grow(e_kal_wert, 1);
     lv_obj_set_style_text_align(e_kal_wert, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_t* p = knopf(z, LV_SYMBOL_PLUS, Art::RAHMEN, kal_cb, (void*)(intptr_t)100);
-    lv_obj_set_size(p, 58, 52);
+    lv_obj_set_size(p, S(58), S(52));
     lv_obj_t* k = knopf(a, "Kalibrieren", Art::PRIMAER, kalibrieren_cb);
-    lv_obj_set_size(k, lv_pct(100), 54);
+    lv_obj_set_size(k, lv_pct(100), S(54));
 
     lv_obj_t* b = box(s);
-    panel_stil(b, C_RAND2, 18);
-    lv_obj_set_size(b, 300, lv_pct(100));
-    lv_obj_set_style_pad_all(b, 18, 0);
+    panel_stil(b, C_RAND2, S(18));
+    lv_obj_set_size(b, K(300, 212), lv_pct(100));
+    lv_obj_set_style_pad_all(b, S(18), 0);
     lv_obj_set_flex_flow(b, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(b, 12, 0);
-    lv_obj_t* t2 = text(b, &fl_14, C_SUB, "VERBINDUNG");
+    lv_obj_set_style_pad_row(b, S(12), 0);
+    lv_obj_t* t2 = text(b, F_K, C_SUB, "VERBINDUNG");
     ueberschrift(t2);
-    e_info = text(b, &fl_16, C_TEXT, "");
-    lv_obj_set_style_text_line_space(e_info, 6, 0);
+    e_info = text(b, KT(F_N, F_K), C_TEXT, "");
+    lv_obj_set_style_text_line_space(e_info, S(6), 0);
     lv_obj_t* lade = knopf(b, LV_SYMBOL_REFRESH "  Lager neu laden", Art::RAHMEN, laden_cb);
-    lv_obj_set_size(lade, lv_pct(100), 50);
+    lv_obj_set_size(lade, lv_pct(100), S(50));
 }
 
 void einst_aktualisieren() {
@@ -1027,14 +1077,14 @@ void ui_start(UiAktionen* aktionen, const Lager* lager) {
     lv_obj_set_style_bg_color(g_toast, farbe(C_PANEL), 0);
     lv_obj_set_style_bg_opa(g_toast, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(g_toast, 2, 0);
-    lv_obj_set_style_radius(g_toast, 14, 0);
-    lv_obj_set_style_pad_hor(g_toast, 18, 0);
-    lv_obj_set_style_pad_ver(g_toast, 12, 0);
-    lv_obj_set_style_shadow_width(g_toast, 24, 0);
+    lv_obj_set_style_radius(g_toast, S(14), 0);
+    lv_obj_set_style_pad_hor(g_toast, S(18), 0);
+    lv_obj_set_style_pad_ver(g_toast, S(12), 0);
+    lv_obj_set_style_shadow_width(g_toast, S(24), 0);
     lv_obj_set_style_shadow_color(g_toast, lv_color_black(), 0);
     lv_obj_set_style_shadow_opa(g_toast, LV_OPA_60, 0);
-    g_toast_lbl = text(g_toast, &fl_16, C_TEXT, "");
-    lv_obj_align(g_toast, LV_ALIGN_BOTTOM_MID, 0, -NAV_H - 8);
+    g_toast_lbl = text(g_toast, F_N, C_TEXT, "");
+    lv_obj_align(g_toast, LV_ALIGN_BOTTOM_MID, 0, -NAV_H - S(8));
     lv_obj_add_flag(g_toast, LV_OBJ_FLAG_HIDDEN);
     g_toast_timer = lv_timer_create(toast_aus, 2800, nullptr);
     lv_timer_pause(g_toast_timer);

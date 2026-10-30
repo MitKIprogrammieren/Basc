@@ -1,8 +1,56 @@
-// Pins und Einstellungen für das Waveshare ESP32-S3-Touch-LCD-5 (800×480).
-// Quelle: docs.waveshare.com/ESP32-S3-Touch-LCD-5 und Schaltplan V1.2.
+// Pins und Einstellungen der Display-Firmware.
+//  - Waveshare ESP32-S3-Touch-LCD-5 (800×480), env:ws5
+//  - WT32-SC01 Plus (3,5", 480×320), env:sc01plus → BOARD_SC01PLUS
 #pragma once
 
-#define FW_VERSION "1.0.0"
+#define FW_VERSION "1.1.0"
+
+#if defined(BOARD_SC01PLUS)
+// ================================================================ WT32-SC01 Plus
+// Quelle: Wireless-Tag-Datenblatt V1.5 und Arduino_GFX-Beispiel „ZX3D50CE02S“.
+// ESP32-S3 (16 MB Flash, 2 MB PSRAM), ST7796 über 8-Bit-Parallelbus, Touch FT6336U.
+
+// ---- Display ----
+#define LCD_W 480
+#define LCD_H 320
+#define LCD_DC 0
+#define LCD_WR 47
+#define LCD_RST 4    // setzt auch den Touch-Controller zurück
+#define LCD_BL 45    // Hintergrundlicht (PWM)
+#define LCD_D0 9
+#define LCD_D1 46
+#define LCD_D2 3
+#define LCD_D3 8
+#define LCD_D4 18
+#define LCD_D5 17
+#define LCD_D6 16
+#define LCD_D7 15
+// 1 = quer, 3 = quer um 180° gedreht (USB-Buchse auf der anderen Seite).
+#define LCD_DREHUNG 1
+// Farben falsch (Negativ-Bild)? Dann 0.
+#define LCD_IPS 1
+
+// ---- Touch FT6336U ----
+#define I2C_SDA 6
+#define I2C_SCL 5
+#define TOUCH_INT 7
+#define FT6336_ADDR 0x38
+// Trifft der Finger nicht, hier gegensteuern (die Rohwerte stehen im seriellen Monitor):
+#define TOUCH_SPIEGEL_X 0
+#define TOUCH_SPIEGEL_Y 0
+
+// ---- RS485-Buchse ----
+// Der Transceiver braucht eine Senderfreigabe (RTS → GPIO2), die übernimmt der UART selbst.
+#define RS485_RX 1
+#define RS485_TX 42
+#define RS485_DE 2
+#define RS485_BAUD 115200
+
+#define GERAETENAME "filamentlager-waage-35"
+
+#else
+// ================================================================ Waveshare ESP32-S3-Touch-LCD-5
+// Quelle: docs.waveshare.com/ESP32-S3-Touch-LCD-5 und Schaltplan V1.2.
 
 // ---- Display (RGB565 parallel) ----
 #define LCD_W 800
@@ -53,7 +101,17 @@
 // Kommen keine Daten an, die beiden Werte tauschen.
 #define RS485_RX 43
 #define RS485_TX 44
+#define RS485_DE -1  // Waveshare schaltet die Richtung selbst um
 #define RS485_BAUD 115200
+
+#define GERAETENAME "filamentlager-waage"
+
+#endif
+
+// ---- Sensorplatine per WLAN statt RS485 ----
+// In secrets.h SENSOR_HOST setzen (IP der Sensorplatine, z. B. "192.168.1.96"),
+// dann verbindet sich das Display über TCP wie das BTT Pad 7. Ohne SENSOR_HOST: RS485.
+#define SENSOR_PORT 4711
 
 // ---- Verhalten ----
 #define LEERSPULE_STANDARD_G 250    // Gewicht einer leeren Spule, wenn die Sorte keinen Wert hat

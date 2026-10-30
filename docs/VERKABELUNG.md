@@ -4,7 +4,7 @@ Es gibt zwei Bauarten, die beide dieselbe Oberfläche und dasselbe Filamentlager
 
 | | **ESP32-Variante** | **Pi-Variante** |
 |---|---|---|
-| Display | Waveshare ESP32-S3-Touch-LCD-5 (800×480) | Raspberry Pi 4 + BTT PI TFT50 V2 |
+| Display | Waveshare ESP32-S3-Touch-LCD-5 (800×480) oder WT32-SC01 Plus (480×320) | Raspberry Pi 4 + BTT PI TFT50 V2 |
 | Messung | Sensorplatine ESP32-S3-Zero, per RS485 | Sensorplatine per USB **oder** HX711/PN532 direkt am Pi |
 | Firmware | `firmware/display-5inch` + `firmware/sensor-s3zero` | `pi/` (+ optional `firmware/sensor-s3zero`) |
 
@@ -71,6 +71,24 @@ Wird in beiden Bauarten empfohlen. Sie sitzt im Sockel der Waage bei Wägezelle 
 - Kommt am Display nichts an, in `firmware/display-5inch/include/config.h` `RS485_RX`/`RS485_TX` tauschen
   oder A und B vertauschen.
 - Der Abschlusswiderstand (Schalter am Display) bleibt bei kurzen Leitungen in der Waage aus.
+
+## WT32-SC01 Plus ↔ Sensorplatine
+
+Das SC01 Plus hat die RS485-Schnittstelle schon eingebaut (Transceiver mit Senderfreigabe an GPIO2, schaltet die
+Firmware selbst). An der Sensorplatine sitzt wie beim 5"-Display das MAX3485-Modul.
+
+| SC01 Plus (RS485-Buchse) | Leitung | Sensorplatine |
+|---|---|---|
+| A | verdrillt | MAX3485 A |
+| B | verdrillt | MAX3485 B |
+| GND | | GND |
+| 5 V über USB-C am SC01 Plus | Netzteil | 5V-Pin der Sensorplatine |
+
+- Beschriftung der Buchse vor dem Anschließen mit dem Aufdruck auf der Platine vergleichen.
+- Kommt nichts an: A und B tauschen.
+- **Ohne Kabel:** `SENSOR_HOST` in `secrets.h` setzen, dann spricht das SC01 Plus die Sensorplatine per WLAN an
+  (TCP 4711 wie das Pad 7). Den MAX3485 braucht man dann nicht.
+- Pins des SC01 Plus: `firmware/display-5inch/include/config.h` (Abschnitt `BOARD_SC01PLUS`).
 
 ## Pi-Variante
 

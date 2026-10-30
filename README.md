@@ -10,9 +10,9 @@ trägt ihn mit einem Tipp ins Lager ein. Eigenes Design auf 800×480.
 
 | | ESP32-Variante | Pi-Variante | Pad-7-Variante | Sonic-Pad-Variante |
 |---|---|---|---|---|
-| Display | Waveshare ESP32-S3-Touch-LCD-5 (5", 800×480) | Raspberry Pi 4 + BTT PI TFT50 V2 | BTT Pad 7 mit CB1 (7", 1024×600) | Creality Sonic Pad mit SonicPad-Debian (7", 1024×600) |
+| Display | Waveshare ESP32-S3-Touch-LCD-5 (5", 800×480) oder WT32-SC01 Plus (3,5", 480×320) | Raspberry Pi 4 + BTT PI TFT50 V2 | BTT Pad 7 mit CB1 (7", 1024×600) | Creality Sonic Pad mit SonicPad-Debian (7", 1024×600) |
 | Oberfläche | LVGL, direkt auf dem ESP32 | Web-Oberfläche im Chromium-Kiosk | wie Pi-Variante | wie Pi-Variante |
-| Messung | Sensorplatine (ESP32-S3-Zero) per RS485 | Sensorplatine per USB oder HX711/PN532 am Pi | Sensorplatine per **WLAN** – kein Kabel zum Display | wie Pad 7 |
+| Messung | Sensorplatine (ESP32-S3-Zero) per RS485 oder WLAN | Sensorplatine per USB oder HX711/PN532 am Pi | Sensorplatine per **WLAN** – kein Kabel zum Display | wie Pad 7 |
 | Ordner | `firmware/display-5inch`, `firmware/sensor-s3zero` | `pi/` | `pi/` + `pi/pad7/`, `firmware/sensor-s3zero` | `pi/` + `pi/sonicpad/`, `firmware/sensor-s3zero` |
 
 Alle zeigen dieselben Bildschirme: **Wiegen**, **Lager** (Suche, Filter, angebrochene Rollen),
@@ -22,7 +22,7 @@ Alle zeigen dieselben Bildschirme: **Wiegen**, **Lager** (Suche, Filter, angebro
 
 | Anz. | Teil | ESP32 | Pi |
 |---|---|---|---|
-| 1 | Waveshare ESP32-S3-Touch-LCD-5 (800×480, Touch) | ✓ | |
+| 1 | Waveshare ESP32-S3-Touch-LCD-5 (800×480, Touch) – oder WT32-SC01 Plus (3,5") | ✓ | |
 | 1 | Raspberry Pi 4 + BTT PI TFT50 V2 | | ✓ |
 | 1 | Waveshare ESP32-S3-Zero-M (Sensorplatine) | ✓ | empfohlen |
 | 2 | PN532 V3 mit Stiftleiste und Modusschalter | ✓ | ✓ |
@@ -56,6 +56,26 @@ Die Sensorplatine liefert außerdem die komplette Oberfläche aus: **http://fila
 am Mac, Handy oder Tablet, ganz ohne Display oder Pi.
 
 Danach am Display: **Einstellungen → Tara** bei leerem Teller, Gewicht auflegen, **Kalibrieren**.
+
+### Mit dem WT32-SC01 Plus (3,5")
+
+Gleiche Firmware, eigener Treiber für ST7796 und Touch FT6336U, Oberfläche in kompakter Anordnung (480×320).
+Auf dem kleinen Display fehlt nur die Seitenleiste „Angebrochene Rollen“ im Lager – die Reste stehen in der Liste.
+
+![SC01 Plus](docs/bilder/sc01plus.png)
+
+```bash
+cd firmware/display-5inch
+cp include/secrets.example.h include/secrets.h   # WLAN, HA-Adresse und Token eintragen
+pio run -e sc01plus -t upload
+```
+
+- **Sensorplatine per RS485:** Die RS485-Buchse ist auf dem SC01 Plus schon drauf, an der Sensorplatine braucht es das
+  MAX3485-Modul (Verkabelung: [docs/VERKABELUNG.md](docs/VERKABELUNG.md#wt32-sc01-plus--sensorplatine)).
+- **Oder per WLAN, ganz ohne Kabel:** in `secrets.h` `#define SENSOR_HOST "192.168.1.96"` (IP der Sensorplatine).
+  Die Sensorplatine bedient nur eine WLAN-Gegenstelle – Pad 7 oder Pi dann nicht gleichzeitig per WLAN verbinden.
+- Bild gedreht oder Touch daneben: `LCD_DREHUNG`, `TOUCH_SPIEGEL_X/Y` und `LCD_IPS` in `include/config.h`;
+  der serielle Monitor zeigt die Touch-Rohwerte.
 
 ## Pi-Variante einrichten
 
@@ -143,7 +163,7 @@ Etiketten und die AMS-Anzeige gibt es in dieser Bauart nicht.
 # Python (Pi): Modell, HA-Anbindung
 cd pi && python3 -m unittest discover -s tests
 
-# ESP32-Oberfläche am PC rendern (braucht LVGL 8.3 und ArduinoJson 7 als Quellen)
+# ESP32-Oberfläche am PC rendern, 800×480 und 480×320 (braucht LVGL 8.3 und ArduinoJson 7 als Quellen)
 firmware/display-5inch/test/host/build.sh /pfad/zu/deps ausgabe/
 
 # Schriften neu erzeugen (nach Änderung der Zeichen)
@@ -160,10 +180,11 @@ Protokoll der Sensorplatine: [docs/PROTOKOLL.md](docs/PROTOKOLL.md)
 | Teil | Geprüft |
 |---|---|
 | Datenmodell C++ und Python | Tests mit echten Lagerdaten |
-| ESP32-Oberfläche | am PC mit LVGL 8.3 gerendert |
+| ESP32-Oberfläche (5" und SC01 Plus) | am PC mit LVGL 8.3 gerendert |
+| SC01-Plus-Firmware | mit der ESP32-S3-Toolchain übersetzt; Pins wie im Arduino_GFX-Beispiel fürs SC01 Plus |
 | Pi-Dienst und Web-Oberfläche | im Demo-Modus und gegen nachgebautes Home Assistant |
 | WLAN-Verbindung Pi/Pad 7 ↔ Sensorplatine (Python) | Tests gegen nachgebaute Sensorplatine |
-| ESP32-Display-Treiber, Touch, WLAN, Sensor-Firmware | **noch nicht auf echter Hardware** – Pins und Display-Timing beim ersten Start prüfen |
+| ESP32-Display-Treiber (5" und SC01 Plus), Touch, WLAN, Sensor-Firmware | **noch nicht auf echter Hardware** – Pins und Display-Timing beim ersten Start prüfen |
 | Pad-7-Installation (CB1) | **noch nicht auf echter Hardware** |
 
 ## Schrift

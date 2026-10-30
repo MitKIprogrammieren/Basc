@@ -1,4 +1,4 @@
-/* LVGL 8.3 Konfiguration für das Waveshare ESP32-S3-Touch-LCD-5 (800×480).
+/* LVGL 8.3 Konfiguration für das Waveshare ESP32-S3-Touch-LCD-5 (800×480) und WT32-SC01 Plus (480×320).
  * Nicht gesetzte Werte nimmt LVGL aus lv_conf_internal.h. */
 #ifndef LV_CONF_H
 #define LV_CONF_H
@@ -39,10 +39,11 @@
 #define LV_USE_MEM_MONITOR 0
 
 /* Eingebaute Schriften nur noch für die Symbole (LV_SYMBOL_*) */
+#define LV_FONT_MONTSERRAT_12 1
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_16 1
 #define LV_FONT_MONTSERRAT_20 1
-#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(fl_14) LV_FONT_DECLARE(fl_16)
+#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(fl_12) LV_FONT_DECLARE(fl_14) LV_FONT_DECLARE(fl_16)
 #define LV_FONT_DEFAULT &fl_16
 
 #define LV_TXT_ENC LV_TXT_ENC_UTF8

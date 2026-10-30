@@ -1,6 +1,6 @@
 // Rendert die echte Oberfläche (ui.cpp) auf dem PC in Bilddateien.
 // Aufruf: render <todo_filament.json> <ausgabeordner>
-// Erzeugt PPM-Dateien (800×480), siehe build.sh.
+// Erzeugt PPM-Dateien (800×480, mit -DUI_KOMPAKT=1 480×320), siehe build.sh.
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -11,7 +11,11 @@
 #include "../../src/model.h"
 #include "../../src/ui.h"
 
+#if UI_KOMPAKT
+static const int W = 480, H = 320;
+#else
 static const int W = 800, H = 480;
+#endif
 static std::vector<lv_color_t> fb(W * H);
 
 static void flush(lv_disp_drv_t* drv, const lv_area_t* a, lv_color_t* px) {
@@ -133,6 +137,12 @@ int main(int argc, char** argv) {
     ui_meldung("Home Assistant nicht erreichbar", true);
     laufen(100);
     speichern(aus + "/7_fehler.ppm");
+
+    // 8: volle Rolle – vierstellige Zahl muss neben den Ring passen
+    st.brutto_g = 1250;
+    ui_status(st);
+    laufen(3000);  // Meldung ausblenden lassen
+    speichern(aus + "/8_voll.ppm");
     puts("fertig");
     return 0;
 }
