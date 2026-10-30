@@ -346,3 +346,25 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .et-zeilen { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
 .et-zeile { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .et-wahl { height: 38px; border-radius: 10px; border: 1px solid var(--rand); background: var(--karte, transparent); color: inherit; font: inherit; font-size: 14px; padding: 0 10px; min-width: 0; }
+
+/* Lager wie in SchichtLohn: „Nach …“, Filter-Zeile, Gruppen mit Kopf */
+.dd.an { border-color: var(--gruen); color: var(--gruen-t); }
+.dd.quadrat { width: 40px; padding: 0; justify-content: center; }
+.dd.breit { width: 100%; min-width: 0; justify-content: space-between; padding: 0 10px; }
+.dd.breit b { min-width: 0; font-size: 14px; }
+.dd .dd-zahl { min-width: 20px; height: 20px; border-radius: 10px; background: var(--gruen); color: var(--bg); font-size: 12px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
+.filterzeile { flex: 0 0 auto; }
+.filterzeile .dd-halter { min-width: 0; flex: 1 1 0; }
+.fpunkt { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.g-kopf { display: flex; align-items: center; gap: 10px; padding: 9px 6px; margin: 0 -6px; border-bottom: 1px solid var(--linie);
+  background: color-mix(in srgb, var(--panel) 70%, var(--linie)); border-radius: 10px; cursor: pointer; position: sticky; top: 0; z-index: 2; }
+.g-kopf + .zeile { border-top: 0; }
+.g-kopf.zu { opacity: .85; }
+.g-pfeil { color: var(--sub); display: inline-flex; }
+.g-mat { padding: 2px 12px; border-radius: 8px; border: 1px solid var(--gruen); color: var(--gruen-t); font-weight: 800; letter-spacing: .06em;
+  background: color-mix(in srgb, var(--gruen) 16%, transparent); font-size: 13px; }
+.g-marke .hlogo img { max-height: 20px; }
+.g-name { font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; }
+.g-anz { color: var(--sub); font-size: 13px; margin-left: auto; }
+.g-kg { font-size: 15px; min-width: 64px; text-align: right; }

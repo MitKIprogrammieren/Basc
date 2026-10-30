@@ -381,6 +381,11 @@ function lagerOpt() {
   if (!["liste", "knoepfe"].includes(o.stil)) o.stil = "liste";
   if (!["treffer", "name", "hersteller", "bestand", "farbe"].includes(o.sort)) o.sort = "name";
   if (typeof o.mat !== "string") o.mat = "alle";
+  // seit 2.20: „Nach …“ und Filter wie in SchichtLohn – frühere Wahl übernehmen
+  if (!["material", "hersteller", "farbe", "besonderheit", "bestand"].includes(o.gruppe))
+    o.gruppe = "hersteller"; // Start: nach Marke, ohne Filter, alles zugeklappt
+  if (!o.fl || typeof o.fl !== "object") o.fl = {};
+  if (!Array.isArray(o.auf)) o.auf = []; // aufgeklappte Gruppen – alle anderen sind zu
   return o;
 }
 S.lager = lagerOpt();
@@ -484,71 +489,171 @@ function materialListe() {
   for (const s of S.sorten) z.set(materialName(s), (z.get(materialName(s)) || 0) + 1);
   return [...z.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
+// Lager wie in SchichtLohn: Suche, „Nach …“ (Gruppen), Filter (Material, Marke, Farbe, Bestand), Gruppen einklappbar
+const GRUPPEN = [["material", "Material"], ["hersteller", "Marke"], ["farbe", "Farbe"], ["besonderheit", "Besonderheit"], ["bestand", "Bestand"]];
+const FAM = ["Schwarz", "Grau", "Weiß", "Braun", "Beige", "Rot", "Orange", "Gelb", "Grün", "Türkis", "Blau", "Lila", "Pink"];
+const FAM_HEX = { Schwarz: "#111111", Grau: "#8a8a8a", Weiß: "#f2f2f2", Braun: "#6d4c41", Beige: "#d8c3a0", Rot: "#d32f2f", Orange: "#f57c00",
+  Gelb: "#fdd835", Grün: "#43a047", Türkis: "#26a69a", Blau: "#1e63c8", Lila: "#7b3fb0", Pink: "#ec5f9a" };
+// Farbfamilie wie in SchichtLohn
+function familie(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex || "");
+  if (!m) return "Grau";
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let hue = 0;
+  if (d) hue = (mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  hue = (hue + 360) % 360;
+  if (l < 0.13) return "Schwarz";
+  if (l > 0.9 && s < 0.5) return "Weiß";
+  if (s < 0.15) return l > 0.82 ? "Weiß" : "Grau";
+  if (hue >= 10 && hue < 45 && (l < 0.4 || (l < 0.5 && s < 0.6))) return "Braun";
+  if (hue >= 20 && hue < 55 && l >= 0.55 && (s < 0.5 || l > 0.75)) return "Beige";
+  if (hue < 15 || hue >= 345) return "Rot";
+  if (hue < 40) return "Orange";
+  if (hue < 70) return "Gelb";
+  if (hue < 165) return "Grün";
+  if (hue < 195) return "Türkis";
+  if (hue < 255) return "Blau";
+  if (hue < 300) return "Lila";
+  return "Pink";
+}
+const ORTE = [["angebrochen", "Angebrochen"], ["voll", "Nur volle"], ["leer", "Aufgebraucht"]];
+function lagerFilter() { if (!S.lager.fl || typeof S.lager.fl !== "object") S.lager.fl = {}; return S.lager.fl; }
 function passtMaterial(s) {
   if (S.lager.stil === "knoepfe") return passtFilter(s, S.filter);
-  if (S.lager.mat === "alle") return true;
-  if (S.lager.mat === "angebrochen") return s.reste.length > 0;
-  return materialName(s) === S.lager.mat;
+  const fl = lagerFilter();
+  if (fl.material && materialName(s) !== fl.material) return false;
+  if (fl.hersteller && (s.hersteller || "Ohne Marke") !== fl.hersteller) return false;
+  if (fl.farbe && familie(s.hex) !== fl.farbe) return false;
+  if (fl.ort === "angebrochen" && !s.reste.length) return false;
+  if (fl.ort === "voll" && (s.reste.length || !s.spulen)) return false;
+  if (fl.ort === "leer" && s.spulen > 0) return false;
+  return true;
 }
-const SORTIERUNG = [["treffer", "Treffer"], ["name", "Name"], ["hersteller", "Hersteller"], ["bestand", "Bestand"], ["farbe", "Farbe"]];
+// Gruppe einer Sorte für „Nach …“ – Name und Reihenfolge
+function gruppeVon(s, art) {
+  if (art === "hersteller") return s.hersteller || "Ohne Marke";
+  if (art === "farbe") return familie(s.hex);
+  if (art === "besonderheit") return s.besonderheiten[0] || "Ohne Besonderheit";
+  return materialName(s);
+}
+function gruppenOrdnung(art, a, b) {
+  if (art === "farbe") return FAM.indexOf(a) - FAM.indexOf(b);
+  const ohne = (x) => /^Ohne /.test(x);
+  return ohne(a) - ohne(b) || a.localeCompare(b, "de", { sensitivity: "base" });
+}
 function sortieren(liste, frage) {
-  const art = frage && S.lager.sortWahl !== true ? "treffer" : S.lager.stil === "knoepfe" ? "keine" : S.lager.sort;
+  const art = frage ? "treffer" : S.lager.stil === "knoepfe" ? "keine" : S.lager.gruppe === "bestand" ? "bestand" : "name";
   const nach = (f) => (a, b) => String(f(a.s)).localeCompare(String(f(b.s)), "de", { numeric: true, sensitivity: "base" });
   const vgl = {
     treffer: (a, b) => b.p - a.p || nach(kurzname)(a, b),
     name: nach((s) => `${kurzname(s)} ${s.hersteller}`),
-    hersteller: nach((s) => `${s.hersteller} ${kurzname(s)}`),
     bestand: (a, b) => (a.s.spulen === 0) - (b.s.spulen === 0) || a.s.bestand_g - b.s.bestand_g || nach(kurzname)(a, b),
-    farbe: (a, b) => { const x = farbton(a.s.hex), y = farbton(b.s.hex); return x[0] - y[0] || x[1] - y[1]; },
   }[art] || (() => 0);
   return liste.sort(vgl);
 }
 let ddOffen = "";
 const DD_ICON = {
   runter: '<path d="m6 9 6 6 6-6"/>', hoch: '<path d="m6 15 6-6 6 6"/>',
-  sortieren: '<path d="M7 4v16M3 8l4-4 4 4"/><path d="M14 6h7M14 12h5M14 18h3"/>',
+  filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+  zu: '<path d="m7 15 5-5 5 5"/><path d="m7 20 5-5 5 5" opacity=".45"/>', auf: '<path d="m7 9 5 5 5-5"/><path d="m7 4 5 5 5-5" opacity=".45"/>',
 };
 const ddIcon = (n) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DD_ICON[n]}</svg>`;
+const gruppeName = () => (GRUPPEN.find(([k]) => k === S.lager.gruppe) || GRUPPEN[0])[1];
+// Auswahl für einen Filter: [Wert, Text, Anzahl]
+function filterWerte(k) {
+  const z = new Map();
+  const zaehl = (v) => z.set(v, (z.get(v) || 0) + 1);
+  for (const s of S.sorten) {
+    if (k === "material") zaehl(materialName(s));
+    else if (k === "hersteller") zaehl(s.hersteller || "Ohne Marke");
+    else if (k === "farbe") zaehl(familie(s.hex));
+  }
+  if (k === "ort") return ORTE.map(([v, t]) => [v, t, S.sorten.filter((s) => (v === "angebrochen" ? s.reste.length : v === "leer" ? !s.spulen : s.spulen && !s.reste.length)).length]);
+  const liste = [...z.entries()].map(([v, n]) => [v, v, n]);
+  return k === "farbe" ? liste.sort((a, b) => FAM.indexOf(a[0]) - FAM.indexOf(b[0])) : liste.sort((a, b) => gruppenOrdnung(k, a[0], b[0]));
+}
+const FILTER_NAMEN = { material: ["Material", "Alle Materialien"], hersteller: ["Marke", "Alle Marken"], farbe: ["Farbe", "Alle Farben"], ort: ["Bestand", "Überall"] };
 function filterLeiste() {
   const f = $("filter");
   f.className = S.lager.stil === "knoepfe" ? "reihe gap8" : "reihe gap8 dd-reihe";
   if (S.lager.stil === "knoepfe") {
     f.innerHTML = FILTER.map((x, i) => `<button class="filter${i === S.filter ? " an" : ""}" data-f="${i}">${x}</button>`).join("");
+    $("filterzeile").innerHTML = "";
+    $("filterzeile").classList.add("versteckt");
     return;
   }
-  const mats = materialListe();
-  const aktMat = S.lager.mat === "alle" ? ["Alle", S.sorten.length] : S.lager.mat === "angebrochen"
-    ? ["Angebrochen", S.sorten.filter((s) => s.reste.length).length] : [S.lager.mat, (mats.find(([m]) => m === S.lager.mat) || [0, 0])[1]];
-  const sucht = $("suche").value.trim() && S.lager.sortWahl !== true;
-  const sortName = SORTIERUNG.find(([k]) => k === (sucht ? "treffer" : S.lager.sort))[1];
-  f.innerHTML = `<div class="dd-halter"><button class="dd${ddOffen === "mat" ? " auf" : ""}" data-dd="mat"><small>Material</small><b>${esc(aktMat[0])}</b><span class="dd-n">${aktMat[1]}</span>${ddIcon(ddOffen === "mat" ? "hoch" : "runter")}</button>${ddOffen === "mat" ? ddPanel("mat", mats) : ""}</div>
-    <div class="dd-halter"><button class="dd${ddOffen === "sort" ? " auf" : ""}" data-dd="sort"><small>Sortieren</small><b>${sortName}</b>${ddIcon(ddOffen === "sort" ? "hoch" : "runter")}</button>${ddOffen === "sort" ? ddPanel("sort") : ""}</div>`;
+  const fl = lagerFilter();
+  const nF = Object.values(fl).filter(Boolean).length;
+  const alleZu = S.lager.gruppe !== "bestand" && !(S.lager.auf || []).length;
+  f.innerHTML = `<div class="dd-halter"><button class="dd${ddOffen === "gruppe" ? " auf" : ""}" data-dd="gruppe"><b>Nach ${gruppeName()}</b>${ddIcon(ddOffen === "gruppe" ? "hoch" : "runter")}</button>${ddOffen === "gruppe" ? ddPanel("gruppe") : ""}</div>
+    <button class="dd${S.lager.filterAuf || nF ? " an" : ""}" data-filterauf="1" aria-expanded="${!!S.lager.filterAuf}">${ddIcon("filter")}<b>Filter</b>${nF ? `<span class="dd-zahl">${nF}</span>` : ""}</button>
+    ${S.lager.gruppe !== "bestand" ? `<button class="dd quadrat" data-allezu="1" aria-label="${alleZu ? "Alle aufklappen" : "Alle einklappen"}" title="${alleZu ? "Alle aufklappen" : "Alle einklappen"}">${ddIcon(alleZu ? "auf" : "zu")}</button>` : ""}`;
+  const z = $("filterzeile");
+  z.classList.toggle("versteckt", !S.lager.filterAuf);
+  if (!S.lager.filterAuf) { z.innerHTML = ""; return; }
+  z.innerHTML = Object.entries(FILTER_NAMEN).map(([k, [titel, alle]]) => {
+    const w = fl[k];
+    const text = !w ? titel : k === "ort" ? (ORTE.find(([v]) => v === w) || [0, w])[1] : w;
+    return `<div class="dd-halter wachsen"><button class="dd breit${w ? " an" : ""}${ddOffen === "f-" + k ? " auf" : ""}" data-dd="f-${k}" aria-label="${titel}: ${esc(text)}"><b class="ellipse">${esc(text)}</b>${ddIcon(ddOffen === "f-" + k ? "hoch" : "runter")}</button>${ddOffen === "f-" + k ? ddPanel("f-" + k) : ""}</div>`;
+  }).join("") + (nF ? `<button class="dd quadrat" data-zuruecksetzen="1" aria-label="Filter zurücksetzen" title="Filter zurücksetzen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : "");
 }
-function ddPanel(art, mats) {
-  if (art === "sort") return `<div class="dd-panel rechts">${SORTIERUNG.map(([k, t]) =>
-    `<button class="dd-o${S.lager.sort === k ? " an" : ""}" data-sort="${k}"><span>${t}</span><small>${{ treffer: "beim Suchen", bestand: "wenig zuerst", farbe: "nach Farbton" }[k] || ""}</small></button>`).join("")}</div>`;
-  const anz = S.sorten.filter((s) => s.reste.length).length;
-  return `<div class="dd-panel">${[["alle", "Alle", S.sorten.length], ["angebrochen", "Angebrochen", anz]].map(([k, t, n]) =>
-    `<button class="dd-o${S.lager.mat === k ? " an" : ""}" data-mat="${k}"><span>${t}</span><small>${n}</small></button>`).join("")}
-    <div class="dd-trenner"></div>${mats.map(([m, n]) =>
-    `<button class="dd-o${S.lager.mat === m ? " an" : ""}" data-mat="${esc(m)}"><span>${esc(m)}</span><small>${n}</small></button>`).join("")}</div>`;
+function ddPanel(art) {
+  if (art === "gruppe") return `<div class="dd-panel">${GRUPPEN.map(([k, t]) =>
+    `<button class="dd-o${S.lager.gruppe === k ? " an" : ""}" data-gruppe="${k}"><span>Nach ${t}</span><small>${k === "bestand" ? "wenig zuerst" : ""}</small></button>`).join("")}</div>`;
+  const k = art.slice(2);
+  const fl = lagerFilter();
+  return `<div class="dd-panel${k === "ort" ? " rechts" : ""}"><button class="dd-o${!fl[k] ? " an" : ""}" data-fk="${k}" data-fv=""><span>${FILTER_NAMEN[k][1]}</span><small>${S.sorten.length}</small></button><div class="dd-trenner"></div>
+    ${filterWerte(k).map(([v, t, n]) => `<button class="dd-o${fl[k] === v ? " an" : ""}" data-fk="${k}" data-fv="${esc(v)}"><span>${k === "farbe" ? `<i class="fpunkt" style="background:${FAM_HEX[v] || "#888"}"></i>` : ""}${esc(t)}</span><small>${n}</small></button>`).join("")}</div>`;
 }
-$("filter").onclick = (e) => {
-  const d = e.target.closest("[data-dd]"), m = e.target.closest("[data-mat]"), so = e.target.closest("[data-sort]"), b = e.target.closest("[data-f]");
+function filterKlick(e) {
+  const d = e.target.closest("[data-dd]"), g = e.target.closest("[data-gruppe]"), fk = e.target.closest("[data-fk]"), b = e.target.closest("[data-f]");
   if (d) { ddOffen = ddOffen === d.dataset.dd ? "" : d.dataset.dd; filterLeiste(); return; }
-  if (m) { S.lager.mat = m.dataset.mat; ddOffen = ""; lagerOptSpeichern(); return liste(); }
-  if (so) { S.lager.sort = so.dataset.sort; S.lager.sortWahl = $("suche").value.trim() ? true : undefined; ddOffen = ""; lagerOptSpeichern(); return liste(); }
+  if (g) { S.lager.gruppe = g.dataset.gruppe; S.lager.auf = []; ddOffen = ""; lagerOptSpeichern(); return liste(); }
+  if (fk) { lagerFilter()[fk.dataset.fk] = fk.dataset.fv; ddOffen = ""; lagerOptSpeichern(); return liste(); }
+  if (e.target.closest("[data-filterauf]")) { S.lager.filterAuf = !S.lager.filterAuf; ddOffen = ""; lagerOptSpeichern(); return liste(); }
+  if (e.target.closest("[data-zuruecksetzen]")) { S.lager.fl = {}; ddOffen = ""; lagerOptSpeichern(); return liste(); }
+  if (e.target.closest("[data-allezu]")) {
+    const alle = [...new Set(S.sorten.map((s) => gruppeVon(s, S.lager.gruppe)))];
+    S.lager.auf = (S.lager.auf || []).length ? [] : alle;
+    lagerOptSpeichern();
+    return liste();
+  }
   if (b) { S.filter = Number(b.dataset.f); liste(); }
-};
+}
+$("filter").onclick = filterKlick;
+$("filterzeile").onclick = filterKlick;
 document.addEventListener("click", (e) => {
   // composedPath statt closest: das angeklickte Element ist nach dem Neuzeichnen schon aus dem Dokument
-  if (ddOffen && !e.composedPath().includes($("filter"))) { ddOffen = ""; filterLeiste(); }
+  const pfad = e.composedPath();
+  if (ddOffen && !pfad.includes($("filter")) && !pfad.includes($("filterzeile"))) { ddOffen = ""; filterLeiste(); }
 });
+
+function zeileHtml(s, q, vorschlag) {
+  return `<div class="zeile${s === vorschlag ? " vorschlag" : ""}" data-uid="${esc(s.uid)}">
+      ${rolle(s.hex, s.besonderheiten, "r30")}
+      <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${markiere(kurzname(s), q)}</span>
+        <span class="sub14 ellipse unterzeile">${logosAn() && s.hersteller ? herstellerLogo(s.hersteller, q) + markiere([...s.besonderheiten.slice(0, 2), s.ort].filter(Boolean).map((x) => ` · ${x}`).join(""), q)
+          : markiere(unterzeile(s) + (s.ort ? ` · ${s.ort}` : ""), q)}</span></div>
+      ${s === vorschlag ? '<span class="chip ams">Vorschlag aus AMS</span>' : s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
+      <div class="rechts"><div class="anz${s.spulen ? "" : " leer"}">${spulenText(s.spulen)}</div>
+        <div class="sub14">${esc(restText(s))}</div></div></div>`;
+}
+const kgText = (g) => g >= 1000 ? `${String(Math.round(g / 100) / 10).replace(".", ",")} kg` : `${Math.round(g)} g`;
+function gruppenKopf(name, art, liste, zu) {
+  const g = liste.reduce((a, s) => a + (s.bestand_g || 0), 0);
+  const marke = art === "material" ? `<span class="g-mat">${esc(name)}</span>`
+    : art === "hersteller" && logosAn() && !/^Ohne /.test(name) ? `<span class="g-marke">${herstellerLogo(name)}</span>`
+    : art === "farbe" ? `<span class="g-name"><i class="fpunkt" style="background:${FAM_HEX[name] || "#888"}"></i>${esc(name)}</span>`
+    : `<span class="g-name">${esc(name)}</span>`;
+  return `<div class="g-kopf${zu ? " zu" : ""}" data-g="${esc(name)}"><span class="g-pfeil">${ddIcon(zu ? "runter" : "hoch")}</span>${marke}
+    <span class="g-anz">${liste.length} ${liste.length === 1 ? "Sorte" : "Sorten"}</span><b class="g-kg">${kgText(g)}</b></div>`;
+}
 
 function liste() {
   filterLeiste();
   const q = $("suche").value.trim();
-  if (!q) delete S.lager.sortWahl;
   let n = 0, weitere = 0;
   const html = [];
   const vorschlag = S.auswahlModus && S.vorschlag ? S.vorschlag : null;
@@ -561,26 +666,49 @@ function liste() {
     treffer.push({ s, p });
   }
   sortieren(treffer, q);
-  const reihe = vorschlag ? [vorschlag, ...treffer.map((t) => t.s)] : treffer.map((t) => t.s);
-  for (const s of reihe) {
-    if (n >= MAX_ZEILEN) { weitere++; continue; }
-    n++;
-    html.push(`<div class="zeile${s === vorschlag ? " vorschlag" : ""}" data-uid="${esc(s.uid)}">
-      ${rolle(s.hex, s.besonderheiten, "r30")}
-      <div class="spalte gap2 wachsen minw0"><span class="ellipse" style="font-weight:600;font-size:15px">${markiere(kurzname(s), q)}</span>
-        <span class="sub14 ellipse unterzeile">${logosAn() && s.hersteller ? herstellerLogo(s.hersteller, q) + markiere([...s.besonderheiten.slice(0, 2), s.ort].filter(Boolean).map((x) => ` · ${x}`).join(""), q)
-          : markiere(unterzeile(s) + (s.ort ? ` · ${s.ort}` : ""), q)}</span></div>
-      ${s === vorschlag ? '<span class="chip ams">Vorschlag aus AMS</span>' : s.nfc.length ? '<span class="chip b">NFC</span>' : ""}
-      <div class="rechts"><div class="anz${s.spulen ? "" : " leer"}">${spulenText(s.spulen)}</div>
-        <div class="sub14">${esc(restText(s))}</div></div></div>`);
+  const art = S.lager.gruppe;
+  const gruppiert = !q && !vorschlag && S.lager.stil !== "knoepfe" && art !== "bestand";
+  if (vorschlag) { html.push(zeileHtml(vorschlag, q, vorschlag)); n++; }
+  if (gruppiert) {
+    const gruppen = new Map();
+    for (const { s } of treffer) {
+      const k = gruppeVon(s, art);
+      if (!gruppen.has(k)) gruppen.set(k, []);
+      gruppen.get(k).push(s);
+    }
+    const auf = new Set(S.lager.auf || []);
+    for (const k of [...gruppen.keys()].sort((a, b) => gruppenOrdnung(art, a, b))) {
+      const liste = gruppen.get(k);
+      html.push(gruppenKopf(k, art, liste, !auf.has(k)));
+      if (!auf.has(k)) continue;
+      for (const s of liste) {
+        if (n >= MAX_ZEILEN) { weitere++; continue; }
+        n++;
+        html.push(zeileHtml(s, q, vorschlag));
+      }
+    }
+  } else {
+    for (const { s } of treffer) {
+      if (n >= MAX_ZEILEN) { weitere++; continue; }
+      n++;
+      html.push(zeileHtml(s, q, vorschlag));
+    }
   }
   if (q) $("suche-n").textContent = `${treffer.length} Treffer`; else $("suche-n").textContent = "";
-  if (!n) html.push(`<div class="leer-hinweis">${S.sorten.length ? "Keine passende Sorte" : "Lager wird geladen …"}</div>`);
+  if (!treffer.length && !vorschlag) html.push(`<div class="leer-hinweis">${S.sorten.length ? "Keine passende Sorte" : "Lager wird geladen …"}</div>`);
   if (weitere) html.push(`<div class="leer-hinweis">… und ${weitere} weitere – Suche verwenden</div>`);
   $("liste").innerHTML = html.join("");
 }
 
 $("liste").onclick = (e) => {
+  const gk = e.target.closest(".g-kopf");
+  if (gk) {
+    const auf = new Set(S.lager.auf || []);
+    auf.has(gk.dataset.g) ? auf.delete(gk.dataset.g) : auf.add(gk.dataset.g);
+    S.lager.auf = [...auf];
+    lagerOptSpeichern();
+    return liste();
+  }
   const z = e.target.closest(".zeile");
   if (!z) return;
   const s = findeUid(z.dataset.uid);
