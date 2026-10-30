@@ -1305,10 +1305,20 @@ async function etikettZeichnen(nurVorschau) {
   const weg = $("et-weg");
   if (weg) weg.textContent = erg && erg.weg && erg.weg.length ? `Passt nicht mehr drauf: ${erg.weg.join(", ")}` : "";
 }
+// QR-Code: mit eingetragener SchichtLohn-Adresse ein Link auf genau diese Rolle (SL-Nummer, sonst Strichcode) –
+// sonst wie bisher die Lager-Liste in Home Assistant
+function etQr(sorte) {
+  const basis = String((S.et && S.et.qr) || "").trim();
+  const code = sorte && (sorte.sl_id || (sorte.codes || [])[0]);
+  if (!basis || !code) return S.et ? S.et.lager_url || "" : "";
+  let b = /^https?:\/\//i.test(basis) ? basis : "https://" + basis;
+  try { const u = new URL(b); if (u.pathname === "/" || !u.pathname) u.pathname = "/app/"; b = u.origin + u.pathname + u.search; } catch (e) { /* so lassen */ }
+  return b + (b.includes("?") ? "&" : "?") + "rolle=" + encodeURIComponent(code);
+}
 // Optionen fürs Zeichnen – Vorschau mit skala 2, Druck in Originalauflösung
 function etZeichenOpt(d) {
   return {
-    format: d.format, rest: d.rest, qr: S.et ? S.et.lager_url : "",
+    format: d.format, rest: d.rest, qr: etQr(d.sorte),
     bildVersion: S.et && S.et.bilder ? S.et.bilder[d.sorte.hersteller] || 0 : 0,
     slots: d.opt.slots, rgb: d.opt.rgb, eigene: d.opt.eigene, hochkant: d.opt.hochkant,
     leerStandard: S.z ? S.z.leer_standard_g : 0,
@@ -1396,6 +1406,10 @@ function etEinstHtml() {
       <span class="hinweis">Für Drucker, die nur über klassisches Bluetooth drucken (Phomemo M20 Pro): Adresse des Druckdienstes auf dem Raspberry Pi. Leer lassen, wenn die Waage direkt druckt.</span>
       <div class="e-zeile"><div class="feld wachsen"><input id="et-bruecke" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.bruecke)}" placeholder="http://192.168.1.250:8765" aria-label="Adresse der Druckbrücke"></div>
         <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" data-et="bruecke">Speichern</button></div></div>` : ""}
+    <div class="e-block"><span class="ueber">QR-Code auf dem Etikett</span>
+      <span class="hinweis">Adresse von SchichtLohn, am besten über Tailscale (z. B. https://schichtlohn.dein-tailnet.ts.net). Dann öffnet der QR-Code mit der Handy-Kamera genau diese Rolle. Leer = Lager-Liste in Home Assistant.</span>
+      <div class="e-zeile"><div class="feld wachsen"><input id="et-qr" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.qr || "")}" placeholder="https://….ts.net" aria-label="Adresse für den QR-Code"></div>
+        <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" data-et="qr">Speichern</button></div></div>
     <div class="e-block"><span class="ueber">Standardformat</span>
       <div class="seg">${Object.entries(Etikett.FORMATE).map(([k, v]) => `<button class="${k === et.format ? "an" : ""}" data-et="format" data-v="${k}">${v.name}</button>`).join("")}</div></div>
     <div class="e-block"><span class="ueber">Schwärzung</span>
@@ -1423,6 +1437,7 @@ async function etEinstKlick(d) {
   if (d.et === "dichte") return etSetzen({ dichte: Number(d.v) });
   if (d.et === "waehlen") { await etSetzen({ adresse: d.adresse, name: d.name }); return meldung(`${d.name} gewählt`); }
   if (d.et === "test") return etikettOeffnen(Etikett.TEST, 0);
+  if (d.et === "qr") { tastatur(false); await etSetzen({ qr: $("et-qr").value.trim() }); return meldung($("et-qr").value.trim() ? "QR-Adresse gespeichert" : "QR-Code zeigt wieder die Lager-Liste"); }
   if (d.et === "bruecke") { tastatur(false); await etSetzen({ bruecke: $("et-bruecke").value.trim() }); return meldung($("et-bruecke").value.trim() ? "Druckbrücke gespeichert" : "Druckbrücke entfernt"); }
   if (d.et === "trennen") {
     try {

@@ -63,6 +63,8 @@ class EtikettDienst:
             "dichte": int(cfg.get("dichte", 10)),
             # Druckbrücke (tools/druckbruecke) für Drucker, die nur klassisches Bluetooth können (M20 Pro)
             "bruecke": cfg.get("bruecke", ""),
+            # Adresse von SchichtLohn für den QR-Code (z. B. Tailscale) – der Code öffnet dann genau diese Rolle
+            "qr": cfg.get("qr", ""),
         }
         self._laden()
         self.auftraege: queue.Queue = queue.Queue()
@@ -129,6 +131,11 @@ class EtikettDienst:
                 if b != self.werte.get("bruecke"):
                     self.bruecke_stand = -2
                 self.werte["bruecke"] = b
+            if "qr" in d:
+                q = str(d["qr"]).strip()[:120]
+                if q and not re.match(r"^https?://", q):
+                    q = "https://" + q
+                self.werte["qr"] = q
             if d.get("verbindung") in ("ble", "rfcomm", "datei"):
                 self.werte["verbindung"] = d["verbindung"]
             self._speichern()

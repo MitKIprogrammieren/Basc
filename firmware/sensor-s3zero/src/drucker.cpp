@@ -35,6 +35,7 @@ constexpr uint8_t PAPIER_LUECKE = 0x0A;
 struct Werte {
     String adresse, name, format = "expanded";
     String bruecke;  // http://pi:8765 – Druckbrücke für Drucker, die nur klassisches Bluetooth können (M20 Pro)
+    String qr;       // Adresse von SchichtLohn für den QR-Code (Rollen-Link), z. B. über Tailscale
     uint8_t adress_typ = 0;  // 0 = öffentlich, 1 = zufällig (aus der Suche)
     int dichte = 10;
 } g_w;
@@ -76,6 +77,7 @@ void laden() {
     g_w.adress_typ = g_prefs.getUChar("typ", 0);
     g_w.dichte = g_prefs.getInt("dichte", 10);
     g_w.bruecke = g_prefs.getString("bruecke", "");
+    g_w.qr = g_prefs.getString("qr", "");
     g_prefs.end();
 }
 
@@ -87,6 +89,7 @@ void speichern() {  // g_mx gehalten
     g_prefs.putUChar("typ", g_w.adress_typ);
     g_prefs.putInt("dichte", g_w.dichte);
     g_prefs.putString("bruecke", g_w.bruecke);
+    g_prefs.putString("qr", g_w.qr);
     g_prefs.end();
 }
 
@@ -566,6 +569,7 @@ void drucker_einstellungen(JsonDocument& d) {
         for (NimBLEClient* c : *NimBLEDevice::getClientList()) verbunden |= c->isConnected();
     d["verbunden"] = verbunden;
     d["bruecke"] = g_w.bruecke;
+    d["qr"] = g_w.qr;
 }
 
 void drucker_setzen(JsonObjectConst o) {
@@ -579,6 +583,12 @@ void drucker_setzen(JsonObjectConst o) {
         b.trim();
         if (b.length() && !b.startsWith("http://")) b = "http://" + b;
         g_w.bruecke = b.substring(0, 80);
+    }
+    if (o["qr"].is<const char*>()) {
+        String q = o["qr"].as<const char*>();
+        q.trim();
+        if (q.length() && !q.startsWith("http://") && !q.startsWith("https://")) q = "https://" + q;
+        g_w.qr = q.substring(0, 120);
     }
     if (o["adresse"].is<const char*>()) {
         g_w.adresse = String(o["adresse"].as<const char*>()).substring(0, 40);

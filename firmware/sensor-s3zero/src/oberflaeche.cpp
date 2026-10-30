@@ -714,7 +714,7 @@ void sorte_json(JsonObject o, const Filament& f) {
     // Werte für die Etikett-Zeilen (Flow, TD, K-Wert … aus SchichtLohn) unverändert aus der Beschreibung
     JsonDocument d;
     if (!f.description.empty() && !deserializeJson(d, f.description)) {
-        for (const char* k : {"flow", "td", "mvs", "k", "kammer", "schwund", "buegeln_tempo", "buegeln_flow", "ams", "ams_modelle", "sku"})
+        for (const char* k : {"flow", "td", "mvs", "k", "kammer", "schwund", "buegeln_tempo", "buegeln_flow", "ams", "ams_modelle", "sku", "sl_id"})
             if (!d[k].isNull()) o[k] = d[k];
     }
 }

@@ -62,7 +62,7 @@ def hex_zu_rgb(h, standard="#888888"):
 
 
 # Zusätzliche Werte, die SchichtLohn pro Sorte speichert – nur durchgereicht für die Etikett-Zeilen
-DRUCKPROFIL = ("mvs", "k", "kammer", "schwund", "buegeln_tempo", "buegeln_flow", "ams", "ams_modelle", "sku")
+DRUCKPROFIL = ("mvs", "k", "kammer", "schwund", "buegeln_tempo", "buegeln_flow", "ams", "ams_modelle", "sku", "sl_id")
 
 
 @dataclass
