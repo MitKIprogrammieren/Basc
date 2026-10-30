@@ -82,7 +82,7 @@ struct Einstellungen {
 Preferences g_prefs;
 
 void einst_laden() {
-    g_prefs.begin("anzeige", true);
+    g_prefs.begin("anzeige", false);  // schreibend öffnen legt den Bereich beim ersten Start an
     g_einst.ssid = g_prefs.getString("ssid", WLAN_SSID);
     g_einst.pw = g_prefs.getString("pw", WLAN_PASS);
     g_einst.ha_url = g_prefs.getString("ha_url", HA_URL);
@@ -307,6 +307,8 @@ std::string uhrzeit() {
 }  // namespace
 
 void setup() {
+    // Standard sind 256 Bytes – die Einstellungen vom Webflasher (mit HA-Token) sind länger
+    Serial.setRxBufferSize(4096);
     Serial.begin(115200);
     delay(200);
     Serial.println("FilamentLager-Waage " FW_VERSION);
