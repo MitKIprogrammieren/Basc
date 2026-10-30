@@ -270,7 +270,8 @@ void ha_task(void*) {
 struct Aktionen : UiAktionen {
     void tara() override { g_sensor.tara(); }
     void kalibrieren(int g) override {
-        if (g_sensor.daten().gramm < 0 && !g_sensor.daten().kalibriert) {
+        SensorDaten d = g_sensor.daten();
+        if (d.gramm < 0 && !d.kalibriert) {
             ui_meldung("Erst Tara bei leerem Teller", true);
             return;
         }
@@ -310,6 +311,8 @@ void setup() {
     // Standard sind 256 Bytes – die Einstellungen vom Webflasher (mit HA-Token) sind länger
     Serial.setRxBufferSize(4096);
     Serial.begin(115200);
+    // Nicht warten, wenn am USB niemand mitliest (sonst bremst jede Ausgabezeile die Oberfläche)
+    Serial.setTxTimeoutMs(0);
     delay(200);
     Serial.println("FilamentLager-Waage " FW_VERSION);
 
@@ -326,7 +329,7 @@ void setup() {
     } else {
         g_sensor.begin(g_rs485, RS485_RX, RS485_TX, RS485_BAUD, RS485_DE);
     }
-    g_sensor.rueckmeldung = [](bool ok, const std::string& t) { ui_meldung(t, !ok); };
+    g_sensor.starten();
 
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(GERAETENAME);
@@ -341,7 +344,11 @@ void setup() {
 
 void loop() {
     lv_timer_handler();
-    g_sensor.loop();
+    {
+        bool ok;
+        std::string t;
+        while (g_sensor.meldung_holen(ok, t)) ui_meldung(t, !ok);
+    }
     usb_lesen();
 
     // Ergebnisse der HA-Task übernehmen
@@ -370,7 +377,7 @@ void loop() {
     static uint32_t letzte_anzeige = 0;
     if (jetzt - letzte_anzeige >= 100) {
         letzte_anzeige = jetzt;
-        const SensorDaten& d = g_sensor.daten();
+        SensorDaten d = g_sensor.daten();
         WaagenStatus s;
         s.brutto_g = d.gramm;
         s.stabil = d.stabil;

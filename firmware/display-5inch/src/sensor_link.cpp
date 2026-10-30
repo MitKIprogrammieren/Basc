@@ -24,7 +24,41 @@ void SensorLink::begin_wlan(const char* host, uint16_t tcp_port) {
     tcp_port_ = tcp_port;
 }
 
-// Kurzer Verbindungsversuch, höchstens alle 3 s – blockiert die Oberfläche nur kurz
+void SensorLink::starten() { xTaskCreatePinnedToCore(task, "sensor", 6144, this, 2, nullptr, 0); }
+
+void SensorLink::task(void* selbst) {
+    SensorLink* s = (SensorLink*)selbst;
+    for (;;) {
+        s->schritt();
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+SensorDaten SensorLink::daten() {
+    std::lock_guard<std::mutex> l(mx_);
+    return d_;
+}
+
+void SensorLink::tara() {
+    std::lock_guard<std::mutex> l(mx_);
+    befehl_ = "{\"c\":\"tara\"}";
+}
+
+void SensorLink::kalibrieren(int gramm) {
+    std::lock_guard<std::mutex> l(mx_);
+    befehl_ = "{\"c\":\"kal\",\"g\":" + std::to_string(gramm) + "}";
+}
+
+bool SensorLink::meldung_holen(bool& ok, std::string& text) {
+    std::lock_guard<std::mutex> l(mx_);
+    if (meldungen_.empty()) return false;
+    ok = meldungen_.front().first;
+    text = meldungen_.front().second;
+    meldungen_.pop_front();
+    return true;
+}
+
+// Verbindungsversuch höchstens alle 3 s (läuft in der Sensor-Task, nicht in der Oberfläche)
 bool SensorLink::wlan_verbinden() {
     uint32_t jetzt = millis();
     if (WiFi.status() != WL_CONNECTED || (letzter_versuch_ && jetzt - letzter_versuch_ < 3000)) return false;
@@ -34,13 +68,14 @@ bool SensorLink::wlan_verbinden() {
     if (host_.size() > endung.size() && host_.compare(host_.size() - endung.size(), endung.size(), endung) == 0) {
         static bool mdns_an = false;
         if (!mdns_an) mdns_an = MDNS.begin(GERAETENAME);
-        ip = MDNS.queryHost(host_.substr(0, host_.size() - endung.size()).c_str(), 800);
+        ip = MDNS.queryHost(host_.substr(0, host_.size() - endung.size()).c_str(), 1500);
         if (ip == IPAddress()) return false;
     } else if (!ip.fromString(host_.c_str())) {
         if (!WiFi.hostByName(host_.c_str(), ip)) return false;
     }
-    if (!client_.connect(ip, tcp_port_, 800)) return false;
+    if (!client_.connect(ip, tcp_port_, 2000)) return false;
     client_.setNoDelay(true);
+    client_.setTimeout(1);  // Senden/Empfangen höchstens 1 s blockieren
     io_ = &client_;
     laenge_ = 0;
     Serial.printf("[sensor] per WLAN verbunden mit %s\n", ip.toString().c_str());
@@ -55,17 +90,14 @@ void SensorLink::senden(const char* zeile) {
     letzte_abfrage_ = millis();
 }
 
-void SensorLink::tara() { befehl_ = "{\"c\":\"tara\"}"; }
-
-void SensorLink::kalibrieren(int gramm) {
-    befehl_ = "{\"c\":\"kal\",\"g\":" + std::to_string(gramm) + "}";
-}
-
-void SensorLink::loop() {
+void SensorLink::schritt() {
     if (wlan_ && !client_.connected()) {
         io_ = nullptr;
         if (client_) client_.stop();
-        d_.verbunden = false;
+        {
+            std::lock_guard<std::mutex> l(mx_);
+            d_.verbunden = false;
+        }
         if (!wlan_verbinden()) return;
     }
     if (!io_) return;
@@ -84,15 +116,13 @@ void SensorLink::loop() {
         }
     }
     uint32_t jetzt = millis();
-    d_.verbunden = letzte_antwort_ && (jetzt - letzte_antwort_ < 1000);
-    if (jetzt - letzte_abfrage_ >= SENSOR_ABFRAGE_MS) {
-        if (!befehl_.empty()) {
-            senden(befehl_.c_str());
-            befehl_.clear();
-        } else {
-            senden("{\"c\":\"p\"}");
-        }
+    std::string befehl;
+    {
+        std::lock_guard<std::mutex> l(mx_);
+        d_.verbunden = letzte_antwort_ && (jetzt - letzte_antwort_ < 1000);
+        if (jetzt - letzte_abfrage_ >= SENSOR_ABFRAGE_MS) befehl.swap(befehl_);
     }
+    if (jetzt - letzte_abfrage_ >= SENSOR_ABFRAGE_MS) senden(befehl.empty() ? "{\"c\":\"p\"}" : befehl.c_str());
 }
 
 void SensorLink::zeile_verarbeiten(const char* z) {
@@ -101,6 +131,7 @@ void SensorLink::zeile_verarbeiten(const char* z) {
     if (deserializeJson(doc, z)) return;
     letzte_antwort_ = millis();
     const char* t = doc["t"] | "";
+    std::lock_guard<std::mutex> l(mx_);
     if (!strcmp(t, "s")) {
         d_.gramm = doc["g"] | 0.0f;
         d_.stabil = (doc["st"] | 0) != 0;
@@ -115,6 +146,6 @@ void SensorLink::zeile_verarbeiten(const char* z) {
         else if (c == "tara") text = "Tara gesetzt";
         else if (c == "kal") text = "Kalibriert";
         else text = "OK";
-        if (rueckmeldung) rueckmeldung(ok, text);
+        if (meldungen_.size() < 8) meldungen_.push_back({ok, text});
     }
 }

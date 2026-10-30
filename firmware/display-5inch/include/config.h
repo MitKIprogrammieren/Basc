@@ -3,7 +3,7 @@
 //  - WT32-SC01 Plus (3,5", 480×320), env:sc01plus → BOARD_SC01PLUS
 #pragma once
 
-#define FW_VERSION "1.2.1"
+#define FW_VERSION "1.2.2"
 
 #if defined(BOARD_SC01PLUS)
 // ================================================================ WT32-SC01 Plus
@@ -35,9 +35,10 @@
 #define I2C_SCL 5
 #define TOUCH_INT 7
 #define FT6336_ADDR 0x38
-// Trifft der Finger nicht, hier gegensteuern (die Rohwerte stehen im seriellen Monitor):
+// Trifft der Finger nicht, hier gegensteuern (Rohwerte mit TOUCH_PROTOKOLL 1 im seriellen Monitor):
 #define TOUCH_SPIEGEL_X 0
 #define TOUCH_SPIEGEL_Y 0
+#define TOUCH_PROTOKOLL 0  // 1 = Rohwerte im seriellen Monitor ausgeben
 
 // ---- RS485-Buchse ----
 // Der Transceiver braucht eine Senderfreigabe (RTS → GPIO2), die übernimmt der UART selbst.

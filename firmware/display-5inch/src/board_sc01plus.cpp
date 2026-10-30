@@ -50,7 +50,7 @@ void touch_lesen(lv_indev_drv_t*, lv_indev_data_t* data) {
         letztes_y = constrain(y, 0, LCD_H - 1);
         data->state = LV_INDEV_STATE_PR;
         // Hilfe beim Einstellen von TOUCH_SPIEGEL_*: höchstens 4× pro Sekunde ausgeben
-        if (millis() - letzte_ausgabe > 250) {
+        if (TOUCH_PROTOKOLL && millis() - letzte_ausgabe > 250) {
             letzte_ausgabe = millis();
             Serial.printf("[touch] roh %d/%d → %d/%d\n", rx, ry, letztes_x, letztes_y);
         }
