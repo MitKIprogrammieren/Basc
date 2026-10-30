@@ -547,7 +547,7 @@ void wiegen_aktualisieren() {
     } else {
         setze(w_k_titel, "KEINE SPULE ERKANNT");
         lv_obj_set_style_bg_color(w_k_swatch, farbe(C_RAND2), 0);
-        setze(w_k_name, da ? "Ohne NFC-Tag" : "Teller ist leer");
+        setze(w_k_name, da ? "Ohne NFC-Tag" : "Waage ist leer");
         setze(w_k_sub, da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen");
         karte_chips({});
         g_haupt = da ? Haupt::WAEHLEN : Haupt::NICHTS;

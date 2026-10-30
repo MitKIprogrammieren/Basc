@@ -260,7 +260,7 @@ function wiegen() {
     $("k-swatch").className = "swatch s34";
     $("k-swatch").innerHTML = "";
     $("k-swatch").style.background = "var(--rand2)";
-    $("k-name").textContent = da ? "Ohne NFC-Tag" : "Teller ist leer";
+    $("k-name").textContent = da ? "Ohne NFC-Tag" : "Waage ist leer";
     $("k-sub").textContent = da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen";
     karteChips([]);
     S.haupt = da ? "waehlen" : "nichts";

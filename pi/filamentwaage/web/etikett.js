@@ -173,7 +173,7 @@ const Etikett=(()=>{
     const gap=Math.round(ref*0.04);const unten=H-m;const q=o.qr?Math.round(W*(fett?0.34:0.32)):0;const yQ=y;
     const fb=innen-(q?q+gap:0);const fg0=Math.round(ref*(fett?0.13:0.11));const ein=passend(ctx,farbeVon(s),fb,fg0,700,Math.round(fg0*0.7/K));
     const z=ein.text.endsWith("…")?umbrechen(ctx,farbeVon(s),fb,fg0,700,2):[ein.text];const fg=z.length>1?fg0:ein.g;
-    z.forEach(t=>{y+=Math.round(fg*1.1);text(ctx,t,m,y,fg,700)});
+    z.forEach((t,i)=>{y+=Math.round(fg*(i?1.02:0.86));text(ctx,t,m,y,fg,700)});
     if(hex){const hp=passend(ctx,hex,fb,Math.round(ref*0.085),700,8);y+=Math.round(ref*0.095);text(ctx,hp.text,m,y,hp.g,700)}
     if(q)qr(ctx,o.qr,W-m-q,yQ,q,"oben-rechts");
     y=Math.max(y+Math.round(ref*0.04),yQ+q+gap);
