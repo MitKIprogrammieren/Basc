@@ -290,6 +290,16 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .br-striche i.an { background: var(--gruen); }
 .br-zeile span:last-child { font-weight: 500; text-align: right; max-width: 62%; }
 .br-ok { color: var(--gruen-t); } .br-fehler { color: var(--rot); font-size: 12px; }
+.br-gesendet { color: var(--sub); }
+.br-liste { flex: 0 0 auto; }
+.br-druckerzeile { align-items: center; gap: 10px; }
+.br-druckerzeile .br-was b { font-size: 16px; }
+.br-protokoll .br-zeile { align-items: center; gap: 10px; }
+.br-protokoll .br-zeile span { max-width: none !important; }
+.br-wann { display: flex; flex-direction: column; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.br-wann small, .br-was small { color: var(--sub); font-size: 12px; font-weight: 400; }
+.br-was { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; text-align: left !important; }
+.br-was b { font-weight: 600; color: var(--text, inherit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status-pill.frei { background: rgba(255,167,38,.18); color: var(--orange-t); }
 
 /* Einstellungen → System: Temperatur, Leistung, Speicher */

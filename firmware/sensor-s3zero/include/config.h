@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.20.5"
+#define FW_VERSION "2.20.6"
 
 // Wägezelle über NAU7802 (I²C, Adresse 0x2A)
 #define WAAGE_SDA 1

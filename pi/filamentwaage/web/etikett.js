@@ -173,6 +173,10 @@ const Etikett=(()=>{
     const gap=Math.round(ref*0.04);const unten=H-m;const q=o.qr?Math.round(W*(fett?0.34:0.32)):0;const yQ=y;
     const fb=innen-(q?q+gap:0);const fg0=Math.round(ref*(fett?0.13:0.11));const ein=passend(ctx,farbeVon(s),fb,fg0,700,Math.round(fg0*0.7/K));
     const z=ein.text.endsWith("…")?umbrechen(ctx,farbeVon(s),fb,fg0,700,2):[ein.text];const fg=z.length>1?fg0:ein.g;
+    // Farbe und Hex-Wert als Block senkrecht mittig neben dem QR-Code – kurze Namen rutschen nicht an den Balken,
+    // lange (zweizeilige) füllen die Höhe des QR-Codes
+    const blockH=Math.round(fg*0.74)+(z.length-1)*Math.round(fg*1.02)+(hex?Math.round(ref*0.095):0);
+    y+=Math.max(0,Math.round((q-blockH)/2))-Math.round(fg*0.12);
     z.forEach((t,i)=>{y+=Math.round(fg*(i?1.02:0.86));text(ctx,t,m,y,fg,700)});
     if(hex){const hp=passend(ctx,hex,fb,Math.round(ref*0.085),700,8);y+=Math.round(ref*0.095);text(ctx,hp.text,m,y,hp.g,700)}
     if(q)qr(ctx,o.qr,W-m-q,yQ,q,"oben-rechts");

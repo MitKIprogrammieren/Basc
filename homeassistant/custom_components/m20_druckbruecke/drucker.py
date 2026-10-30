@@ -128,6 +128,11 @@ class M20Drucker:
                     if not bestaetigt and (i // stueck) % 10 == 9:
                         await asyncio.sleep(0.05)
 
+            if self.sprache == "escpos" and daten:
+                # Aufwecken: Ein schlafender M110 nimmt sonst die Daten an, druckt aber nicht.
+                # ESC @ setzt ihn zurück, kurz warten, dann erst das Etikett.
+                await senden(b"\x1b\x40")
+                await asyncio.sleep(0.6)
             await senden(daten)
             if self.sprache == "escpos":
                 # Kein Rückkanal „fertig“: Zeit zum Drucken lassen, bevor getrennt wird
@@ -168,15 +173,15 @@ class M20Drucker:
         self._speichern()
         self.melden()
 
-    def auftrag_annehmen(self, auftrag: bytes, titel: str) -> bool:
+    def auftrag_annehmen(self, auftrag: bytes, titel: str, info: str = "") -> bool:
         """Auftrag im Hintergrund drucken. False, wenn die Warteschlange voll ist."""
         if self._wartend >= WARTESCHLANGE_MAX:
             return False
         self._wartend += 1
-        self.hass.async_create_background_task(self._drucken(auftrag, titel), f"{DOMAIN} drucken")
+        self.hass.async_create_background_task(self._drucken(auftrag, titel, info), f"{DOMAIN} drucken")
         return True
 
-    async def _drucken(self, auftrag: bytes, titel: str) -> None:
+    async def _drucken(self, auftrag: bytes, titel: str, info: str = "") -> None:
         try:
             async with self._lock:
                 self.melden()
@@ -192,7 +197,8 @@ class M20Drucker:
         finally:
             self._wartend -= 1
         self.verlauf.append({"zeit": time.strftime("%Y-%m-%d %H:%M:%S"), "titel": titel, "ok": ok,
-                             "text": "gedruckt" if ok else text})
+                             "text": ("gedruckt" if self.sprache == "tspl" else "gesendet") if ok else text,
+                             "info": info, "bytes": len(auftrag)})
         if ok:
             self.gesamt += 1
         self.letzter, self.ok, self.antworten, self.zeit = text, ok, antworten, time.strftime("%H:%M:%S")

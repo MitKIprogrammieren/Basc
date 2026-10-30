@@ -855,7 +855,7 @@ const ICONS = {
   system: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
 };
 const MENUE = [
-  ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["etikett", "Etiketten"], ["bruecke", "Druckbrücke"], ["system", "System"],
+  ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["etikett", "Etiketten"], ["bruecke", "Drucker"], ["system", "System"],
 ];
 // Die Druckbrücke steht nur im Menü, wenn unter Etiketten eine eingetragen ist
 const menueListe = () => MENUE.filter(([n]) => n !== "bruecke" || (S.et && S.et.bruecke));
@@ -935,14 +935,13 @@ function menueText(n) {
   if (n === "etikett") {
     if (!S.et) return "wird geladen …";
     const f = (Etikett.FORMATE[S.et.format] || {}).name || "";
-    return `${S.et.bruecke ? "über Druckbrücke" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker"} · ${f}`;
+    return `${S.et.bruecke ? "über Home Assistant" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker"} · ${f}`;
   }
   if (n === "bruecke") {
     const b = S.br;
     if (!b) return "wird geladen …";
     if (b.fehler) return "nicht erreichbar";
-    const r = b.rolle || {};
-    return [b.verbunden ? "verbunden" : "nicht verbunden", r.rest != null ? `Rolle ${r.rest}${r.gesamt ? "/" + r.gesamt : ""}` : ""].filter(Boolean).join(" · ");
+    return (b.alle || []).map(({ d, st }) => `${d.name} ${st && st.verbunden ? "bereit" : "aus"}`).join(" · ");
   }
   if (n === "waage") return `Leerspule ${e.leerspule_g ?? 250} g · NFC Stufe ${e.nfc_stufe ?? 3}`;
   return `Version ${z.version || ""}`;
@@ -1267,69 +1266,69 @@ S.etSucht = false;
 // Die Oberfläche fragt die Brücke direkt (sie erlaubt das per CORS) – so geht es auf dem Pi und auf der Sensorplatine.
 S.br = null;
 let brTimer = 0;
+// Drucker und Druckprotokoll: Zustand jedes Druckers in Home Assistant (M20 Pro, M110 …)
 async function brLaden() {
   clearTimeout(brTimer);
   const basis = S.et && S.et.bruecke;
   if (!basis) return;
-  try {
+  const holen = async (id) => {
     const ab = new AbortController(), t = setTimeout(() => ab.abort(), 4000);
-    S.br = await (await fetch(basis + "/status", { cache: "no-store", signal: ab.signal })).json();
-    clearTimeout(t);
+    try { return await (await fetch(basis + "/status" + (id ? "?drucker=" + encodeURIComponent(id) : ""), { cache: "no-store", signal: ab.signal })).json(); }
+    finally { clearTimeout(t); }
+  };
+  try {
+    const liste = S.drListe.length ? S.drListe : [{ id: "", name: "" }];
+    const alle = await Promise.all(liste.map(async (d) => {
+      let st = null;
+      try { st = await holen(d.id); } catch (e) { st = null; }
+      return { d: { id: d.id, name: d.name || (st && (st.name || (st.geraet || {}).typ)) || "Drucker" }, st };
+    }));
+    S.br = alle.every((x) => !x.st) ? { fehler: true } : { alle };
   } catch (e) { S.br = { fehler: true }; }
   if (S.seite === "einst") { if (S.eSeite === "bruecke") einst(); else einstMenue(); }
-  if (S.seite === "einst" && S.eSeite === "bruecke") brTimer = setTimeout(brLaden, 3000);
+  if (S.seite === "einst" && S.eSeite === "bruecke") brTimer = setTimeout(brLaden, 5000);
 }
 function brEinstHtml() {
   const b = S.br, basis = (S.et && S.et.bruecke) || "";
-  const kopf = (p) => `<div class="e-zeile"><span class="e-titel wachsen">Druckbrücke${b && b.geraet && b.geraet.typ ? " · " + esc(b.geraet.typ) : ""}</span>${p}</div>`;
-  if (!b) return kopf(pill(null, "lädt …")) + '<span class="sub14">Frage die Druckbrücke …</span>';
-  if (b.fehler) return kopf(pill(false, "nicht erreichbar")) + `<span class="hinweis">${esc(basis)} antwortet nicht. Läuft der Dienst filamentwaage-druck auf dem Pi, und stimmt die Adresse unter Etiketten?</span>`;
-  const st = b.verbunden ? pill(true, `verbunden seit ${b.verbunden_seit || ""}`)
-    : b.freigegeben_s ? `<span class="status-pill frei">für die App frei · noch ${Math.ceil(b.freigegeben_s / 60)} min</span>` : pill(false, "nicht verbunden");
-  const r = b.rolle || {}, ak = b.akku || {}, sg = b.signal || {}, dr = b.drucke || {}, g = b.geraet || {};
-  const p = r.gesamt ? Math.round(r.rest * 100 / r.gesamt) : 0;
-  const pFarbe = p < 10 ? "var(--rot)" : p < 25 ? "var(--orange)" : "var(--gruen)";
-  const stufe = sg.rssi == null ? 0 : sg.rssi >= -3 ? 4 : sg.rssi >= -8 ? 3 : sg.rssi >= -15 ? 2 : 1;
-  const akkuWert = ak.wert ? ak.wert + (/^\d+$/.test(ak.wert) && +ak.wert <= 100 ? " %" : "") : "";
-  const kachel = (ue, gross, unten) => `<div class="br-k"><span class="ueber">${ue}</span><b class="br-gross">${gross}</b>${unten}</div>`;
-  const letzte = (dr.letzte || []).slice(0, 5);
-  const neuVerbinden = parseFloat(b.version || "0") >= 1.3;
-  return kopf(st) + `
-    <div class="br-kacheln">
-      ${kachel("Etikettenrolle", r.rest != null ? `${r.rest}${r.gesamt ? ` <small>von ${r.gesamt}</small>` : ""}` : "–",
-        `<div class="balken"><div style="width:${p}%;background:${pFarbe}"></div></div><span class="sub14">${r.rfid ? "RFID " + esc(r.rfid) : ""}</span>`)}
-      ${akkuWert ? kachel("Akku", esc(akkuWert), `<span class="sub14">${ak.befehl ? "über SSSGET" + esc(ak.befehl) : ""}</span>`) : ""}
-      ${kachel("Funksignal", esc(sg.text || "–"), `<span class="br-striche">${[6, 10, 14, 18].map((h, i) => `<i class="${i < stufe ? "an" : ""}" style="height:${h}px"></i>`).join("")}</span>
-        <span class="sub14">${sg.rssi != null ? sg.rssi + " dB · " : ""}${dr.abbrueche_heute || 0} Abbrüche heute</span>`)}
-      ${kachel("Gedruckt", `${dr.heute ?? 0} <small>heute</small>`, `<span class="sub14">${dr.gesamt ?? 0} insgesamt${dr.fehler_heute ? ` · ${dr.fehler_heute} Fehler heute` : ""}</span>`)}
-    </div>
-    <div class="e-block"><span class="ueber">Letzte Drucke</span>
-      <div class="info-liste" style="flex:0 0 auto">${letzte.length ? letzte.map((e) => `<div class="info-zeile br-zeile"><span>${esc(String(e.zeit || "").slice(11, 16))} · ${esc(e.titel)}</span>
-        <span class="${e.ok ? "br-ok" : "br-fehler"}">${esc(e.ok ? "gedruckt" : e.text)}</span></div>`).join("") : '<div class="info-zeile"><span>noch keine</span><span></span></div>'}</div></div>
-    <span class="sub14">${esc([g.typ, g.firmware && "Firmware " + g.firmware, g.seriennummer && "SN " + g.seriennummer].filter(Boolean).join(" · "))}${b.version ? ` · Druckbrücke ${esc(b.version)}` : ""}</span>
-    <div class="e-zeile">${neuVerbinden ? '<button class="knopf rahmen h50 wachsen" data-br="verbinden">Neu verbinden</button>' : ""}
-      <button class="knopf primaer h50 wachsen" data-br="test" style="font-size:15px">Testdruck</button></div>
-    <button class="knopf rahmen h50" data-br="freigeben">Für Phomemo-App freigeben (10 min)</button>`;
+  if (!b) return '<div class="e-zeile"><span class="e-titel wachsen">Drucker</span>' + pill(null, "lädt …") + "</div>";
+  if (b.fehler) return `<div class="e-zeile"><span class="e-titel wachsen">Drucker</span>${pill(false, "nicht erreichbar")}</div>
+    <span class="hinweis">Home Assistant (${esc(basis)}) antwortet nicht. Läuft Home Assistant, und stimmt die Adresse unter Etiketten?</span>`;
+  // je Drucker eine kompakte Zeile – darunter ist Platz für das Protokoll
+  const drucker = '<div class="info-liste br-liste">' + b.alle.map(({ d, st }) => {
+    const r = (st && st.rolle) || {}, sg = (st && st.signal) || {}, dr = (st && st.drucke) || {};
+    const teile = st ? [r.rest != null ? `Rolle ${r.rest}${r.gesamt ? "/" + r.gesamt : ""}` : "", sg.text && sg.text !== "–" ? `Signal ${sg.text}` : "",
+      `${dr.heute ?? 0} heute · ${dr.gesamt ?? 0} insgesamt`].filter(Boolean) : ["Home Assistant meldet nichts"];
+    const zustand = !st ? pill(false, "nicht erreichbar") : st.verbindet ? pill(null, "druckt …") : pill(!!st.verbunden, st.verbunden ? "bereit" : "aus");
+    return `<div class="info-zeile br-druckerzeile"><span class="br-was"><b>${esc(d.name)}</b><small>${esc(teile.join(" · "))}</small></span>
+      ${zustand}<button class="mini-knopf" data-br="test" data-dr="${esc(d.id)}">Testdruck</button></div>`;
+  }).join("") + "</div>";
+  // ein gemeinsames Protokoll, neueste zuerst
+  const prot = [];
+  b.alle.forEach(({ d, st }) => ((st && st.drucke && st.drucke.letzte) || []).forEach((e) => prot.push(Object.assign({ drucker: d.name }, e))));
+  prot.sort((x, y) => String(y.zeit).localeCompare(String(x.zeit)));
+  const zeit = (z) => { const m = /^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(z || ""); return m ? `${m[2]}.${m[1]}. ${m[3]}` : esc(z || ""); };
+  const status = (e) => !e.ok ? `<span class="br-fehler">${esc(e.text || "Fehler")}</span>`
+    : e.text === "gesendet" ? '<span class="br-gesendet" title="Der M110 meldet nicht zurück, ob er wirklich gedruckt hat">gesendet</span>' : '<span class="br-ok">gedruckt</span>';
+  const zeilen = prot.slice(0, 15).map((e) => `<div class="info-zeile br-zeile"><span class="br-wann">${zeit(e.zeit)}<small>${esc(e.drucker)}</small></span>
+    <span class="br-was"><b>${esc(e.titel)}</b>${e.info ? `<small>${esc(e.info)}</small>` : ""}</span>${status(e)}</div>`).join("");
+  return `<div class="e-block"><span class="ueber">Drucker</span>${drucker}</div><div class="e-block"><span class="ueber">Druckprotokoll</span>
+    <div class="info-liste br-protokoll">${zeilen || '<div class="info-zeile"><span>noch nichts gedruckt</span><span></span></div>'}</div></div>`;
 }
 async function brAktion(was, knopf) {
   const basis = S.et && S.et.bruecke;
   if (!basis) return;
   if (knopf) knopf.disabled = true;
-  // „Neu verbinden“ heißt nicht in jeder Version der Brücke gleich
-  const pfade = was === "verbinden" ? ["/verbinden", "/neu_verbinden", "/neuverbinden", "/reconnect"] : ["/" + was];
+  const id = knopf && knopf.dataset.dr;
   let text = "", ok = false;
-  for (const p of pfade) {
-    try {
-      const r = await fetch(basis + p, { method: "POST" });
-      if (r.status === 404) continue;
-      const d = await r.json().catch(() => ({}));
-      ok = r.ok && d.ok !== false;
-      text = d.text || (ok ? (was === "test" ? "Testdruck geschickt" : "Erledigt") : `Druckbrücke meldet ${r.status}`);
-      break;
-    } catch (e) { text = "Druckbrücke nicht erreichbar"; break; }
-  }
-  meldung(text || "Diese Druckbrücke kennt das noch nicht", !ok);
-  setTimeout(brLaden, 800);
+  try {
+    const r = await fetch(basis + "/" + was + (id ? "?drucker=" + encodeURIComponent(id) : ""), { method: "POST" });
+    const d = await r.json().catch(() => ({}));
+    ok = r.ok && d.ok !== false;
+    text = d.text || (ok ? (was === "test" ? "Testdruck geschickt" : "Erledigt") : `Home Assistant meldet ${r.status}`);
+  } catch (e) { text = "Home Assistant nicht erreichbar"; }
+  meldung(text, !ok);
+  if (knopf) knopf.disabled = false;
+  setTimeout(brLaden, 1500);
 }
 
 async function etLaden() {
@@ -1564,7 +1563,7 @@ function etEinstHtml() {
       ${g.adresse === et.adresse ? pill(true, "gewählt") : g.phomemo ? pill(null, "Phomemo?") : ""}</div>`).join("")
     : '<span class="sub14">Kein Gerät gefunden – Drucker einschalten und nochmal suchen.</span>';
   const her = et.hersteller || [];
-  return `<div class="e-zeile"><span class="e-titel wachsen">Etiketten</span>${et.verbunden ? pill(true, "mit der Waage verbunden") : pill(et.bruecke || et.adresse || et.verbindung === "datei" ? true : null, et.bruecke ? "über Druckbrücke" : et.adresse || et.verbindung === "datei" ? "eingerichtet" : "kein Drucker")}</div>
+  return `<div class="e-zeile"><span class="e-titel wachsen">Etiketten</span>${et.verbunden ? pill(true, "mit der Waage verbunden") : pill(et.bruecke || et.adresse || et.verbindung === "datei" ? true : null, et.bruecke ? "über Home Assistant" : et.adresse || et.verbindung === "datei" ? "eingerichtet" : "kein Drucker")}</div>
     <div class="e-block"><span class="ueber">Drucker</span>
       <div class="info-liste" style="flex:0 0 auto">
         <div class="info-zeile"><span>Drucker</span><span>${esc(et.name || (et.adresse ? "Phomemo" : "–"))}</span></div>

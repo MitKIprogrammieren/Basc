@@ -134,6 +134,9 @@ class DruckView(HomeAssistantView):
                 return _antwort({"ok": False, "text": "Etikett ungültig (%s)" % e}, 400)
         else:
             return _antwort({"ok": False, "text": "nicht gefunden"}, 404)
-        if not drucker.auftrag_annehmen(auftrag, titel):
+        info = "Testdruck" if aktion == "test" else (
+            "%d×%d Punkte · %s" % (int(d["breite"]), int(d["hoehe"]),
+                                   "300 dpi 1:1" if str(d.get("dpi")) == "300" else "203 dpi" + (" → 300 hochgerechnet" if drucker.sprache == "tspl" else "")))
+        if not drucker.auftrag_annehmen(auftrag, titel, info):
             return _antwort({"ok": False, "text": f"{drucker.name} ist noch beschäftigt"}, 503)
         return _antwort({"ok": True, "text": f"Druckauftrag an {drucker.name} angenommen", "drucker": drucker.modell}, 202)
