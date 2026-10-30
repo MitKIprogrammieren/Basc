@@ -3,7 +3,7 @@
 //  - WT32-SC01 Plus (3,5", 480×320), env:sc01plus → BOARD_SC01PLUS
 #pragma once
 
-#define FW_VERSION "1.1.0"
+#define FW_VERSION "1.2.0"
 
 #if defined(BOARD_SC01PLUS)
 // ================================================================ WT32-SC01 Plus
@@ -109,8 +109,8 @@
 #endif
 
 // ---- Sensorplatine per WLAN statt RS485 ----
-// In secrets.h SENSOR_HOST setzen (IP der Sensorplatine, z. B. "192.168.1.96"),
-// dann verbindet sich das Display über TCP wie das BTT Pad 7. Ohne SENSOR_HOST: RS485.
+// IP der Sensorplatine im Webflasher eintragen (oder SENSOR_HOST in secrets.h),
+// dann verbindet sich das Display über TCP wie das BTT Pad 7. Leer: RS485.
 #define SENSOR_PORT 4711
 
 // ---- Verhalten ----

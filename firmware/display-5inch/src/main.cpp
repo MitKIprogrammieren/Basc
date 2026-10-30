@@ -6,8 +6,12 @@
 //  - Sensorplatine über RS485 oder WLAN abfragen (Gewicht, NFC-Tags)
 //  - Home Assistant (todo.filament) in einer eigenen Task auf Kern 0,
 //    damit langsame HTTP-Anfragen die Oberfläche nicht einfrieren
+//  - Einstellungen (WLAN, Home Assistant, Sensor-IP) im Flash; der Webflasher schickt sie per USB
+//    ({"c":"wlan",…} und {"c":"einst",…}), secrets.h liefert nur noch Vorgaben für den ersten Start
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include <time.h>
 
@@ -23,10 +27,23 @@
 #include "sensor_link.h"
 #include "ui.h"
 
+// secrets.h ist freiwillig: ohne sie kommen WLAN und Home Assistant über den Webflasher
 #if __has_include("secrets.h")
 #include "secrets.h"
-#else
-#error "include/secrets.example.h nach include/secrets.h kopieren und ausfüllen"
+#endif
+#ifndef WLAN_SSID
+#define WLAN_SSID ""
+#define WLAN_PASS ""
+#endif
+#ifndef HA_URL
+#define HA_URL ""
+#define HA_TOKEN ""
+#endif
+#ifndef HA_TODO
+#define HA_TODO "todo.filament"
+#endif
+#ifndef SENSOR_HOST
+#define SENSOR_HOST ""
 #endif
 
 namespace {
@@ -57,6 +74,106 @@ SensorLink g_sensor;
 HardwareSerial g_rs485(1);
 bool g_ha_ok = false;
 uint32_t g_letztes_laden = 0;
+
+// ---------------------------------------------------------------- Einstellungen
+struct Einstellungen {
+    String ssid, pw, ha_url, ha_token, ha_todo, sensor;
+} g_einst;
+Preferences g_prefs;
+
+void einst_laden() {
+    g_prefs.begin("anzeige", true);
+    g_einst.ssid = g_prefs.getString("ssid", WLAN_SSID);
+    g_einst.pw = g_prefs.getString("pw", WLAN_PASS);
+    g_einst.ha_url = g_prefs.getString("ha_url", HA_URL);
+    g_einst.ha_token = g_prefs.getString("ha_token", HA_TOKEN);
+    g_einst.ha_todo = g_prefs.getString("ha_todo", HA_TODO);
+    g_einst.sensor = g_prefs.getString("sensor", SENSOR_HOST);
+    g_prefs.end();
+    while (g_einst.ha_url.endsWith("/")) g_einst.ha_url.remove(g_einst.ha_url.length() - 1);
+}
+
+void einst_speichern(const char* schluessel, const String& wert) {
+    g_prefs.begin("anzeige", false);
+    g_prefs.putString(schluessel, wert);
+    g_prefs.end();
+}
+
+// ---------------------------------------------------------------- USB-Befehle (Webflasher)
+char g_usb_puffer[2048];
+size_t g_usb_laenge = 0;
+uint32_t g_neustart_um = 0;
+
+void usb_antwort(JsonDocument& d) {
+    serializeJson(d, Serial);
+    Serial.print('\n');
+}
+
+void usb_befehl(const char* zeile) {
+    JsonDocument doc;
+    if (deserializeJson(doc, zeile)) return;
+    std::string c = doc["c"] | "";
+    JsonDocument a;
+    if (c == "info") {
+        bool wlan = WiFi.status() == WL_CONNECTED;
+        a["t"] = "info";
+        a["art"] = "anzeige";
+        a["fw"] = FW_VERSION;
+        a["geraet"] = GERAETENAME;
+        a["wlan"] = wlan;
+        a["ip"] = wlan ? WiFi.localIP().toString() : String("0.0.0.0");
+        a["ssid"] = g_einst.ssid;
+        a["ha"] = g_ha_ok;
+        a["ha_url"] = g_einst.ha_url;
+        a["sensor"] = g_sensor.daten().verbunden;
+        a["sensor_host"] = g_einst.sensor;
+    } else if (c == "wlan") {
+        String ssid = doc["ssid"] | "", pw = doc["pw"] | "";
+        a["c"] = "wlan";
+        if (ssid.isEmpty()) {
+            a["t"] = "err";
+            a["msg"] = "WLAN-Name fehlt";
+        } else {
+            g_einst.ssid = ssid;
+            g_einst.pw = pw;
+            einst_speichern("ssid", ssid);
+            einst_speichern("pw", pw);
+            WiFi.disconnect();
+            WiFi.begin(ssid.c_str(), pw.c_str());
+            a["t"] = "ok";
+        }
+    } else if (c == "einst") {
+        // Home Assistant und Sensor-IP: nur übergebene Felder ändern, danach Neustart
+        if (doc["ha_url"].is<const char*>()) einst_speichern("ha_url", doc["ha_url"].as<const char*>());
+        if (doc["ha_token"].is<const char*>()) einst_speichern("ha_token", doc["ha_token"].as<const char*>());
+        if (doc["ha_todo"].is<const char*>()) einst_speichern("ha_todo", doc["ha_todo"].as<const char*>());
+        if (doc["sensor"].is<const char*>()) einst_speichern("sensor", doc["sensor"].as<const char*>());
+        a["t"] = "ok";
+        a["c"] = "einst";
+        g_neustart_um = millis() + 800;
+    } else {
+        return;
+    }
+    usb_antwort(a);
+}
+
+void usb_lesen() {
+    while (Serial.available()) {
+        char ch = (char)Serial.read();
+        if (ch == '\n' || ch == '\r') {
+            if (g_usb_laenge) {
+                g_usb_puffer[g_usb_laenge] = 0;
+                if (g_usb_puffer[0] == '{') usb_befehl(g_usb_puffer);
+            }
+            g_usb_laenge = 0;
+        } else if (g_usb_laenge < sizeof(g_usb_puffer) - 1) {
+            g_usb_puffer[g_usb_laenge++] = ch;
+        } else {
+            g_usb_laenge = 0;
+        }
+    }
+    if (g_neustart_um && (int32_t)(millis() - g_neustart_um) >= 0) ESP.restart();
+}
 
 void auftrag(Auftrag a) {
     {
@@ -200,26 +317,30 @@ void setup() {
     }
     ui_start(&g_aktionen, &g_lager);
 
-#ifdef SENSOR_HOST
-    g_sensor.begin_wlan(SENSOR_HOST, SENSOR_PORT);
-    Serial.println("Sensorplatine per WLAN: " SENSOR_HOST);
-#else
-    g_sensor.begin(g_rs485, RS485_RX, RS485_TX, RS485_BAUD, RS485_DE);
-#endif
+    einst_laden();
+    if (g_einst.sensor.length()) {
+        g_sensor.begin_wlan(g_einst.sensor.c_str(), SENSOR_PORT);
+        Serial.printf("Sensorplatine per WLAN: %s\n", g_einst.sensor.c_str());
+    } else {
+        g_sensor.begin(g_rs485, RS485_RX, RS485_TX, RS485_BAUD, RS485_DE);
+    }
     g_sensor.rueckmeldung = [](bool ok, const std::string& t) { ui_meldung(t, !ok); };
 
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(GERAETENAME);
-    WiFi.begin(WLAN_SSID, WLAN_PASS);
+    if (g_einst.ssid.length()) WiFi.begin(g_einst.ssid.c_str(), g_einst.pw.c_str());
     configTzTime(ZEITZONE, "pool.ntp.org", "time.google.com");
 
-    g_ha.begin(HA_URL, HA_TOKEN, HA_TODO);
+    g_ha.begin(g_einst.ha_url.c_str(), g_einst.ha_token.c_str(), g_einst.ha_todo.c_str());
     xTaskCreatePinnedToCore(ha_task, "ha", 12288, nullptr, 1, &g_ha_task, 0);
+    if (g_einst.ssid.isEmpty()) ui_meldung("Kein WLAN eingerichtet – Webflasher benutzen", true);
+    else if (g_einst.ha_url.isEmpty() || g_einst.ha_token.isEmpty()) ui_meldung("Home Assistant fehlt – Webflasher benutzen", true);
 }
 
 void loop() {
     lv_timer_handler();
     g_sensor.loop();
+    usb_lesen();
 
     // Ergebnisse der HA-Task übernehmen
     std::deque<Ergebnis> fertig;
@@ -238,7 +359,8 @@ void loop() {
 
     uint32_t jetzt = millis();
     bool wlan = WiFi.status() == WL_CONNECTED;
-    if (wlan && (g_letztes_laden == 0 || jetzt - g_letztes_laden > LAGER_NEU_LADEN_MS)) {
+    bool ha_da = g_einst.ha_url.length() && g_einst.ha_token.length();
+    if (wlan && ha_da && (g_letztes_laden == 0 || jetzt - g_letztes_laden > LAGER_NEU_LADEN_MS)) {
         g_letztes_laden = jetzt;
         auftrag({Auftrag::LADEN, "", "", 0});
     }

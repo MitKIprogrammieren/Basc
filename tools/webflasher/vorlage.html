@@ -8,6 +8,7 @@
 --gruen:#4caf50;--gruen-t:#9fe3a2;--orange-t:#ffb74d;--rot:#ef5350;--rot-t:#ff8a80;
 --schrift:Montserrat,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--schrift);font-size:15px}
 .kopf{display:flex;align-items:center;gap:10px;padding:12px max(18px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--linie);flex-wrap:wrap}
 .logo{width:20px;height:20px;border-radius:50%;border:2px solid var(--gruen);display:grid;place-items:center}
@@ -18,8 +19,8 @@ main{max-width:480px;margin:0 auto;padding:18px 16px 40px;display:flex;flex-dire
 .panel.aktiv{border-color:var(--gruen)}.panel.fehler{border-color:var(--rot)}
 .ueber{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sub)}
 label{font-size:13px;color:var(--sub);display:flex;flex-direction:column;gap:5px}
-input{font:inherit;color:var(--text);background:var(--feld);border:1px solid var(--rand);border-radius:10px;padding:10px 12px;width:100%}
-input:focus{outline:2px solid var(--gruen);outline-offset:1px;border-color:transparent}
+input,select{font:inherit;color:var(--text);background:var(--feld);border:1px solid var(--rand);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,select:focus{outline:2px solid var(--gruen);outline-offset:1px;border-color:transparent}
 .zeile{display:flex;gap:8px;align-items:center}.zeile input{flex:1}
 .klein{font-size:13px;color:var(--sub);line-height:1.5}
 label.haken{flex-direction:row;align-items:center;gap:10px;color:var(--text);font-size:14px;cursor:pointer}
@@ -44,7 +45,7 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
 .warn{border-color:var(--orange-t)}
 @media (prefers-reduced-motion:reduce){.balken div{transition:none}}
 </style></head><body>
-<div class="kopf"><div class="logo"><span></span></div><span class="titel">FilamentLager-Waage</span><span class="sub">Webflasher · Sensorplatine · FW __FW_VERSION__</span></div>
+<div class="kopf"><div class="logo"><span></span></div><span class="titel">FilamentLager-Waage</span><span class="sub">Webflasher · __GERAET__ · FW __FW_VERSION__</span></div>
 <main>
  <div class="panel warn" id="keinSerial" hidden>
   <div class="ueber">Browser</div>
@@ -56,11 +57,22 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
   <label for="pw">Passwort
    <span class="zeile"><input id="pw" type="password" autocomplete="off" maxlength="63"><button class="rahmen klein-k" id="zeigen" type="button">Zeigen</button></span></label>
   <label class="haken" for="merken"><input type="checkbox" id="merken"> Auf diesem Mac merken</label>
-  <div class="klein">Leer lassen, wenn die Waage schon im WLAN war – sie behält es beim Flashen. Nur 2,4 GHz – der ESP32 sieht kein 5-GHz-WLAN. Die Daten gehen nur per USB an die Waage, nirgendwo sonst hin.</div>
+  <div class="klein" id="wlanText">Leer lassen, wenn die Waage schon im WLAN war – sie behält es beim Flashen. Nur 2,4 GHz – der ESP32 sieht kein 5-GHz-WLAN. Die Daten gehen nur per USB an die Waage, nirgendwo sonst hin.</div>
+ </div>
+ <div class="panel" id="pHa" hidden>
+  <div class="ueber">2 · Home Assistant und Sensorplatine</div>
+  <label for="haUrl">Home-Assistant-Adresse<input id="haUrl" autocomplete="off" spellcheck="false" placeholder="http://homeassistant.local:8123"></label>
+  <label for="haToken">Langlebiges Zugriffstoken
+   <span class="zeile"><input id="haToken" type="password" autocomplete="off" spellcheck="false"><button class="rahmen klein-k" id="tokenZeigen" type="button">Zeigen</button></span></label>
+  <label for="haTodo">Lager-Liste<input id="haTodo" autocomplete="off" spellcheck="false" placeholder="todo.filament"></label>
+  <label for="sensorArt">Sensorplatine
+   <select id="sensorArt"><option value="">unverändert lassen</option><option value="rs485">per RS485-Kabel</option><option value="wlan">per WLAN</option></select></label>
+  <label for="sensorIp" id="sensorIpLabel" hidden>IP der Sensorplatine<input id="sensorIp" autocomplete="off" spellcheck="false" placeholder="192.168.1.96"></label>
+  <div class="klein">Leere Felder lassen, was das Display schon kennt. Token: Home Assistant → Profil → Sicherheit → Langlebige Zugriffstokens. Die Daten gehen nur per USB an das Display.</div>
  </div>
  <div class="panel" id="pFlash">
-  <div class="ueber">2 · Waage per USB anstecken</div>
-  <div class="klein">USB-C-Datenkabel an den ESP32-S3-Zero. Klappt das Verbinden nicht: <b>BOOT</b> gedrückt halten, einstecken, loslassen, nochmal versuchen.</div>
+  <div class="ueber" id="flashTitel">2 · Waage per USB anstecken</div>
+  <div class="klein" id="flashText">USB-C-Datenkabel an den ESP32-S3-Zero. Klappt das Verbinden nicht: <b>BOOT</b> gedrückt halten, einstecken, loslassen, nochmal versuchen.</div>
   <button class="primaer" id="flashen">Verbinden und flashen</button>
   <button class="rahmen" id="nurWlan">Nur WLAN übertragen (ohne Flashen)</button>
   <button class="rahmen" id="ausgabe">Ausgabe der Waage ansehen</button>
@@ -85,6 +97,8 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
 </script>
 <script type="module">
 const TEILE = "__TEILE__";  // [{adresse, name, b64}] – Bootloader, Partitionen, Firmware, Oberfläche
+const ART = "__ART__";       // "sensor" = Sensorplatine, "anzeige" = Display (5" oder SC01 Plus)
+const ANZEIGE = ART === 'anzeige';
 const { ESPLoader, Transport } = window.__esptool;
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -94,7 +108,7 @@ function log(t){ const l=$('log'); l.textContent += t + "\n"; l.scrollTop = l.sc
 const terminal = { clean(){}, writeLine(d){ log(d); }, write(d){ log(d); } };
 function meldung(t, art){ $('meldung').textContent = t; $('meldung').className = art || ''; }
 function schritt(n, zustand){ $('s'+n).className = zustand; }
-function alleSchritte(){ for (let i=1;i<=5;i++) schritt(i,''); $('ipText').textContent='–'; $('s4').textContent='WLAN übertragen'; }
+function alleSchritte(){ for (let i=1;i<=5;i++) schritt(i,''); $('ipText').textContent='–'; $('s4').textContent = ANZEIGE ? 'Einstellungen übertragen' : 'WLAN übertragen'; }
 function sperren(an){ $('flashen').disabled = an; $('nurWlan').disabled = an; }
 
 if (!('serial' in navigator)) { $('keinSerial').hidden = false; sperren(true); }
@@ -112,6 +126,74 @@ function merken(){
   } catch (e) { /* egal */ }
 }
 $('merken').onchange = merken;
+
+// ---------- Display: Home Assistant und Sensorplatine
+if (ANZEIGE) {
+  $('pHa').hidden = false;
+  $('wlanText').textContent = 'Leer lassen, wenn das Display schon im WLAN war – es behält es beim Flashen. Nur 2,4 GHz – der ESP32 sieht kein 5-GHz-WLAN. Die Daten gehen nur per USB an das Display.';
+  $('flashTitel').textContent = '3 · Display per USB anstecken';
+  $('flashText').innerHTML = 'USB-C-Datenkabel an das Display. Klappt das Verbinden nicht: <b>BOOT</b> gedrückt halten, einstecken, loslassen, nochmal versuchen.';
+  $('nurWlan').textContent = 'Nur Einstellungen übertragen (ohne Flashen)';
+  $('ausgabe').textContent = 'Ausgabe des Displays ansehen';
+  $('s2').textContent = 'Firmware schreiben';
+  $('s4').textContent = 'Einstellungen übertragen';
+  $('s5').firstChild.textContent = 'Display im Netz: ';
+  $('sensorArt').onchange = () => { $('sensorIpLabel').hidden = $('sensorArt').value !== 'wlan'; };
+  $('tokenZeigen').onclick = () => { const p=$('haToken'); p.type = p.type==='password' ? 'text' : 'password'; $('tokenZeigen').textContent = p.type==='password' ? 'Zeigen' : 'Verbergen'; };
+  try {
+    const h = JSON.parse(localStorage.getItem('fl_anzeige') || 'null');
+    if (h) { $('haUrl').value = h.url || ''; $('haToken').value = h.token || ''; $('haTodo').value = h.todo || '';
+             $('sensorArt').value = h.art || ''; $('sensorIp').value = h.ip || ''; $('sensorArt').onchange(); }
+  } catch (e) {}
+}
+function haMerken(){
+  try {
+    if ($('merken').checked) localStorage.setItem('fl_anzeige', JSON.stringify({ url: $('haUrl').value.trim(), token: $('haToken').value.trim(),
+      todo: $('haTodo').value.trim(), art: $('sensorArt').value, ip: $('sensorIp').value.trim() }));
+    else localStorage.removeItem('fl_anzeige');
+  } catch (e) {}
+}
+// null = Eingabe fehlerhaft, {} = nichts zu ändern
+function haDaten(){
+  const d = {};
+  const url = $('haUrl').value.trim(), token = $('haToken').value.trim(), todo = $('haTodo').value.trim();
+  if (url) {
+    if (!/^https?:\/\/[^\s/]+/.test(url)) { meldung('Die Home-Assistant-Adresse muss mit http:// oder https:// anfangen.', 'fehler'); $('haUrl').focus(); return null; }
+    d.ha_url = url.replace(/\/+$/, '');
+  }
+  if (token) d.ha_token = token;
+  if (todo) {
+    if (!/^todo\.[a-z0-9_]+$/.test(todo)) { meldung('Die Lager-Liste heißt so: todo.filament', 'fehler'); $('haTodo').focus(); return null; }
+    d.ha_todo = todo;
+  }
+  const art = $('sensorArt').value, ip = $('sensorIp').value.trim();
+  if (art === 'rs485') d.sensor = '';
+  if (art === 'wlan') {
+    if (!ip) { meldung('Trag die IP der Sensorplatine ein (steht in der FritzBox).', 'fehler'); $('sensorIp').focus(); return null; }
+    d.sensor = ip;
+  }
+  haMerken();
+  return d;
+}
+// Schickt die Einstellungen; das Display startet danach neu. Gibt die neue Leitung zurück.
+async function einstUebertragen(l, ha){
+  if (!Object.keys(ha).length) return l;
+  schritt(4, 'laeuft'); meldung('Übertrage Home-Assistant-Einstellungen…');
+  const zeigen = JSON.stringify({ c:'einst', ...ha, ...(ha.ha_token ? { ha_token:'••••' } : {}) });
+  let antw = null;
+  for (let v=0; v<5 && !antw; v++) {
+    await l.senden({ c:'einst', ...ha }, zeigen);
+    try { antw = await l.warten(o => o.c === 'einst', 1500); } catch { await sleep(500); }
+  }
+  if (!antw) throw new Error('Das Display antwortet nicht über USB. Kabel kurz ab- und anstecken und „Nur Einstellungen übertragen“ versuchen.');
+  const port = l.port;
+  await l.schliessen();
+  meldung('Display startet mit den neuen Einstellungen neu…');
+  await sleep(2500);
+  const neu = await portWiederfinden(port);
+  if (!neu) throw new Error('Das Display hat sich nach dem Neustart nicht wieder gemeldet. USB kurz ab- und anstecken.');
+  return neu;
+}
 
 // leerErlaubt: beim Flashen darf das WLAN leer bleiben – die Waage behält ihr gespeichertes
 function wlanDaten(leerErlaubt){
@@ -228,6 +310,13 @@ async function wlanUebertragen(l, daten){
 function fertig(info){
   schritt(5, 'ok');
   const url = 'http://' + info.ip;
+  if (ANZEIGE) {
+    $('ipText').innerHTML = '<span class="ip">' + info.ip + '</span>';
+    meldung(info.ha_url ? 'Fertig. Das Display ist im WLAN und holt jetzt das Lager aus Home Assistant.'
+                        : 'Fertig – aber Home Assistant fehlt noch: Adresse und Token eintragen, „Nur Einstellungen übertragen“.', info.ha_url ? 'ok' : 'fehler');
+    $('pAblauf').classList.add('aktiv');
+    return;
+  }
   $('ipText').innerHTML = '<span class="ip">' + url + '</span>';
   meldung('Fertig. Die Waage läuft unter ' + url + ' oder http://filamentwaage.local', 'ok');
   $('pAblauf').classList.add('aktiv');
@@ -240,6 +329,7 @@ function fehler(e, nr){
 
 $('flashen').onclick = async () => {
   const daten = wlanDaten(true); if (!daten) return;
+  const ha = ANZEIGE ? haDaten() : {}; if (!ha) return;
   let port; try { port = await navigator.serial.requestPort(); } catch { return; }
   sperren(true); alleSchritte(); $('pAblauf').classList.remove('aktiv'); $('balken').style.width='0';
   let nr = 1, transport;
@@ -273,7 +363,8 @@ $('flashen').onclick = async () => {
     if (!l) throw new Error('Die Waage hat sich nach dem Neustart nicht wieder gemeldet. USB kurz ab- und anstecken, dann „Nur WLAN übertragen“.');
     schritt(3,'ok');
     nr = 4;
-    try { fertig(await wlanUebertragen(l, daten)); } finally { await l.schliessen(); }
+    let lw = l;
+    try { lw = await einstUebertragen(l, ha); fertig(await wlanUebertragen(lw, daten)); } finally { await lw.schliessen(); }
   } catch (e) {
     fehler(e, nr === 4 ? ($('s4').className==='ok' ? 5 : 4) : nr);
     try { await transport?.disconnect(); } catch {}
@@ -300,13 +391,16 @@ $('ausgabe').onclick = async () => {
 };
 
 $('nurWlan').onclick = async () => {
-  const daten = wlanDaten(); if (!daten) return;
+  const daten = wlanDaten(ANZEIGE); if (!daten) return;
+  const ha = ANZEIGE ? haDaten() : {}; if (!ha) return;
+  if (ANZEIGE && daten.leer && !Object.keys(ha).length) { meldung('Trag zuerst etwas ein, das übertragen werden soll.', 'fehler'); return; }
   let port; try { port = await navigator.serial.requestPort(); } catch { return; }
   sperren(true); alleSchritte(); $('pAblauf').classList.remove('aktiv');
   schritt(1,'ok'); schritt(2,'ok'); schritt(3,'ok');
-  const l = new Leitung(port);
+  let l = new Leitung(port);
   try {
     await l.oeffnen();
+    l = await einstUebertragen(l, ha);
     fertig(await wlanUebertragen(l, daten));
   } catch (e) { fehler(e, $('s4').className==='ok' ? 5 : 4); }
   finally { await l.schliessen(); sperren(false); }

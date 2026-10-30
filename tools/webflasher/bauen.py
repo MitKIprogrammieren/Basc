@@ -49,6 +49,9 @@ def main() -> None:
     p.add_argument("--teil", action="append", required=True, metavar="ADRESSE=DATEI",
                    help="z. B. 0x10000=firmware.bin; mehrfach angeben")
     p.add_argument("--aus", required=True, help="Ausgabedatei (.html)")
+    p.add_argument("--art", choices=["sensor", "anzeige"], default="sensor",
+                   help="sensor = Sensorplatine (nur WLAN), anzeige = Display (WLAN, Home Assistant, Sensor-IP)")
+    p.add_argument("--geraet", default="Sensorplatine", help="Name in der Kopfzeile, z. B. „Display SC01 Plus“")
     a = p.parse_args()
     teile = []
     for t in a.teil:
@@ -64,6 +67,7 @@ def main() -> None:
     html = html.replace("/*ESPTOOL_JS*/", esptool_als_inline(pathlib.Path(a.esptool).read_text(encoding="utf-8")))
     html = html.replace('"__TEILE__"', json.dumps(teile))
     html = html.replace("__FW_VERSION__", a.version)
+    html = html.replace("__ART__", a.art).replace("__GERAET__", a.geraet)
     pathlib.Path(a.aus).write_text(html, encoding="utf-8")
     print(f"{a.aus}: {len(html) // 1024} KB, Firmware {a.version}")
 

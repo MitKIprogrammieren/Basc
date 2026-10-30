@@ -1,4 +1,6 @@
+// Freiwillig: Vorgaben für den ersten Start, wenn ohne Webflasher geflasht wird.
 // Kopieren nach include/secrets.h und ausfüllen. secrets.h steht in .gitignore.
+// Was der Webflasher (oder ein USB-Befehl) später speichert, hat Vorrang.
 #pragma once
 
 #define WLAN_SSID "MeinWLAN"

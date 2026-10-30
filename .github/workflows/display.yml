@@ -1,0 +1,89 @@
+# Baut die Display-Firmware (Waveshare 5" und WT32-SC01 Plus) und je einen Webflasher dafür.
+# main → Branch "webflasher-display": FilamentLager-Webflasher-SC01Plus.html und -Display5.html (laufen offline).
+# Eigener Branch, weil der Sensor-Workflow "webflasher-bin" bei jedem Lauf neu anlegt.
+name: Firmware Display
+
+on:
+  push:
+    paths:
+      - "firmware/display-5inch/**"
+      - "tools/webflasher/**"
+      - ".github/workflows/display.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-display-${{ hashFiles('firmware/display-5inch/platformio.ini') }}
+
+      - name: PlatformIO installieren
+        run: pip install platformio
+
+      - name: Firmware bauen (ohne secrets.h – Zugangsdaten kommen über den Webflasher)
+        working-directory: firmware/display-5inch
+        run: |
+          set -o pipefail
+          pio run -e ws5 -e sc01plus 2>&1 | tee /tmp/build.log
+
+      - name: Teile sammeln
+        working-directory: firmware/display-5inch
+        run: |
+          for ENV in ws5 sc01plus; do
+            B=.pio/build/$ENV; Z=/tmp/aus/$ENV
+            mkdir -p $Z
+            cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin $Z/
+            cp "$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -1)" $Z/
+          done
+          ls -lR /tmp/aus
+
+      - name: esptool-js holen
+        run: |
+          mkdir -p /tmp/ej && cd /tmp/ej
+          npm pack esptool-js@0.5.7 >/dev/null
+          tar xzf esptool-js-*.tgz
+          cp package/bundle.js /tmp/aus/esptool-js.mjs
+
+      - name: Webflasher bauen
+        run: |
+          FW=$(grep -oP 'FW_VERSION "\K[^"]+' firmware/display-5inch/include/config.h)
+          for ENV in sc01plus ws5; do
+            T=/tmp/aus/$ENV
+            if [ $ENV = sc01plus ]; then NAME="Display SC01 Plus"; AUS=FilamentLager-Webflasher-SC01Plus.html
+            else NAME='Display 5"'; AUS=FilamentLager-Webflasher-Display5.html; fi
+            python3 tools/webflasher/bauen.py --version "$FW" --esptool /tmp/aus/esptool-js.mjs --art anzeige --geraet "$NAME" \
+              --teil 0x0=$T/bootloader.bin --teil 0x8000=$T/partitions.bin \
+              --teil 0xe000=$T/boot_app0.bin --teil 0x10000=$T/firmware.bin \
+              --aus /tmp/aus/$AUS 2>&1 | tee -a /tmp/build.log
+          done
+          printf '{"fw":"%s","commit":"%s"}\n' "$FW" "${GITHUB_SHA::7}" > /tmp/aus/version.json
+
+      - name: In den Branch webflasher-display legen
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd /tmp/aus
+          git init -q -b webflasher-display
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Display-Firmware $(grep -oP '"fw":"\K[^"]+' version.json) (${GITHUB_SHA::7})"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" webflasher-display
+
+      - name: Protokoll hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-protokoll
+          path: /tmp/build.log

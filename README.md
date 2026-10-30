@@ -64,15 +64,22 @@ Auf dem kleinen Display fehlt nur die Seitenleiste „Angebrochene Rollen“ im 
 
 ![SC01 Plus](docs/bilder/sc01plus.png)
 
+**Ohne Installation flashen:** `FilamentLager-Webflasher-SC01Plus.html` aus dem Branch
+[`webflasher-display`](../../tree/webflasher-display) laden, in Chrome oder Edge öffnen, WLAN, Home-Assistant-Adresse,
+Token und – falls ohne Kabel – die IP der Sensorplatine eintragen, Display per USB anstecken, *Verbinden und flashen*.
+Die Einstellungen landen im Flash des Displays; mit *Nur Einstellungen übertragen* lassen sie sich später ändern.
+Für das 5"-Display gibt es dort `FilamentLager-Webflasher-Display5.html`. GitHub Actions baut beide bei jeder Änderung.
+
+Per Kommandozeile geht es weiter so (`secrets.h` ist dann freiwillig, Vorgaben für den ersten Start):
+
 ```bash
 cd firmware/display-5inch
-cp include/secrets.example.h include/secrets.h   # WLAN, HA-Adresse und Token eintragen
 pio run -e sc01plus -t upload
 ```
 
 - **Sensorplatine per RS485:** Die RS485-Buchse ist auf dem SC01 Plus schon drauf, an der Sensorplatine braucht es das
   MAX3485-Modul (Verkabelung: [docs/VERKABELUNG.md](docs/VERKABELUNG.md#wt32-sc01-plus--sensorplatine)).
-- **Oder per WLAN, ganz ohne Kabel:** in `secrets.h` `#define SENSOR_HOST "192.168.1.96"` (IP der Sensorplatine).
+- **Oder per WLAN, ganz ohne Kabel:** im Webflasher „Sensorplatine: per WLAN“ und die IP der Sensorplatine.
   Die Sensorplatine bedient nur eine WLAN-Gegenstelle – Pad 7 oder Pi dann nicht gleichzeitig per WLAN verbinden.
 - Bild gedreht oder Touch daneben: `LCD_DREHUNG`, `TOUCH_SPIEGEL_X/Y` und `LCD_IPS` in `include/config.h`;
   der serielle Monitor zeigt die Touch-Rohwerte.
