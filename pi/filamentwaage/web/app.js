@@ -47,6 +47,7 @@ function textGroesse() {
   try { return localStorage.getItem("fl_textgroesse") || "normal"; } catch (e) { return "normal"; }
 }
 function textFaktor() { return (TEXTGROESSEN.find((t) => t[0] === textGroesse()) || TEXTGROESSEN[1])[2]; }
+const ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
 function skalieren() {
   const t = textFaktor(), W = Math.round(800 / t), H = Math.round(480 / t);
   const f = Math.min(innerWidth / W, innerHeight / H);
@@ -54,8 +55,17 @@ function skalieren() {
   app.style.width = `${W}px`;
   app.style.height = `${H}px`;
   app.classList.toggle("eng", W < 760);   // „Groß“: weniger Platz, die festen Maße rücken zusammen
-  app.style.transform = f > 1.01 || f < 0.99 ? `scale(${f})` : "";
-  app.style.left = f > 1.01 || f < 0.99 ? `${(innerWidth - W * f) / 2}px` : "0";
+  const skaliert = f > 1.01 || f < 0.99;
+  // zoom statt transform: der Browser setzt Schrift und Bilder in der echten Größe – mit transform: scale()
+  // vergrößert Safari das kleine Bild nur und alles wirkt unscharf. Ohne zoom-Unterstützung wie bisher.
+  if (ZOOM) {
+    app.style.transform = "";
+    app.style.zoom = skaliert ? String(f) : "";
+    app.style.left = skaliert ? `${(innerWidth - W * f) / 2 / f}px` : "0";
+  } else {
+    app.style.transform = skaliert ? `scale(${f})` : "";
+    app.style.left = skaliert ? `${(innerWidth - W * f) / 2}px` : "0";
+  }
 }
 addEventListener("resize", skalieren);
 addEventListener("mousemove", () => document.body.classList.add("maus"), { once: true });
