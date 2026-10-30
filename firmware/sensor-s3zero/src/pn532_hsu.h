@@ -7,18 +7,25 @@
 
 class Pn532Hsu {
 public:
-    // rst = -1, wenn RSTO nicht verdrahtet ist
+    // rst = -1, wenn RSTPDN nicht verdrahtet ist
     bool begin(HardwareSerial& port, int rx, int tx, int rst);
+    // Setzt den Leser zurück (wenn RSTPDN verdrahtet ist) und richtet ihn neu ein.
+    bool neu_starten();
     // Sucht einen Tag. Gibt die UID als Hex-Text zurück, leer wenn keiner da ist.
     // Dauert ohne Tag etwa 20–40 ms.
     String lese_uid();
     bool bereit() const { return bereit_; }
+    uint32_t neustarts() const { return neustarts_; }
 
 private:
     bool befehl(const uint8_t* daten, uint8_t laenge, uint8_t* antwort, uint8_t& antwort_laenge, uint32_t timeout_ms);
     bool warte_ack(uint32_t timeout_ms);
     int lies_byte(uint32_t bis);
     void aufwecken();
+    bool einrichten();
     HardwareSerial* port_ = nullptr;
+    int rst_ = -1;
     bool bereit_ = false;
+    uint8_t fehler_ = 0;      // Kommunikationsfehler hintereinander
+    uint32_t neustarts_ = 0;
 };

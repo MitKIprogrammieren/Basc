@@ -1,4 +1,5 @@
 #include "pn532_hsu.h"
+#include "config.h"
 
 namespace {
 constexpr uint8_t TFI_HOST = 0xD4;
@@ -81,14 +82,31 @@ bool Pn532Hsu::befehl(const uint8_t* daten, uint8_t laenge, uint8_t* antwort, ui
 
 bool Pn532Hsu::begin(HardwareSerial& port, int rx, int tx, int rst) {
     port_ = &port;
+    rst_ = rst;
     port_->begin(115200, SERIAL_8N1, rx, tx);
-    if (rst >= 0) {
-        pinMode(rst, OUTPUT);
-        digitalWrite(rst, LOW);
+    if (rst_ >= 0) {
+        pinMode(rst_, OUTPUT);
+        digitalWrite(rst_, HIGH);
+    }
+    return einrichten();
+}
+
+bool Pn532Hsu::neu_starten() {
+    if (!port_) return false;
+    neustarts_++;
+    return einrichten();
+}
+
+bool Pn532Hsu::einrichten() {
+    fehler_ = 0;
+    if (rst_ >= 0) {
+        // RSTPDN kurz auf LOW: harter Reset, holt den PN532 auch aus einem Hänger
+        digitalWrite(rst_, LOW);
         delay(20);
-        digitalWrite(rst, HIGH);
+        digitalWrite(rst_, HIGH);
         delay(80);
     }
+    while (port_->available()) port_->read();
     aufwecken();
     uint8_t a[8];
     uint8_t n = sizeof a;
@@ -115,7 +133,13 @@ String Pn532Hsu::lese_uid() {
     const uint8_t liste[] = {0x4A, 0x01, 0x00};  // 1 Ziel, 106 kbps Typ A
     uint8_t a[24];
     uint8_t n = sizeof a;
-    if (!befehl(liste, sizeof liste, a, n, 80)) return "";
+    if (!befehl(liste, sizeof liste, a, n, 80)) {
+        // Kein Tag ist kein Fehler (dann antwortet der Leser mit NbTg = 0).
+        // Hier hat er gar nicht oder kaputt geantwortet: nach mehreren Fehlern gilt er als hängend.
+        if (++fehler_ >= NFC_MAX_FEHLER) bereit_ = false;
+        return "";
+    }
+    fehler_ = 0;
     // a: NbTg, Tg, SENS_RES(2), SEL_RES, NFCIDLength, NFCID…
     if (n < 6 || a[0] == 0) return "";
     uint8_t uid_len = a[5];

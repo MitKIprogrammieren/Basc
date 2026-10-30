@@ -45,12 +45,15 @@ jobs:
       - name: Teile für den Webflasher sammeln
         working-directory: firmware/sensor-s3zero
         run: |
-          B=.pio/build/s3zero
-          mkdir -p /tmp/aus
-          cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin /tmp/aus/
-          cp "$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -1)" /tmp/aus/
-          # Oberfläche: leere Blöcke am Ende abschneiden, LittleFS löscht Blöcke vor dem Beschreiben selbst
-          python3 - "$B/littlefs.bin" /tmp/aus/littlefs.bin <<'PY'
+          # s3zero (Super Mini, S3-Zero) liegt wie bisher oben im Branch, N16R8 im Unterordner n16r8/
+          for ENV in s3zero n16r8; do
+            B=.pio/build/$ENV
+            Z=/tmp/aus; [ "$ENV" = s3zero ] || Z=/tmp/aus/$ENV
+            mkdir -p $Z
+            cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin $Z/
+            cp "$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -1)" $Z/
+            # Oberfläche: leere Blöcke am Ende abschneiden, LittleFS löscht Blöcke vor dem Beschreiben selbst
+            python3 - "$B/littlefs.bin" $Z/littlefs.bin <<'PY'
           import sys
           d = open(sys.argv[1], "rb").read()
           n = len(d.rstrip(b"\xff"))
@@ -58,7 +61,8 @@ jobs:
           open(sys.argv[2], "wb").write(d[:n])
           print(f"littlefs.bin: {n // 1024} von {len(d) // 1024} KB")
           PY
-          ls -l /tmp/aus
+          done
+          ls -lR /tmp/aus
 
       - name: esptool-js holen
         run: |
@@ -77,6 +81,12 @@ jobs:
             --teil 0xe000=/tmp/aus/boot_app0.bin --teil 0x10000=/tmp/aus/firmware.bin \
             --teil "$OFS=/tmp/aus/littlefs.bin" \
             --aus /tmp/aus/FilamentLager-Webflasher.html 2>&1 | tee -a /tmp/build.log
+          N=/tmp/aus/n16r8
+          python3 tools/webflasher/bauen.py --version "$FW" --esptool /tmp/aus/esptool-js.mjs \
+            --teil 0x0=$N/bootloader.bin --teil 0x8000=$N/partitions.bin \
+            --teil 0xe000=$N/boot_app0.bin --teil 0x10000=$N/firmware.bin \
+            --teil "$OFS=$N/littlefs.bin" \
+            --aus /tmp/aus/FilamentLager-Webflasher-N16R8.html 2>&1 | tee -a /tmp/build.log
           printf '{"fw":"%s","commit":"%s","littlefs":"%s"}\n' "$FW" "${GITHUB_SHA::7}" "$OFS" > /tmp/aus/version.json
 
       - name: In den Branch webflasher-bin legen

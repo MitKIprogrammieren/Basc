@@ -24,12 +24,12 @@ Wird in beiden Bauarten empfohlen. Sie sitzt im Sockel der Waage bei Wägezelle 
 | Wägezelle → NAU7802 | rot / schwarz / weiß / grün | E+ / E− / A− / A+ (B± frei) |
 | PN532 rechts (V3, HSU) | TXD | GPIO4 |
 | | RXD | GPIO5 |
-| | RST – nicht anschließen | (GPIO6 frei) |
-| | VCC / GND | 3V3 / GND |
+| | RSTPDN (Lötpunkt an der Seite) | GPIO6 |
+| | VCC / GND | **5V** / GND |
 | PN532 links (V3, HSU) | TXD | GPIO7 |
 | | RXD | GPIO8 |
-| | RST – nicht anschließen | (GPIO9 frei) |
-| | VCC / GND | 3V3 / GND |
+| | RSTPDN | GPIO9 |
+| | VCC / GND | **5V** / GND |
 | MAX3485-Modul (nur ESP32-Variante) | DI | GPIO43 (TX) |
 | | RO | GPIO44 (RX) |
 | | DE + /RE (zusammen) | GPIO10 |
@@ -37,8 +37,20 @@ Wird in beiden Bauarten empfohlen. Sie sitzt im Sockel der Waage bei Wägezelle 
 
 - **Wandler:** Ab 2.10.0 nur noch NAU7802. Die Firmware sucht ihn beim Start und danach alle 5 s; vertauschte SDA/SCL erkennt sie selbst. (Für den HX711: Firmware bis 2.9.x.)
 - **ESP32-S3 Super Mini** statt S3-Zero: gleiche GPIO-Nummern, die Zustands-LED sitzt dort an GPIO48 (wird mit angesteuert).
+  Ab 2.21.0 funkt die Firmware dauerhaft mit gesenkter Sendeleistung (`WLAN_LEISE`): Mit voller Leistung verbindet
+  sich der Super Mini zwar, verliert aber beim Senden größerer Daten so viele Pakete, dass Lager und Oberfläche hängen.
+- **ESP32-S3-DevKitC-1 N16R8** (z. B. mit Antennenbuchse): gleiche GPIO-Nummern, LED an GPIO48. Wegen des
+  Octal-PSRAM eigene Firmware: **FilamentLager-Webflasher-N16R8.html**. Externe Antenne vor dem Einschalten
+  anschrauben – bei manchen Boards ist die eingebaute Antenne dann abgeschaltet.
 - **PN532-Schalter:** beide auf **OFF** (= HSU/UART). Auf der Platine stehen an den vier Pins
   oft `SCL/SDA` – im HSU-Modus führen genau diese Pins TXD/RXD.
+- **Reset (ab 2.21.0):** Über RSTPDN setzt die Firmware einen Leser zurück, der beim Start nicht antwortet
+  oder sich später aufhängt – alle 5 s, bis er wieder da ist. Ohne den Draht geht es auch: dann wird
+  nur neu eingerichtet. In dem Fall in `config.h` `NFC_R_RST`/`NFC_L_RST` auf `-1` setzen.
+- **PN532 an 5 V:** Der V3 hat einen eigenen Regler und verträgt 3,3–5 V. An 5 V entlasten zwei Leser den
+  kleinen 3,3-V-Regler der Sensorplatine; die Datenleitungen bleiben trotzdem auf 3,3 V.
+- **Stromverteilung:** 5V, 3V3 und GND gibt es an der Platine nur einmal. Am einfachsten über ein
+  Mini-Breadboard mit drei Reihen: 5V (AtomS3-Proxy, beide PN532), 3V3 (NAU7802), GND (alle).
 - **Kreuzen:** TXD des Lesers geht an den RX-Pin des S3-Zero und umgekehrt (siehe Tabelle).
 - **RS485-Module mit automatischer Umschaltung** (ohne DE-Pin): in `firmware/sensor-s3zero/include/config.h`
   `RS485_DE` auf `-1` setzen.

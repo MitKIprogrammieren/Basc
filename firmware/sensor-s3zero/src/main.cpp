@@ -146,12 +146,24 @@ constexpr int PROBEN = 15;
 std::mutex g_nfc_mx;
 String g_tag[2];  // 0 = links, 1 = rechts
 uint32_t g_tag_zeit[2] = {0, 0};
+uint32_t g_nfc_versuch[2] = {0, 0};  // letzter Neustart-Versuch je Leser
 
 void nfc_task(void*) {
     Pn532Hsu* leser[2] = {&g_nfc_l, &g_nfc_r};
     for (;;) {
         for (int i = 0; i < 2; i++) {
-            if (!leser[i]->bereit()) continue;
+            if (!leser[i]->bereit()) {
+                // fehlt oder hängt: Tag verwerfen und alle NFC_NEUSTART_MS einen Neustart versuchen
+                {
+                    std::lock_guard<std::mutex> l(g_nfc_mx);
+                    g_tag[i] = "";
+                }
+                if (millis() - g_nfc_versuch[i] >= NFC_NEUSTART_MS) {
+                    g_nfc_versuch[i] = millis();
+                    leser[i]->neu_starten();  // Erfolg sieht man in "info" (nfc_l/nfc_r, nfc_neustarts_*)
+                }
+                continue;
+            }
             String uid = leser[i]->lese_uid();
             uint32_t jetzt = millis();
             std::lock_guard<std::mutex> l(g_nfc_mx);
@@ -244,6 +256,8 @@ void befehl(Stream* s, const char* zeile) {
         d["fw"] = FW_VERSION;
         d["nfc_l"] = g_nfc_l.bereit();
         d["nfc_r"] = g_nfc_r.bereit();
+        d["nfc_neustarts_l"] = g_nfc_l.neustarts();
+        d["nfc_neustarts_r"] = g_nfc_r.neustarts();
         d["hx711"] = g_nau.da();  // Feldname bleibt für ältere Gegenstellen: „Wandler gefunden“
         d["waage_chip"] = g_nau.da() ? "NAU7802" : "keiner";
         d["roh"] = g_roh_median;
@@ -336,9 +350,11 @@ void wlan_start() {
     g_prefs.begin("waage", true);
     bool leise = g_prefs.getBool("wlan_leise", false);  // hat beim letzten Mal nur mit wenig Sendeleistung geklappt
     g_prefs.end();
+    leise = leise || WLAN_LEISE;
     if (g_wm.getWiFiIsSaved()) {
         if (leise) WiFi.setTxPower(WIFI_POWER_8_5dBm);
         WiFi.begin();
+        if (leise) WiFi.setTxPower(WIFI_POWER_8_5dBm);  // nach begin() nochmal, sonst gilt je nach Kern wieder voll
         g_setup_wlan_ab = millis() + 30000;
     } else {
         g_setup_wlan_ab = millis();
@@ -361,6 +377,9 @@ void wlan_weiter() {
     // ESP32-S3 Super Mini verbinden sich mit voller Leistung oft nicht (Antenne zu nah am Spannungsregler).
     static uint32_t letzter_versuch = millis();
     static int versuche = 0;
+    static bool war_verbunden = false;
+    if (WiFi.status() == WL_CONNECTED && !war_verbunden && WLAN_LEISE) WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    war_verbunden = WiFi.status() == WL_CONNECTED;
     if (WiFi.status() == WL_CONNECTED) {
         if (versuche) Serial.printf("WLAN verbunden nach %d Wiederholung(en)\n", versuche);
         if (versuche >= 2) {  // erst mit weniger Sendeleistung geklappt: beim nächsten Start gleich so
