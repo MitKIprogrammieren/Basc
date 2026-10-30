@@ -1,0 +1,26 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Phomemo label printer",
+        "description": "Bluetooth address and model of the printer. It must be reachable through a Bluetooth proxy (e.g. the AtomS3).",
+        "data": {
+          "address": "Bluetooth address",
+          "modell": "Model"
+        }
+      },
+      "bestaetigen": {
+        "title": "Phomemo printer found",
+        "description": "Set up {name} as label printer for the FilamentLager scale?"
+      }
+    },
+    "error": {
+      "adresse": "Please enter an address like AA:BB:CC:DD:EE:FF."
+    },
+    "abort": {
+      "already_configured": "This printer is already set up.",
+      "unbekannt": "This Phomemo model is not supported yet."
+    }
+  }
+}

@@ -50,6 +50,7 @@ struct Druck {
     int breite, hoehe, kopien;
     std::vector<uint8_t> daten;
     String titel;
+    String drucker;  // Wahl in Home Assistant, z. B. „m110“; leer = Standard (M20 Pro)
 };
 
 std::mutex g_mx;
@@ -212,8 +213,15 @@ String an_bruecke(const String& basis, const char* pfad, const Druck* d, int dic
         t.set(d->titel);
         String titel;
         serializeJson(t, titel);  // als JSON-String mit Anführungszeichen und Escapes
+        String wahl;
+        if (d->drucker.length()) {
+            JsonDocument w;
+            w.set(d->drucker);
+            serializeJson(w, wahl);
+            wahl = ",\"drucker\":" + wahl;
+        }
         body = "{\"breite\":" + String(d->breite) + ",\"hoehe\":" + String(d->hoehe) + ",\"kopien\":" +
-               String(d->kopien) + ",\"dichte\":" + String(dichte) + ",\"titel\":" + titel + ",\"daten\":\"";
+               String(d->kopien) + ",\"dichte\":" + String(dichte) + ",\"titel\":" + titel + wahl + ",\"daten\":\"";
         body += b64.c_str();
         body += "\"}";
     }
@@ -628,7 +636,8 @@ const char* drucker_drucken(JsonObjectConst o) {
     int kopien = constrain((int)(o["kopien"] | 1), 1, 10);
     if (breite <= 0 || breite % 8 || hoehe <= 0 || hoehe > 4000) return "Etikett unvollständig";
     size_t soll = (size_t)breite / 8 * hoehe, laenge = 0;
-    auto* d = new Druck{breite, hoehe, kopien, std::vector<uint8_t>(soll + 4), String(o["titel"] | "Etikett").substring(0, 80)};
+    auto* d = new Druck{breite, hoehe, kopien, std::vector<uint8_t>(soll + 4), String(o["titel"] | "Etikett").substring(0, 80),
+                        String(o["drucker"] | "").substring(0, 40)};
     if (mbedtls_base64_decode(d->daten.data(), d->daten.size(), &laenge, (const unsigned char*)b64, strlen(b64)) ||
         laenge != soll) {
         delete d;

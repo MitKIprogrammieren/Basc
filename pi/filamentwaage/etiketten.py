@@ -182,24 +182,26 @@ class EtikettDienst:
 
     # ------------------------------------------------------------ Drucken
     def drucken(self, d: dict):
-        """d: breite, hoehe (Punkte), daten (Base64, 1 Bit je Punkt), kopien."""
+        """d: breite, hoehe (Punkte), daten (Base64, 1 Bit je Punkt), kopien, drucker (z. B. „m110“), titel."""
         breite, hoehe = int(d["breite"]), int(d["hoehe"])
         daten = base64.b64decode(d["daten"])
         kopien = max(1, min(10, int(d.get("kopien", 1))))
         if breite <= 0 or breite % 8 or hoehe <= 0 or len(daten) != breite // 8 * hoehe:
             raise ValueError("Etikett unvollständig")
-        self.auftraege.put((breite, hoehe, daten, kopien))
+        drucker = str(d.get("drucker") or "")[:40]
+        titel = str(d.get("titel") or "Etikett")[:80]
+        self.auftraege.put((breite, hoehe, daten, kopien, drucker, titel))
 
     def _arbeiter(self):
         while True:
-            breite, hoehe, daten, kopien = self.auftraege.get()
+            breite, hoehe, daten, kopien, drucker, titel = self.auftraege.get()
             with self.lock:
                 w = dict(self.werte)
             self.druckt = True
             try:
                 if w.get("bruecke"):
                     self.meldung("Schicke Etikett an die Druckbrücke …")
-                    self._an_bruecke(w["bruecke"], breite, hoehe, daten, kopien, w["dichte"])
+                    self._an_bruecke(w["bruecke"], breite, hoehe, daten, kopien, w["dichte"], drucker, titel)
                     self.meldung("Druckbrücke hat das Etikett angenommen")
                     self.letzter_druck = 1
                     continue
@@ -220,10 +222,13 @@ class EtikettDienst:
                 self.druckt = False
 
     @staticmethod
-    def _an_bruecke(basis, breite, hoehe, daten, kopien, dichte):
-        """Wie die Sensorplatine: POST /drucken an die Druckbrücke, die per klassischem Bluetooth druckt."""
-        body = json.dumps({"breite": breite, "hoehe": hoehe, "kopien": kopien, "dichte": dichte,
-                           "titel": "Etikett", "daten": base64.b64encode(daten).decode()}).encode()
+    def _an_bruecke(basis, breite, hoehe, daten, kopien, dichte, drucker="", titel="Etikett"):
+        """Wie die Sensorplatine: POST /drucken an Home Assistant; „drucker“ wählt M20 Pro oder M110."""
+        body = {"breite": breite, "hoehe": hoehe, "kopien": kopien, "dichte": dichte,
+                "titel": titel, "daten": base64.b64encode(daten).decode()}
+        if drucker:
+            body["drucker"] = drucker
+        body = json.dumps(body).encode()
         req = urllib.request.Request(basis + "/drucken", data=body, method="POST",
                                      headers={"Content-Type": "application/json"})
         try:

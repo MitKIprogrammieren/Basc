@@ -1337,7 +1337,34 @@ async function etLaden() {
     S.et = await (await fetch("/api/etikett/einstellungen")).json();
     if (S.seite === "einst") einst();
   } catch (e) { /* Dienst noch nicht bereit */ }
+  drListeLaden();
 }
+// Etikettendrucker in Home Assistant (M20 Pro, M110 …) – bei mehreren wählt man beim Drucken
+S.drListe = [];
+async function drListeLaden() {
+  const basis = S.et && S.et.bruecke;
+  if (!basis) { S.drListe = []; return; }
+  try {
+    const ab = new AbortController(), t = setTimeout(() => ab.abort(), 4000);
+    const j = await (await fetch(basis + "/drucker", { cache: "no-store", signal: ab.signal })).json();
+    clearTimeout(t);
+    S.drListe = Array.isArray(j.drucker) ? j.drucker : [];
+  } catch (e) { /* ältere Version in Home Assistant: nur ein Drucker */ }
+  if (S.etDialog) etikettZeichnen();
+}
+function drWahl() {
+  const l = S.drListe;
+  if (!l.length) return "";
+  let w = "";
+  try { w = localStorage.getItem("fl_drucker") || ""; } catch (e) { w = S.drGewaehlt || ""; }
+  if (!l.some((d) => d.id === w)) w = (l.find((d) => d.standard) || l[0]).id;
+  return w;
+}
+function drWaehlen(id) {
+  S.drGewaehlt = id;
+  try { localStorage.setItem("fl_drucker", id); } catch (e) { /* ohne Speicher nur bis zum Neuladen */ }
+}
+const drName = (id) => ((S.drListe.find((d) => d.id === id) || {}).name || "");
 async function etSetzen(teil) {
   try {
     const r = await fetch("/api/etikett/einstellungen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(teil) });
@@ -1392,7 +1419,9 @@ function etOptionenHtml(d) {
       <option value="text"${o.rgb !== "aus" ? " selected" : ""}>Hex-Wert anzeigen</option><option value="aus"${o.rgb === "aus" ? " selected" : ""}>Aus</option></select></label>`;
   const eigene = o.slots.includes("eigene")
     ? `<input id="et-eigene" class="et-eigene" data-tastatur="frei" maxlength="40" placeholder="Eigener Text, z. B. Für Halloween-Deko" value="${esc(o.eigene)}">` : "";
-  return `${aus}<div class="spalte gap6"><span class="ueber">Angaben auf dem Etikett</span><div class="et-zeilen">${zeilen}${rgb}</div>${eigene}<span id="et-weg" class="sub14 et-weg"></span></div>`;
+  const drk = S.drListe.length > 1 ? `<div class="spalte gap6"><span class="ueber">Drucker</span>${seg("et-drucker", drWahl(),
+    S.drListe.map((x) => [x.id, x.erreichbar === false ? `${x.name} (aus)` : x.name]))}</div>` : "";
+  return `${drk}${aus}<div class="spalte gap6"><span class="ueber">Angaben auf dem Etikett</span><div class="et-zeilen">${zeilen}${rgb}</div>${eigene}<span id="et-weg" class="sub14 et-weg"></span></div>`;
 }
 async function etikettZeichnen(nurVorschau) {
   const d = S.etDialog;
@@ -1402,7 +1431,7 @@ async function etikettZeichnen(nurVorschau) {
     $("et-titel").textContent = d.sorte === Etikett.TEST ? "Testdruck" : kurzname(d.sorte);
     const hoch = d.opt.hochkant && f.b > f.h;
     $("et-info").textContent = [`${f.b} × ${f.h} mm${hoch ? " · hochkant" : ""}`, d.rest ? `Rest ${gramm(d.rest)}` : "",
-      !S.et ? "" : S.et.bruecke ? "über Druckbrücke" : S.et.verbindung === "datei" ? "Testmodus ohne Drucker" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker eingestellt"].filter(Boolean).join(" · ");
+      !S.et ? "" : S.et.bruecke ? drName(drWahl()) || "über Home Assistant" : S.et.verbindung === "datei" ? "Testmodus ohne Drucker" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker eingestellt"].filter(Boolean).join(" · ");
     const liste = [...Object.keys(Etikett.FORMATE), ...d.opt.formate].map((k) => [k, Etikett.formatVon(k)]);
     if (d.opt.sortierung !== "standard") {
       const r = d.opt.sortierung === "klein" ? 1 : -1;
@@ -1491,6 +1520,8 @@ $("et-sort").onclick = (e) => {
 $("et-optionen").onclick = (e) => {
   const d = S.etDialog;
   if (!d) return;
+  const dr = e.target.closest('[data-seg="et-drucker"]');
+  if (dr) { drWaehlen(dr.dataset.v); return etikettZeichnen(); }
   const h = e.target.closest('[data-seg="et-hoch"]');
   if (h) d.opt.hochkant = h.dataset.v === "1";
   else return;
@@ -1513,6 +1544,7 @@ $("et-druck").onclick = async () => {
   await Etikett.zeichnen(cv, S.etDialog.sorte, etZeichenOpt(S.etDialog));
   const r = Etikett.raster(cv);
   const so = S.etDialog.sorte;
+  if (S.drListe.length) r.drucker = drWahl();
   r.titel = so === Etikett.TEST ? "Testdruck" : [kurzname(so), so.hersteller && `(${so.hersteller})`].filter(Boolean).join(" ");
   try {
     const a = await fetch("/api/etikett/drucken", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(r) });

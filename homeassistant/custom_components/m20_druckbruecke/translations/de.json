@@ -1,0 +1,26 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Phomemo-Etikettendrucker",
+        "description": "Bluetooth-Adresse und Modell des Druckers. Er muss über einen Bluetooth-Proxy (z. B. den AtomS3) erreichbar sein.",
+        "data": {
+          "address": "Bluetooth-Adresse",
+          "modell": "Modell"
+        }
+      },
+      "bestaetigen": {
+        "title": "Phomemo-Drucker gefunden",
+        "description": "{name} als Etikettendrucker für die FilamentLager-Waage einrichten?"
+      }
+    },
+    "error": {
+      "adresse": "Bitte eine Adresse im Format AA:BB:CC:DD:EE:FF eingeben."
+    },
+    "abort": {
+      "already_configured": "Dieser Drucker ist bereits eingerichtet.",
+      "unbekannt": "Dieses Phomemo-Modell wird noch nicht unterstützt."
+    }
+  }
+}
