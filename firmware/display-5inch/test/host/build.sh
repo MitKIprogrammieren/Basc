@@ -19,6 +19,17 @@ echo "Modelltest …"
 g++ -std=c++17 -Wall -Wextra -O1 "${INC[@]}" "$HIER/test_model.cpp" "$FW/src/model.cpp" -o "$OBJ/test_model"
 "$OBJ/test_model"
 
+echo "AMS-Test (gegen die Python-Version) …"
+g++ -std=c++17 -Wall -Wextra -O1 "${INC[@]}" "$HIER/test_ams.cpp" "$FW/src/ams.cpp" "$FW/src/model.cpp" -o "$OBJ/test_ams"
+"$OBJ/test_ams" "$FW/../../testdaten/ams_vorlage.json" "$FW/../../testdaten/todo_filament.json" > "$OBJ/ams_cpp.json"
+PYTHONPATH="$FW/../../pi" python3 - "$FW/../../testdaten/ams_vorlage.json" "$OBJ/ams_cpp.json" <<'PY'
+import json, sys
+from filamentwaage.pi_system import ams_aufbereiten
+py = ams_aufbereiten(json.load(open(sys.argv[1])))
+assert py == json.load(open(sys.argv[2])), "AMS: C++ und Python unterscheiden sich"
+print("AMS: gleich wie Python")
+PY
+
 echo "LVGL bauen …"
 if [ ! -f "$OBJ/liblvgl.a" ]; then
   find "$DEPS/lvgl/src" -name '*.c' | {

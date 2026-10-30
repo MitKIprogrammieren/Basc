@@ -1,0 +1,113 @@
+{
+ "slots": [
+  {
+   "e": "sensor.x1c_00m09a3b1234567_ams_1_slot_2",
+   "s": "PLA Basic",
+   "name": "PLA Basic",
+   "color": "3F8E43FF",
+   "fid": "GFA00",
+   "empty": false,
+   "active": false,
+   "remain": 100,
+   "tag": "04DEADBEEF000100",
+   "type": "PLA"
+  },
+  {
+   "e": "sensor.x1c_00m09a3b1234567_ams_1_slot_1",
+   "s": "PLA Basic",
+   "name": "PLA Basic",
+   "color": "5B6579FF",
+   "fid": "GFA00",
+   "empty": false,
+   "active": true,
+   "remain": 56,
+   "tag": "04C0FFEE11223300",
+   "type": "PLA"
+  },
+  {
+   "e": "sensor.x1c_00m09a3b1234567_ams_1_slot_3",
+   "s": "Leer",
+   "name": null,
+   "color": "00000000",
+   "fid": "",
+   "empty": true,
+   "active": false,
+   "remain": -1,
+   "tag": "0000000000000000",
+   "type": null
+  },
+  {
+   "e": "sensor.x1c_00m09a3b1234567_ams_1_slot_4",
+   "s": "PLA Silk+",
+   "name": "PLA Silk+",
+   "color": "F4A925FF",
+   "fid": "GFA06",
+   "empty": false,
+   "active": false,
+   "remain": 80,
+   "tag": "0000000000000000",
+   "type": "PLA"
+  },
+  {
+   "e": "sensor.x1c_00m09a3b1234567_ams_1_luftfeuchtigkeit",
+   "s": "21"
+  },
+  {
+   "e": "sensor.x1c_00m09a3b1234567_ams_1_index_der_luftfeuchtigkeit",
+   "s": "2"
+  },
+  {
+   "e": "sensor.x1c_00m09a3b1234567_externalspool_externe_spule",
+   "s": "unknown",
+   "name": null,
+   "color": null,
+   "fid": null,
+   "empty": null,
+   "active": null,
+   "remain": null,
+   "tag": null,
+   "type": null
+  },
+  {
+   "e": "sensor.h2d_0948bd5a2000_ams_128_slot_1",
+   "s": "PETG HF",
+   "name": "PETG HF",
+   "color": "F9DFB9FF",
+   "fid": "GFG02",
+   "empty": false,
+   "active": false,
+   "remain": "45",
+   "tag": null,
+   "type": "PETG"
+  },
+  {
+   "e": "sensor.h2d_0948bd5a2000_ams_128_index_der_luftfeuchtigkeit",
+   "s": "3"
+  },
+  {
+   "e": "sensor.h2d_0948bd5a2000_externalspool_externe_spule",
+   "s": "PLA",
+   "name": "",
+   "color": "000000FF",
+   "fid": "GFA00",
+   "empty": false,
+   "active": false,
+   "remain": -1,
+   "tag": "",
+   "type": "PLA"
+  }
+ ],
+ "drucker": [
+  {
+   "p": "x1c_00m09a3b1234567",
+   "name": "",
+   "online": true
+  },
+  {
+   "p": "h2d_0948bd5a2000",
+   "name": "Werkstatt H2D",
+   "online": false
+  }
+ ],
+ "abbuchung": "off"
+}
