@@ -189,19 +189,20 @@ class EtikettDienst:
         if breite <= 0 or breite % 8 or hoehe <= 0 or len(daten) != breite // 8 * hoehe:
             raise ValueError("Etikett unvollständig")
         drucker = str(d.get("drucker") or "")[:40]
+        dpi = 300 if int(d.get("dpi") or 203) == 300 else 203
         titel = str(d.get("titel") or "Etikett")[:80]
-        self.auftraege.put((breite, hoehe, daten, kopien, drucker, titel))
+        self.auftraege.put((breite, hoehe, daten, kopien, drucker, titel, dpi))
 
     def _arbeiter(self):
         while True:
-            breite, hoehe, daten, kopien, drucker, titel = self.auftraege.get()
+            breite, hoehe, daten, kopien, drucker, titel, dpi = self.auftraege.get()
             with self.lock:
                 w = dict(self.werte)
             self.druckt = True
             try:
                 if w.get("bruecke"):
                     self.meldung("Schicke Etikett an die Druckbrücke …")
-                    self._an_bruecke(w["bruecke"], breite, hoehe, daten, kopien, w["dichte"], drucker, titel)
+                    self._an_bruecke(w["bruecke"], breite, hoehe, daten, kopien, w["dichte"], drucker, titel, dpi)
                     self.meldung("Druckbrücke hat das Etikett angenommen")
                     self.letzter_druck = 1
                     continue
@@ -222,12 +223,14 @@ class EtikettDienst:
                 self.druckt = False
 
     @staticmethod
-    def _an_bruecke(basis, breite, hoehe, daten, kopien, dichte, drucker="", titel="Etikett"):
+    def _an_bruecke(basis, breite, hoehe, daten, kopien, dichte, drucker="", titel="Etikett", dpi=203):
         """Wie die Sensorplatine: POST /drucken an Home Assistant; „drucker“ wählt M20 Pro oder M110."""
         body = {"breite": breite, "hoehe": hoehe, "kopien": kopien, "dichte": dichte,
                 "titel": titel, "daten": base64.b64encode(daten).decode()}
         if drucker:
             body["drucker"] = drucker
+        if dpi == 300:
+            body["dpi"] = 300
         body = json.dumps(body).encode()
         req = urllib.request.Request(basis + "/drucken", data=body, method="POST",
                                      headers={"Content-Type": "application/json"})

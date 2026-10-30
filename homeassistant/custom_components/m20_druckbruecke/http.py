@@ -77,7 +77,7 @@ class DruckView(HomeAssistantView):
     def _liste(self) -> list:
         std = self._standard()
         return [{"id": d.modell, "name": d.name, "modell": d.modell, "adresse": d.adresse, "erreichbar": d.erreichbar,
-                 "beschaeftigt": d.beschaeftigt, "kopf_mm": d.kopf_px // 8, "standard": d is std}
+                 "beschaeftigt": d.beschaeftigt, "kopf_mm": d.kopf_px // 8, "dpi": d.dpi, "standard": d is std}
                 for d in sorted(self._alle(), key=lambda d: (d is not std, d.name))]
 
     async def get(self, request: web.Request, aktion: str) -> web.Response:
@@ -124,7 +124,8 @@ class DruckView(HomeAssistantView):
                     raise ValueError("Etikett unvollständig")
                 if drucker.sprache == "tspl":
                     auftrag = await self.hass.async_add_executor_job(
-                        tspl_auftrag, breite, hoehe, daten, d.get("dichte", 10), d.get("kopien", 1), drucker.dpi)
+                        tspl_auftrag, breite, hoehe, daten, d.get("dichte", 10), d.get("kopien", 1), drucker.dpi,
+                        300 if str(d.get("dpi")) == "300" else 203)
                 else:
                     auftrag = await self.hass.async_add_executor_job(
                         escpos_auftrag, breite, hoehe, daten, d.get("dichte", 10), d.get("kopien", 1), drucker.kopf_px)

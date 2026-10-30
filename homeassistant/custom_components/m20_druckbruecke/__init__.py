@@ -14,7 +14,7 @@ from .drucker import M20Drucker
 from .http import DruckView
 
 PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON]
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

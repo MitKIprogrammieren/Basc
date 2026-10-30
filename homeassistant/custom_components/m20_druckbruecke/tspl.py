@@ -1,13 +1,15 @@
 """TSPL-Erzeugung für den M20 Pro – unverändert aus druckbruecke.py (Pi) übernommen."""
 
 
-def tspl_auftrag(breite, hoehe, daten, dichte=10, kopien=1, dpi=300):
+def tspl_auftrag(breite, hoehe, daten, dichte=10, kopien=1, dpi=300, quelle_dpi=203):
     """Raster der Oberfläche (8 Punkte/mm, 1 = schwarz) → TSPL für den M20 Pro (300 dpi, 1 = weiß).
 
     Das Bild geht in Streifen zu 24 Zeilen als einzelne BITMAP-Befehle; ganz weiße Streifen fallen weg.
     """
-    f = dpi / 203.2
-    b_mm, h_mm = (breite + 4) // 8, (hoehe + 4) // 8
+    # Schon in Druckerauflösung gezeichnet (Waage/SchichtLohn ab 2.20.4): 1:1, nichts hochrechnen – scharfe Kanten, gleichmäßiger QR-Code
+    f = 1.0 if quelle_dpi == dpi else dpi / 203.2
+    pmm = quelle_dpi / 25.4 if quelle_dpi == dpi else 8
+    b_mm, h_mm = int(breite / pmm + 0.5), int(hoehe / pmm + 0.5)
     nb, nh = int(breite * f + 0.5), int(hoehe * f + 0.5)
     nbpr, bpr = (nb + 7) // 8, breite // 8
     tdichte = max(1, min(15, (int(dichte) * 7 + 5) // 10))  # 10 („Normal“) → 7 wie in der Phomemo-App

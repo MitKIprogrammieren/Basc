@@ -1365,6 +1365,8 @@ function drWaehlen(id) {
   try { localStorage.setItem("fl_drucker", id); } catch (e) { /* ohne Speicher nur bis zum Neuladen */ }
 }
 const drName = (id) => ((S.drListe.find((d) => d.id === id) || {}).name || "");
+// Auflösung des gewählten Druckers: der M20 Pro bekommt das Etikett direkt in 300 dpi (nicht hochgerechnet)
+const drDpi = () => ((S.drListe.find((d) => d.id === drWahl()) || {}).dpi === 300 ? 300 : 203);
 async function etSetzen(teil) {
   try {
     const r = await fetch("/api/etikett/einstellungen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(teil) });
@@ -1541,7 +1543,7 @@ $("et-zu").onclick = () => { $("etikett").classList.add("versteckt"); S.etDialog
 $("et-druck").onclick = async () => {
   if (!S.etDialog) return;
   const cv = document.createElement("canvas");
-  await Etikett.zeichnen(cv, S.etDialog.sorte, etZeichenOpt(S.etDialog));
+  await Etikett.zeichnen(cv, S.etDialog.sorte, Object.assign(etZeichenOpt(S.etDialog), { dpi: S.et && S.et.bruecke ? drDpi() : 203 }));
   const r = Etikett.raster(cv);
   const so = S.etDialog.sorte;
   if (S.drListe.length) r.drucker = drWahl();

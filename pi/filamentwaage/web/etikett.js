@@ -4,7 +4,7 @@
 
 const Etikett=(()=>{
   "use strict";
-  const PX_MM=8; // 203 dpi – Druck. Vorschau/Bild mit o.skala (z. B. 4) gestochen scharf
+  const PX_MM=8; // 203 dpi – Druck. Vorschau/Bild mit o.skala (z. B. 4) gestochen scharf; o.dpi=300 zeichnet direkt für 300-dpi-Drucker (M20 Pro)
   let K=1;
   /* art: welche Zeichnung. werte = wie viele Slots das Format zeigen kann */
   const FORMATE={
@@ -119,8 +119,8 @@ const Etikett=(()=>{
 
   /** o: { format, slots[4], rgb ("text"|"aus"), qr (Inhalt), id, rest, eigene, leerStandard, hochkant } */
   async function zeichnen(canvas,s,o={}){
-    const f=formatVon(o.format)||FORMATE.classic;const drehen=!!o.hochkant&&f.b>f.h;K=Math.max(1,Math.min(6,Math.round(o.skala||1)));
-    const W=Math.round((drehen?f.h:f.b)*PX_MM*K),H=Math.round((drehen?f.b:f.h)*PX_MM*K);canvas.width=W;canvas.height=H;canvas.dataset.drehen=drehen?"1":"";
+    const f=formatVon(o.format)||FORMATE.classic;const drehen=!!o.hochkant&&f.b>f.h;const dpi=o.dpi===300?300:203;K=Math.max(1,Math.min(6,Math.round(o.skala||1)))*(dpi===300?300/203.2:1);
+    const W=Math.round((drehen?f.h:f.b)*PX_MM*K),H=Math.round((drehen?f.b:f.h)*PX_MM*K);canvas.width=W;canvas.height=H;canvas.dataset.drehen=drehen?"1":"";canvas.dataset.dpi=String(dpi);
     await Promise.all([800,700,600,500].map(w=>document.fonts.load(`${w} 20px Montserrat`))).catch(()=>{});
     const img=await bild(s.hersteller,o.bildVersion).catch(()=>null);
     const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);
@@ -196,9 +196,9 @@ const Etikett=(()=>{
     ctx.putImageData(d,0,0)}catch(e){}}
   function aufrecht(canvas){if(canvas.dataset.drehen!=="1")return canvas;const g=document.createElement("canvas");g.width=canvas.height;g.height=canvas.width;const c=g.getContext("2d");
     c.fillStyle="#fff";c.fillRect(0,0,g.width,g.height);c.translate(g.width,0);c.rotate(Math.PI/2);c.drawImage(canvas,0,0);return g}
-  function raster(canvas){canvas=aufrecht(canvas);const W=canvas.width,H=canvas.height;const bpr=Math.ceil(W/8);const p=canvas.getContext("2d").getImageData(0,0,W,H).data;const out=new Uint8Array(bpr*H);
+  function raster(canvas){const dpi=Number(canvas.dataset.dpi)||203;canvas=aufrecht(canvas);const W=canvas.width,H=canvas.height;const bpr=Math.ceil(W/8);const p=canvas.getContext("2d").getImageData(0,0,W,H).data;const out=new Uint8Array(bpr*H);
     for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(p[(y*W+x)*4]<128)out[y*bpr+(x>>3)]|=0x80>>(x&7)}
-    let bin="";for(let i=0;i<out.length;i+=0x8000)bin+=String.fromCharCode.apply(null,out.subarray(i,i+0x8000));return {breite:bpr*8,hoehe:H,daten:btoa(bin)}}
+    let bin="";for(let i=0;i<out.length;i+=0x8000)bin+=String.fromCharCode.apply(null,out.subarray(i,i+0x8000));return {breite:bpr*8,hoehe:H,daten:btoa(bin),dpi}}
   function png(canvas,faktor=4){const g=document.createElement("canvas");g.width=canvas.width*faktor;g.height=canvas.height*faktor;const c=g.getContext("2d");c.imageSmoothingEnabled=false;c.drawImage(canvas,0,0,g.width,g.height);
     return new Promise(ok=>g.toBlob(b=>ok(b),"image/png"))}
   /* Beispiel für den Testdruck */

@@ -51,6 +51,7 @@ struct Druck {
     std::vector<uint8_t> daten;
     String titel;
     String drucker;  // Wahl in Home Assistant, z. B. „m110“; leer = Standard (M20 Pro)
+    int dpi;         // 203 oder 300 – das Raster ist schon für diese Auflösung gezeichnet
 };
 
 std::mutex g_mx;
@@ -220,6 +221,7 @@ String an_bruecke(const String& basis, const char* pfad, const Druck* d, int dic
             serializeJson(w, wahl);
             wahl = ",\"drucker\":" + wahl;
         }
+        if (d->dpi == 300) wahl += ",\"dpi\":300";
         body = "{\"breite\":" + String(d->breite) + ",\"hoehe\":" + String(d->hoehe) + ",\"kopien\":" +
                String(d->kopien) + ",\"dichte\":" + String(dichte) + ",\"titel\":" + titel + wahl + ",\"daten\":\"";
         body += b64.c_str();
@@ -637,7 +639,7 @@ const char* drucker_drucken(JsonObjectConst o) {
     if (breite <= 0 || breite % 8 || hoehe <= 0 || hoehe > 4000) return "Etikett unvollständig";
     size_t soll = (size_t)breite / 8 * hoehe, laenge = 0;
     auto* d = new Druck{breite, hoehe, kopien, std::vector<uint8_t>(soll + 4), String(o["titel"] | "Etikett").substring(0, 80),
-                        String(o["drucker"] | "").substring(0, 40)};
+                        String(o["drucker"] | "").substring(0, 40), (int)(o["dpi"] | 203) == 300 ? 300 : 203};
     if (mbedtls_base64_decode(d->daten.data(), d->daten.size(), &laenge, (const unsigned char*)b64, strlen(b64)) ||
         laenge != soll) {
         delete d;
