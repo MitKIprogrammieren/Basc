@@ -1,0 +1,277 @@
+commit 50c6ce4 · ergebnis success
+********************************************************************************
+If you like PlatformIO, please:
+- star it on GitHub > https://github.com/platformio/platformio-core
+- follow us on LinkedIn to stay up-to-date on the latest project news > https://www.linkedin.com/company/platformio/
+- try PlatformIO IDE for embedded development > https://platformio.org/platformio-ide
+********************************************************************************
+
+Processing s3zero (platform: espressif32@6.9.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Platform Manager: Installing espressif32 @ 6.9.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Platform Manager: espressif32@6.9.0 has been installed!
+Tool Manager: Installing espressif/toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5 has been installed!
+Tool Manager: Installing espressif/toolchain-riscv32-esp @ 8.4.0+2021r2-patch5
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: toolchain-riscv32-esp@8.4.0+2021r2-patch5 has been installed!
+Tool Manager: Installing platformio/framework-arduinoespressif32 @ ~3.20017.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: framework-arduinoespressif32@3.20017.241212+sha.dcc1105b has been installed!
+Tool Manager: Installing platformio/tool-esptoolpy @ ~1.40501.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: tool-esptoolpy@1.40501.0 has been installed!
+Tool Manager: Installing platformio/tool-scons @ ~4.41101.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: tool-scons@4.41101.0 has been installed!
+Library Manager: Installing bogde/HX711 @ ^0.7.5
+Downloading 0% 10% 20%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: HX711@0.7.5 has been installed!
+Library Manager: Installing bblanchon/ArduinoJson @ ^7.2.1
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: ArduinoJson@7.4.3 has been installed!
+Library Manager: Installing tzapu/WiFiManager @ ^2.0.17
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: WiFiManager@2.0.17 has been installed!
+Library Manager: Installing esp32async/AsyncTCP @ ^3.3.2
+Downloading 0% 10% 20% 30%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: AsyncTCP@3.5.0 has been installed!
+Library Manager: Installing esp32async/ESPAsyncWebServer @ ^3.6.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: ESPAsyncWebServer@3.12.1 has been installed!
+Library Manager: Resolving dependencies...
+Verbose mode can be enabled via `-v, --verbose` option
+web_daten: Oberfläche nach data/ gelegt (770 KB)
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.9.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 38 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- HX711 @ 0.7.5
+|-- ArduinoJson @ 7.4.3
+|-- WiFiManager @ 2.0.17
+|-- AsyncTCP @ 3.5.0
+|-- ESPAsyncWebServer @ 3.12.1
+|-- ESPmDNS @ 2.0.0
+|-- Preferences @ 2.0.0
+|-- WiFi @ 2.0.0
+|-- HTTPClient @ 2.0.0
+|-- WiFiClientSecure @ 2.0.0
+|-- LittleFS @ 2.0.0
+Building in release mode
+Compiling .pio/build/s3zero/src/main.cpp.o
+Compiling .pio/build/s3zero/src/modell_gemeinsam.cpp.o
+Compiling .pio/build/s3zero/src/oberflaeche.cpp.o
+Compiling .pio/build/s3zero/src/pn532_hsu.cpp.o
+Building .pio/build/s3zero/bootloader.bin
+esptool.py v4.5.1
+Creating esp32s3 image...
+Merged 1 ELF section
+Successfully created esp32s3 image.
+Generating partitions .pio/build/s3zero/partitions.bin
+Compiling .pio/build/s3zero/lib18d/HX711/HX711.cpp.o
+Archiving .pio/build/s3zero/lib18d/libHX711.a
+Indexing .pio/build/s3zero/lib18d/libHX711.a
+Compiling .pio/build/s3zero/lib989/WiFi/WiFi.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiAP.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiClient.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiGeneric.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiMulti.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiSTA.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiScan.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiServer.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiUdp.cpp.o
+Compiling .pio/build/s3zero/lib147/DNSServer/DNSServer.cpp.o
+Archiving .pio/build/s3zero/lib989/libWiFi.a
+Indexing .pio/build/s3zero/lib989/libWiFi.a
+Compiling .pio/build/s3zero/lib4b6/ESPmDNS/ESPmDNS.cpp.o
+Archiving .pio/build/s3zero/lib147/libDNSServer.a
+Indexing .pio/build/s3zero/lib147/libDNSServer.a
+Compiling .pio/build/s3zero/lib4b6/Update/HttpsOTAUpdate.cpp.o
+Compiling .pio/build/s3zero/lib4b6/Update/Updater.cpp.o
+Archiving .pio/build/s3zero/lib4b6/libESPmDNS.a
+Indexing .pio/build/s3zero/lib4b6/libESPmDNS.a
+Compiling .pio/build/s3zero/lib7aa/FS/FS.cpp.o
+Archiving .pio/build/s3zero/lib4b6/libUpdate.a
+Indexing .pio/build/s3zero/lib4b6/libUpdate.a
+Compiling .pio/build/s3zero/lib7aa/FS/vfs_api.cpp.o
+Compiling .pio/build/s3zero/lib1ce/WebServer/Parsing.cpp.o
+Archiving .pio/build/s3zero/lib7aa/libFS.a
+Indexing .pio/build/s3zero/lib7aa/libFS.a
+Compiling .pio/build/s3zero/lib1ce/WebServer/WebServer.cpp.o
+Compiling .pio/build/s3zero/lib1ce/WebServer/detail/mimetable.cpp.o
+Compiling .pio/build/s3zero/lib147/WiFiManager/WiFiManager.cpp.o
+Archiving .pio/build/s3zero/lib1ce/libWebServer.a
+Indexing .pio/build/s3zero/lib1ce/libWebServer.a
+Compiling .pio/build/s3zero/libcb0/AsyncTCP/AsyncTCP.cpp.o
+Archiving .pio/build/s3zero/libcb0/libAsyncTCP.a
+Indexing .pio/build/s3zero/libcb0/libAsyncTCP.a
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/AsyncEventSource.cpp.o
+Archiving .pio/build/s3zero/lib147/libWiFiManager.a
+Indexing .pio/build/s3zero/lib147/libWiFiManager.a
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/AsyncJson.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/AsyncWebHeader.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/AsyncWebServerRequest.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/AsyncWebSocket.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/BackPort_SHA1Builder.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/ChunkPrint.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/Middleware.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/WebAuthentication.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/WebHandlers.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/WebRequest.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/WebResponses.cpp.o
+Compiling .pio/build/s3zero/libcbb/ESPAsyncWebServer/WebServer.cpp.o
+Compiling .pio/build/s3zero/libe70/Preferences/Preferences.cpp.o
+Archiving .pio/build/s3zero/libe70/libPreferences.a
+Indexing .pio/build/s3zero/libe70/libPreferences.a
+Compiling .pio/build/s3zero/lib552/WiFiClientSecure/WiFiClientSecure.cpp.o
+Archiving .pio/build/s3zero/libcbb/libESPAsyncWebServer.a
+Indexing .pio/build/s3zero/libcbb/libESPAsyncWebServer.a
+Compiling .pio/build/s3zero/lib552/WiFiClientSecure/esp_crt_bundle.c.o
+Compiling .pio/build/s3zero/lib552/WiFiClientSecure/ssl_client.cpp.o
+Compiling .pio/build/s3zero/lib67b/HTTPClient/HTTPClient.cpp.o
+Archiving .pio/build/s3zero/lib552/libWiFiClientSecure.a
+Indexing .pio/build/s3zero/lib552/libWiFiClientSecure.a
+Compiling .pio/build/s3zero/lib620/LittleFS/LittleFS.cpp.o
+Archiving .pio/build/s3zero/lib620/libLittleFS.a
+Indexing .pio/build/s3zero/lib620/libLittleFS.a
+Archiving .pio/build/s3zero/lib67b/libHTTPClient.a
+Indexing .pio/build/s3zero/lib67b/libHTTPClient.a
+Compiling .pio/build/s3zero/FrameworkArduino/Esp.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/main.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/s3zero/libFrameworkArduino.a
+Indexing .pio/build/s3zero/libFrameworkArduino.a
+Linking .pio/build/s3zero/firmware.elf
+Retrieving maximum program size .pio/build/s3zero/firmware.elf
+Checking size .pio/build/s3zero/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [==        ]  15.6% (used 51144 bytes from 327680 bytes)
+Flash: [=====     ]  45.1% (used 1181693 bytes from 2621440 bytes)
+Building .pio/build/s3zero/firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32s3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio/build/s3zero/firmware.bin
+esptool.py v4.5.1
+Creating esp32s3 image...
+Merged 2 ELF sections
+Successfully created esp32s3 image.
+======================== [SUCCESS] Took 132.99 seconds ========================
+Processing s3zero (platform: espressif32@6.9.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Tool Manager: Installing platformio/tool-mklittlefs @ ~1.203.0
+Downloading 0% 10% 20% 30% 40% 50% 60%
+Unpacking 0% 10% 20%
+Tool Manager: tool-mklittlefs@1.203.210628 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+web_daten: Oberfläche nach data/ gelegt (770 KB)
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.9.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - tool-mklittlefs @ 1.203.210628 (2.3) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 38 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- HX711 @ 0.7.5
+|-- ArduinoJson @ 7.4.3
+|-- WiFiManager @ 2.0.17
+|-- AsyncTCP @ 3.5.0
+|-- ESPAsyncWebServer @ 3.12.1
+|-- ESPmDNS @ 2.0.0
+|-- Preferences @ 2.0.0
+|-- WiFi @ 2.0.0
+|-- HTTPClient @ 2.0.0
+|-- WiFiClientSecure @ 2.0.0
+|-- LittleFS @ 2.0.0
+Building in release mode
+Building FS image from 'data' directory to .pio/build/s3zero/littlefs.bin
+/index.html.gz
+/style.css.gz
+/etikett.js.gz
+/qrcode.LICENSE.txt.gz
+/fonts/Montserrat-Medium.ttf.gz
+/fonts/Montserrat-SemiBold.ttf.gz
+/fonts/Montserrat-ExtraBold.ttf.gz
+/fonts/OFL.txt.gz
+/fonts/Montserrat-Bold.ttf.gz
+/qrcode.min.js.gz
+/app.js.gz
+========================= [SUCCESS] Took 3.27 seconds =========================
+  0x000000  bootloader.bin  14 KB
+  0x008000  partitions.bin  3 KB
+  0x00e000  boot_app0.bin  8 KB
+  0x010000  firmware.bin  1154 KB
+  0x290000  littlefs.bin  1408 KB
+/tmp/aus/FilamentLager-Webflasher.html: 3639 KB, Firmware 2.0.0

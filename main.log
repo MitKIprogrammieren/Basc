@@ -1,0 +1,875 @@
+commit 571dad2 · ergebnis success
+Processing s3zero (platform: espressif32@6.9.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Library Manager: Installing bblanchon/ArduinoJson @ ^7.2.1
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: ArduinoJson@7.4.3 has been installed!
+Library Manager: Installing tzapu/WiFiManager @ ^2.0.17
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: WiFiManager@2.0.17 has been installed!
+Library Manager: Installing esp32async/AsyncTCP @ ^3.3.2
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: AsyncTCP@3.5.0 has been installed!
+Library Manager: Installing esp32async/ESPAsyncWebServer @ ^3.6.0
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: ESPAsyncWebServer@3.12.1 has been installed!
+Library Manager: Resolving dependencies...
+Library Manager: Installing h2zero/NimBLE-Arduino @ ^1.4.3
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: NimBLE-Arduino@1.4.3 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+web_daten: Oberfläche nach data/ gelegt (148 KB)
+web_daten: 19 Herstellerbilder (145 KB)
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.9.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 38 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- ArduinoJson @ 7.4.3
+|-- WiFiManager @ 2.0.17
+|-- AsyncTCP @ 3.5.0
+|-- ESPAsyncWebServer @ 3.12.1
+|-- NimBLE-Arduino @ 1.4.3
+|-- HTTPClient @ 2.0.0
+|-- Preferences @ 2.0.0
+|-- WiFi @ 2.0.0
+|-- ESPmDNS @ 2.0.0
+|-- WiFiClientSecure @ 2.0.0
+|-- LittleFS @ 2.0.0
+|-- Update @ 2.0.0
+|-- Wire @ 2.0.0
+Building in release mode
+Compiling .pio/build/s3zero/src/drucker.cpp.o
+Compiling .pio/build/s3zero/src/main.cpp.o
+Compiling .pio/build/s3zero/src/modell_gemeinsam.cpp.o
+Compiling .pio/build/s3zero/src/nau7802.cpp.o
+Compiling .pio/build/s3zero/src/oberflaeche.cpp.o
+Compiling .pio/build/s3zero/src/pn532_hsu.cpp.o
+Building .pio/build/s3zero/bootloader.bin
+esptool.py v4.5.1
+Creating esp32s3 image...
+Merged 1 ELF section
+Successfully created esp32s3 image.
+Generating partitions .pio/build/s3zero/partitions.bin
+Compiling .pio/build/s3zero/lib989/WiFi/WiFi.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiAP.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiClient.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiGeneric.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiMulti.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiSTA.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiScan.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiServer.cpp.o
+Compiling .pio/build/s3zero/lib989/WiFi/WiFiUdp.cpp.o
+Compiling .pio/build/s3zero/lib147/DNSServer/DNSServer.cpp.o
+Compiling .pio/build/s3zero/lib4b6/ESPmDNS/ESPmDNS.cpp.o
+Archiving .pio/build/s3zero/lib989/libWiFi.a
+Indexing .pio/build/s3zero/lib989/libWiFi.a
+Compiling .pio/build/s3zero/lib4b6/Update/HttpsOTAUpdate.cpp.o
+Compiling .pio/build/s3zero/lib4b6/Update/Updater.cpp.o
+Archiving .pio/build/s3zero/lib147/libDNSServer.a
+Indexing .pio/build/s3zero/lib147/libDNSServer.a
+Compiling .pio/build/s3zero/lib7aa/FS/FS.cpp.o
+Archiving .pio/build/s3zero/lib4b6/libESPmDNS.a
+Indexing .pio/build/s3zero/lib4b6/libESPmDNS.a
+Compiling .pio/build/s3zero/lib7aa/FS/vfs_api.cpp.o
+Archiving .pio/build/s3zero/lib4b6/libUpdate.a
+Indexing .pio/build/s3zero/lib4b6/libUpdate.a
+Compiling .pio/build/s3zero/lib1ce/WebServer/Parsing.cpp.o
+Compiling .pio/build/s3zero/lib1ce/WebServer/WebServer.cpp.o
+Compiling .pio/build/s3zero/lib1ce/WebServer/detail/mimetable.cpp.o
+Compiling .pio/build/s3zero/lib787/WiFiManager/WiFiManager.cpp.o
+Archiving .pio/build/s3zero/lib7aa/libFS.a
+Indexing .pio/build/s3zero/lib7aa/libFS.a
+Compiling .pio/build/s3zero/libd5b/AsyncTCP/AsyncTCP.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/AsyncEventSource.cpp.o
+Archiving .pio/build/s3zero/lib1ce/libWebServer.a
+Indexing .pio/build/s3zero/lib1ce/libWebServer.a
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/AsyncJson.cpp.o
+Archiving .pio/build/s3zero/libd5b/libAsyncTCP.a
+Indexing .pio/build/s3zero/libd5b/libAsyncTCP.a
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/AsyncWebHeader.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/AsyncWebServerRequest.cpp.o
+Archiving .pio/build/s3zero/lib787/libWiFiManager.a
+Indexing .pio/build/s3zero/lib787/libWiFiManager.a
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/AsyncWebSocket.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/BackPort_SHA1Builder.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/ChunkPrint.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/Middleware.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/WebAuthentication.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/WebHandlers.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/WebRequest.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/WebResponses.cpp.o
+Compiling .pio/build/s3zero/lib808/ESPAsyncWebServer/WebServer.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLE2904.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEAddress.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEAdvertisedDevice.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEAdvertising.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEBeacon.cpp.o
+Archiving .pio/build/s3zero/lib808/libESPAsyncWebServer.a
+Indexing .pio/build/s3zero/lib808/libESPAsyncWebServer.a
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLECharacteristic.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEClient.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEDescriptor.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEDevice.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEEddystoneTLM.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEEddystoneURL.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEExtAdvertising.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEHIDDevice.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLERemoteCharacteristic.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLERemoteDescriptor.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLERemoteService.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEScan.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLESecurity.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEServer.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEService.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEUUID.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/NimBLEUtils.cpp.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/esp_port/esp-hci/src/esp_nimble_hci.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/esp_port/port/src/esp_nimble_mem.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/aes_decrypt.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/aes_encrypt.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/cbc_mode.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/ccm_mode.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/cmac_mode.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/ctr_mode.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/ctr_prng.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_dh.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_dsa.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_platform_specific.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/hmac.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/hmac_prng.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/sha256.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/ext/tinycrypt/src/utils.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_adv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_conn.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_conn_hci.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_ctrl.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_dtm.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci_ev.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_iso.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_rand.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_resolv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_rfmgmt.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_scan.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_sched.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_supp_cmd.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_sync.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_trace.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_utils.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_whitelist.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/drivers/nrf51/src/ble_hw.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/drivers/nrf51/src/ble_phy.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/drivers/nrf52/src/ble_hw.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/drivers/nrf52/src/ble_phy.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/drivers/nrf52/src/ble_phy_trace.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/access.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/adv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/aes-ccm.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/app_keys.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/beacon.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/cdb.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg_cli.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg_srv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/crypto.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/friend.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/glue.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/health_cli.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/health_srv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/heartbeat.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/light_model.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/lpn.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/mesh.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/model_cli.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/model_srv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/net.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/nodes.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/pb_adv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/pb_gatt.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/prov.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/prov_device.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/provisioner.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/proxy.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/rpl.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/settings.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/shell.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/subnet.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/mesh/src/transport.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/ans/src/ble_svc_ans.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/bas/src/ble_svc_bas.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/dis/src/ble_svc_dis.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/gap/src/ble_svc_gap.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/gatt/src/ble_svc_gatt.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/ias/src/ble_svc_ias.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/ipss/src/ble_svc_ipss.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/services/lls/src/ble_svc_lls.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_att.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_att_clt.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_att_cmd.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_att_svr.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_eddystone.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_gap.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_gattc.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_gatts.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_gatts_lcl.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_adv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_atomic.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_cfg.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_conn.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_flow.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_cmd.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_evt.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_util.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_id.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_log.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_mbuf.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_misc.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_mqueue.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_periodic_sync.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_pvcy.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_resolv.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_shutdown.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_startup.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_stop.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_ibeacon.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_coc.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_sig.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_sig_cmd.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_monitor.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_sm.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_alg.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_cmd.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_lgcy.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_sc.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_store.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_store_util.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/src/ble_uuid.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_config.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_config_conf.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_nvs.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/host/util/src/addr.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/nimble/transport/ram/src/ble_hci_ram.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/endian.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/hal_timer.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/hal_uart.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/mem.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/nimble_port.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/os_cputime.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/os_cputime_pwr2.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/os_mbuf.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/os_mempool.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/nimble/src/os_msys_init.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/npl/freertos/src/nimble_port_freertos.c.o
+Compiling .pio/build/s3zero/lib7cd/NimBLE-Arduino/nimble/porting/npl/freertos/src/npl_os_freertos.c.o
+Compiling .pio/build/s3zero/lib552/WiFiClientSecure/WiFiClientSecure.cpp.o
+Archiving .pio/build/s3zero/lib7cd/libNimBLE-Arduino.a
+Compiling .pio/build/s3zero/lib552/WiFiClientSecure/esp_crt_bundle.c.o
+Compiling .pio/build/s3zero/lib552/WiFiClientSecure/ssl_client.cpp.o
+Indexing .pio/build/s3zero/lib7cd/libNimBLE-Arduino.a
+Compiling .pio/build/s3zero/lib67b/HTTPClient/HTTPClient.cpp.o
+Compiling .pio/build/s3zero/libe70/Preferences/Preferences.cpp.o
+Compiling .pio/build/s3zero/lib620/LittleFS/LittleFS.cpp.o
+Archiving .pio/build/s3zero/lib552/libWiFiClientSecure.a
+Indexing .pio/build/s3zero/lib552/libWiFiClientSecure.a
+Compiling .pio/build/s3zero/liba33/Wire/Wire.cpp.o
+Archiving .pio/build/s3zero/libe70/libPreferences.a
+Indexing .pio/build/s3zero/libe70/libPreferences.a
+Compiling .pio/build/s3zero/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/s3zero/lib67b/libHTTPClient.a
+Indexing .pio/build/s3zero/lib67b/libHTTPClient.a
+Compiling .pio/build/s3zero/FrameworkArduino/FirmwareMSC.cpp.o
+Archiving .pio/build/s3zero/lib620/libLittleFS.a
+Indexing .pio/build/s3zero/lib620/libLittleFS.a
+Compiling .pio/build/s3zero/FrameworkArduino/FunctionalInterrupt.cpp.o
+Archiving .pio/build/s3zero/liba33/libWire.a
+Indexing .pio/build/s3zero/liba33/libWire.a
+Compiling .pio/build/s3zero/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/main.cpp.o
+Compiling .pio/build/s3zero/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/s3zero/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/s3zero/libFrameworkArduino.a
+Indexing .pio/build/s3zero/libFrameworkArduino.a
+Linking .pio/build/s3zero/firmware.elf
+Retrieving maximum program size .pio/build/s3zero/firmware.elf
+Checking size .pio/build/s3zero/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [==        ]  17.7% (used 58148 bytes from 327680 bytes)
+Flash: [========  ]  81.4% (used 1493573 bytes from 1835008 bytes)
+Building .pio/build/s3zero/firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32s3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio/build/s3zero/firmware.bin
+esptool.py v4.5.1
+Creating esp32s3 image...
+Merged 2 ELF sections
+Successfully created esp32s3 image.
+========================= [SUCCESS] Took 58.89 seconds =========================
+
+Processing n16r8 (platform: espressif32@6.9.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Library Manager: Installing bblanchon/ArduinoJson @ ^7.2.1
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: ArduinoJson@7.4.3 has been installed!
+Library Manager: Installing tzapu/WiFiManager @ ^2.0.17
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: WiFiManager@2.0.17 has been installed!
+Library Manager: Installing esp32async/AsyncTCP @ ^3.3.2
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: AsyncTCP@3.5.0 has been installed!
+Library Manager: Installing esp32async/ESPAsyncWebServer @ ^3.6.0
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: ESPAsyncWebServer@3.12.1 has been installed!
+Library Manager: Resolving dependencies...
+Library Manager: Installing h2zero/NimBLE-Arduino @ ^1.4.3
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: NimBLE-Arduino@1.4.3 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+web_daten: Oberfläche nach data/ gelegt (148 KB)
+web_daten: 19 Herstellerbilder (145 KB)
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.9.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 38 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- ArduinoJson @ 7.4.3
+|-- WiFiManager @ 2.0.17
+|-- AsyncTCP @ 3.5.0
+|-- ESPAsyncWebServer @ 3.12.1
+|-- NimBLE-Arduino @ 1.4.3
+|-- HTTPClient @ 2.0.0
+|-- Preferences @ 2.0.0
+|-- WiFi @ 2.0.0
+|-- ESPmDNS @ 2.0.0
+|-- WiFiClientSecure @ 2.0.0
+|-- LittleFS @ 2.0.0
+|-- Update @ 2.0.0
+|-- Wire @ 2.0.0
+Building in release mode
+Compiling .pio/build/n16r8/src/drucker.cpp.o
+Compiling .pio/build/n16r8/src/main.cpp.o
+Compiling .pio/build/n16r8/src/modell_gemeinsam.cpp.o
+Compiling .pio/build/n16r8/src/nau7802.cpp.o
+Compiling .pio/build/n16r8/src/oberflaeche.cpp.o
+Compiling .pio/build/n16r8/src/pn532_hsu.cpp.o
+Building .pio/build/n16r8/bootloader.bin
+esptool.py v4.5.1
+Creating esp32s3 image...
+Merged 1 ELF section
+Successfully created esp32s3 image.
+Generating partitions .pio/build/n16r8/partitions.bin
+Compiling .pio/build/n16r8/lib989/WiFi/WiFi.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiAP.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiClient.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiGeneric.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiMulti.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiSTA.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiScan.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiServer.cpp.o
+Compiling .pio/build/n16r8/lib989/WiFi/WiFiUdp.cpp.o
+Compiling .pio/build/n16r8/lib147/DNSServer/DNSServer.cpp.o
+Compiling .pio/build/n16r8/lib4b6/ESPmDNS/ESPmDNS.cpp.o
+Archiving .pio/build/n16r8/lib989/libWiFi.a
+Indexing .pio/build/n16r8/lib989/libWiFi.a
+Compiling .pio/build/n16r8/lib4b6/Update/HttpsOTAUpdate.cpp.o
+Compiling .pio/build/n16r8/lib4b6/Update/Updater.cpp.o
+Archiving .pio/build/n16r8/lib147/libDNSServer.a
+Indexing .pio/build/n16r8/lib147/libDNSServer.a
+Compiling .pio/build/n16r8/lib7aa/FS/FS.cpp.o
+Archiving .pio/build/n16r8/lib4b6/libESPmDNS.a
+Indexing .pio/build/n16r8/lib4b6/libESPmDNS.a
+Compiling .pio/build/n16r8/lib7aa/FS/vfs_api.cpp.o
+Archiving .pio/build/n16r8/lib4b6/libUpdate.a
+Indexing .pio/build/n16r8/lib4b6/libUpdate.a
+Compiling .pio/build/n16r8/lib1ce/WebServer/Parsing.cpp.o
+Compiling .pio/build/n16r8/lib1ce/WebServer/WebServer.cpp.o
+Compiling .pio/build/n16r8/lib1ce/WebServer/detail/mimetable.cpp.o
+Compiling .pio/build/n16r8/lib4b2/WiFiManager/WiFiManager.cpp.o
+Archiving .pio/build/n16r8/lib7aa/libFS.a
+Indexing .pio/build/n16r8/lib7aa/libFS.a
+Compiling .pio/build/n16r8/lib3df/AsyncTCP/AsyncTCP.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/AsyncEventSource.cpp.o
+Archiving .pio/build/n16r8/lib1ce/libWebServer.a
+Indexing .pio/build/n16r8/lib1ce/libWebServer.a
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/AsyncJson.cpp.o
+Archiving .pio/build/n16r8/lib3df/libAsyncTCP.a
+Indexing .pio/build/n16r8/lib3df/libAsyncTCP.a
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/AsyncWebHeader.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/AsyncWebServerRequest.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/AsyncWebSocket.cpp.o
+Archiving .pio/build/n16r8/lib4b2/libWiFiManager.a
+Indexing .pio/build/n16r8/lib4b2/libWiFiManager.a
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/BackPort_SHA1Builder.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/ChunkPrint.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/Middleware.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/WebAuthentication.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/WebHandlers.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/WebRequest.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/WebResponses.cpp.o
+Compiling .pio/build/n16r8/lib7e9/ESPAsyncWebServer/WebServer.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLE2904.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEAddress.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEAdvertisedDevice.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEAdvertising.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEBeacon.cpp.o
+Archiving .pio/build/n16r8/lib7e9/libESPAsyncWebServer.a
+Indexing .pio/build/n16r8/lib7e9/libESPAsyncWebServer.a
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLECharacteristic.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEClient.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEDescriptor.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEDevice.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEEddystoneTLM.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEEddystoneURL.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEExtAdvertising.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEHIDDevice.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLERemoteCharacteristic.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLERemoteDescriptor.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLERemoteService.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEScan.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLESecurity.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEServer.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEService.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEUUID.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/NimBLEUtils.cpp.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/esp_port/esp-hci/src/esp_nimble_hci.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/esp_port/port/src/esp_nimble_mem.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/aes_decrypt.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/aes_encrypt.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/cbc_mode.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/ccm_mode.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/cmac_mode.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/ctr_mode.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/ctr_prng.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_dh.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_dsa.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/ecc_platform_specific.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/hmac.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/hmac_prng.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/sha256.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/ext/tinycrypt/src/utils.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_adv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_conn.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_conn_hci.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_ctrl.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_dtm.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_hci_ev.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_iso.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_rand.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_resolv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_rfmgmt.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_scan.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_sched.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_supp_cmd.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_sync.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_trace.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_utils.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/controller/src/ble_ll_whitelist.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/drivers/nrf51/src/ble_hw.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/drivers/nrf51/src/ble_phy.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/drivers/nrf52/src/ble_hw.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/drivers/nrf52/src/ble_phy.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/drivers/nrf52/src/ble_phy_trace.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/access.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/adv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/aes-ccm.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/app_keys.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/beacon.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/cdb.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg_cli.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/cfg_srv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/crypto.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/friend.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/glue.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/health_cli.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/health_srv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/heartbeat.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/light_model.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/lpn.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/mesh.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/model_cli.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/model_srv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/net.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/nodes.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/pb_adv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/pb_gatt.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/prov.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/prov_device.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/provisioner.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/proxy.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/rpl.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/settings.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/shell.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/subnet.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/mesh/src/transport.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/ans/src/ble_svc_ans.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/bas/src/ble_svc_bas.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/dis/src/ble_svc_dis.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/gap/src/ble_svc_gap.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/gatt/src/ble_svc_gatt.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/ias/src/ble_svc_ias.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/ipss/src/ble_svc_ipss.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/services/lls/src/ble_svc_lls.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_att.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_att_clt.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_att_cmd.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_att_svr.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_eddystone.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_gap.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_gattc.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_gatts.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_gatts_lcl.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_adv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_atomic.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_cfg.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_conn.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_flow.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_cmd.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_evt.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_hci_util.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_id.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_log.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_mbuf.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_misc.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_mqueue.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_periodic_sync.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_pvcy.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_resolv.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_shutdown.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_startup.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_hs_stop.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_ibeacon.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_coc.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_sig.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_l2cap_sig_cmd.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_monitor.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_sm.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_alg.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_cmd.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_lgcy.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_sm_sc.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_store.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_store_util.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/src/ble_uuid.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_config.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_config_conf.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/store/config/src/ble_store_nvs.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/host/util/src/addr.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/nimble/transport/ram/src/ble_hci_ram.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/endian.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/hal_timer.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/hal_uart.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/mem.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/nimble_port.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/os_cputime.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/os_cputime_pwr2.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/os_mbuf.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/os_mempool.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/nimble/src/os_msys_init.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/npl/freertos/src/nimble_port_freertos.c.o
+Compiling .pio/build/n16r8/libb93/NimBLE-Arduino/nimble/porting/npl/freertos/src/npl_os_freertos.c.o
+Compiling .pio/build/n16r8/lib552/WiFiClientSecure/WiFiClientSecure.cpp.o
+Compiling .pio/build/n16r8/lib552/WiFiClientSecure/esp_crt_bundle.c.o
+Compiling .pio/build/n16r8/lib552/WiFiClientSecure/ssl_client.cpp.o
+Archiving .pio/build/n16r8/libb93/libNimBLE-Arduino.a
+Indexing .pio/build/n16r8/libb93/libNimBLE-Arduino.a
+Compiling .pio/build/n16r8/lib67b/HTTPClient/HTTPClient.cpp.o
+Compiling .pio/build/n16r8/libe70/Preferences/Preferences.cpp.o
+Compiling .pio/build/n16r8/lib620/LittleFS/LittleFS.cpp.o
+Archiving .pio/build/n16r8/lib552/libWiFiClientSecure.a
+Indexing .pio/build/n16r8/lib552/libWiFiClientSecure.a
+Compiling .pio/build/n16r8/liba33/Wire/Wire.cpp.o
+Archiving .pio/build/n16r8/libe70/libPreferences.a
+Indexing .pio/build/n16r8/libe70/libPreferences.a
+Compiling .pio/build/n16r8/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/n16r8/lib67b/libHTTPClient.a
+Indexing .pio/build/n16r8/lib67b/libHTTPClient.a
+Compiling .pio/build/n16r8/FrameworkArduino/FirmwareMSC.cpp.o
+Archiving .pio/build/n16r8/lib620/libLittleFS.a
+Indexing .pio/build/n16r8/lib620/libLittleFS.a
+Compiling .pio/build/n16r8/FrameworkArduino/FunctionalInterrupt.cpp.o
+Archiving .pio/build/n16r8/liba33/libWire.a
+Indexing .pio/build/n16r8/liba33/libWire.a
+Compiling .pio/build/n16r8/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/main.cpp.o
+Compiling .pio/build/n16r8/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/n16r8/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/n16r8/libFrameworkArduino.a
+Indexing .pio/build/n16r8/libFrameworkArduino.a
+Linking .pio/build/n16r8/firmware.elf
+Retrieving maximum program size .pio/build/n16r8/firmware.elf
+Checking size .pio/build/n16r8/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [==        ]  17.7% (used 58056 bytes from 327680 bytes)
+Flash: [========  ]  81.5% (used 1494865 bytes from 1835008 bytes)
+Building .pio/build/n16r8/firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32s3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio/build/n16r8/firmware.bin
+esptool.py v4.5.1
+Creating esp32s3 image...
+Merged 2 ELF sections
+Successfully created esp32s3 image.
+========================= [SUCCESS] Took 51.26 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+s3zero         SUCCESS   00:00:58.892
+n16r8          SUCCESS   00:00:51.260
+========================= 2 succeeded in 00:01:50.152 =========================
+Processing s3zero (platform: espressif32@6.9.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+web_daten: Oberfläche nach data/ gelegt (148 KB)
+web_daten: 19 Herstellerbilder (145 KB)
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.9.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - tool-mklittlefs @ 1.203.210628 (2.3) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 38 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- ArduinoJson @ 7.4.3
+|-- WiFiManager @ 2.0.17
+|-- AsyncTCP @ 3.5.0
+|-- ESPAsyncWebServer @ 3.12.1
+|-- NimBLE-Arduino @ 1.4.3
+|-- HTTPClient @ 2.0.0
+|-- Preferences @ 2.0.0
+|-- WiFi @ 2.0.0
+|-- ESPmDNS @ 2.0.0
+|-- WiFiClientSecure @ 2.0.0
+|-- LittleFS @ 2.0.0
+|-- Update @ 2.0.0
+|-- Wire @ 2.0.0
+Building in release mode
+Building FS image from 'data' directory to .pio/build/s3zero/littlefs.bin
+/hersteller/material4print.png
+/hersteller/devil-design.png
+/hersteller/cr3d.png
+/hersteller/creality.png
+/hersteller/tinmorry.png
+/hersteller/siraya-tech.png
+/hersteller/polymaker.png
+/hersteller/bambu-lab.png
+/hersteller/spectrum.png
+/hersteller/das-filament.png
+/hersteller/jayo.png
+/hersteller/fiberlogy.png
+/hersteller/esun.png
+/hersteller/geeetech.png
+/hersteller/3djake.png
+/hersteller/3dk-berlin.png
+/hersteller/colorfabb.png
+/hersteller/extrudr.png
+/hersteller/princore.png
+/fonts/OFL.txt.gz
+/fonts/Montserrat-Medium.ttf.gz
+/fonts/Montserrat-SemiBold.ttf.gz
+/fonts/Montserrat-ExtraBold.ttf.gz
+/fonts/Montserrat-Bold.ttf.gz
+/etikett.js.gz
+/qrcode.LICENSE.txt.gz
+/qrcode.min.js.gz
+/style.css.gz
+/app.js.gz
+/index.html.gz
+========================= [SUCCESS] Took 2.42 seconds =========================
+
+Processing n16r8 (platform: espressif32@6.9.0; board: esp32-s3-devkitc-1; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+web_daten: Oberfläche nach data/ gelegt (148 KB)
+web_daten: 19 Herstellerbilder (145 KB)
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitc-1.html
+PLATFORM: Espressif 32 (6.9.0) > Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 8MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - tool-mklittlefs @ 1.203.210628 (2.3) 
+ - toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 
+ - toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 38 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- ArduinoJson @ 7.4.3
+|-- WiFiManager @ 2.0.17
+|-- AsyncTCP @ 3.5.0
+|-- ESPAsyncWebServer @ 3.12.1
+|-- NimBLE-Arduino @ 1.4.3
+|-- HTTPClient @ 2.0.0
+|-- Preferences @ 2.0.0
+|-- WiFi @ 2.0.0
+|-- ESPmDNS @ 2.0.0
+|-- WiFiClientSecure @ 2.0.0
+|-- LittleFS @ 2.0.0
+|-- Update @ 2.0.0
+|-- Wire @ 2.0.0
+Building in release mode
+Building FS image from 'data' directory to .pio/build/n16r8/littlefs.bin
+/hersteller/material4print.png
+/hersteller/devil-design.png
+/hersteller/cr3d.png
+/hersteller/creality.png
+/hersteller/tinmorry.png
+/hersteller/siraya-tech.png
+/hersteller/polymaker.png
+/hersteller/bambu-lab.png
+/hersteller/spectrum.png
+/hersteller/das-filament.png
+/hersteller/jayo.png
+/hersteller/fiberlogy.png
+/hersteller/esun.png
+/hersteller/geeetech.png
+/hersteller/3djake.png
+/hersteller/3dk-berlin.png
+/hersteller/colorfabb.png
+/hersteller/extrudr.png
+/hersteller/princore.png
+/fonts/OFL.txt.gz
+/fonts/Montserrat-Medium.ttf.gz
+/fonts/Montserrat-SemiBold.ttf.gz
+/fonts/Montserrat-ExtraBold.ttf.gz
+/fonts/Montserrat-Bold.ttf.gz
+/etikett.js.gz
+/qrcode.LICENSE.txt.gz
+/qrcode.min.js.gz
+/style.css.gz
+/app.js.gz
+/index.html.gz
+========================= [SUCCESS] Took 2.42 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+s3zero         SUCCESS   00:00:02.421
+n16r8          SUCCESS   00:00:02.417
+========================= 2 succeeded in 00:00:04.838 =========================
+  0x000000  bootloader.bin  14 KB
+  0x008000  partitions.bin  3 KB
+  0x00e000  boot_app0.bin  8 KB
+  0x010000  firmware.bin  1458 KB
+  0x390000  littlefs.bin  384 KB
+/tmp/aus/FilamentLager-Webflasher.html: 2689 KB, Firmware 2.22.0
+  0x000000  bootloader.bin  14 KB
+  0x008000  partitions.bin  3 KB
+  0x00e000  boot_app0.bin  8 KB
+  0x010000  firmware.bin  1460 KB
+  0x390000  littlefs.bin  384 KB
+/tmp/aus/FilamentLager-Webflasher-N16R8.html: 2691 KB, Firmware 2.22.0
