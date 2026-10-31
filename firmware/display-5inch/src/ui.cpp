@@ -6,12 +6,15 @@
 #include "ui.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <vector>
 
 #include "fonts/fonts.h"
+#include "icons/icons.h"
+#include "rolle.h"
 #include "lvgl.h"
 
 namespace {
@@ -44,7 +47,7 @@ constexpr int S(int v) { return v; }
 #define F_N (&fl_16)
 #define F_G (&fl_20)
 #define F_T (&fl_28)
-#define F_Z (&fl_96)
+#define F_Z (&fl_92)
 #endif
 // Eigener Wert bzw. Text für das 3,5"-Display, wo S() allein nicht passt
 constexpr int K(int gross, int klein) { return UI_KOMPAKT ? klein : gross; }
@@ -79,8 +82,6 @@ int g_netto = 0;
 
 // Lager
 lv_obj_t *l_suche, *l_tastatur, *l_liste, *l_reste;
-lv_obj_t* l_filter[5];
-int g_filter = 0;
 bool g_auswahl_modus = false;  // Lager wird zum Auswählen einer Sorte geöffnet
 std::string g_auswahl_tag;     // dieser Tag wird der gewählten Sorte zugeordnet
 
@@ -109,7 +110,6 @@ lv_obj_t* g_toast;
 lv_obj_t* g_toast_lbl;
 lv_timer_t* g_toast_timer;
 
-const char* FILTER[5] = {"Alle", "PLA", "PETG", "ABS·ASA", "Andere"};
 
 // ---------------------------------------------------------------- Hilfen
 lv_color_t farbe(uint32_t c) { return lv_color_hex(c); }
@@ -182,7 +182,7 @@ lv_obj_t* chip(lv_obj_t* p, const std::string& t, uint32_t bg, uint32_t fg, uint
         lv_obj_set_style_bg_color(c, farbe(bg), 0);
         lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
     }
-    text(c, F_K, fg, t.c_str());
+    text(c, &fl_12, fg, t.c_str());
     return c;
 }
 
@@ -209,10 +209,10 @@ const Logo* logo_von(const std::string& hersteller) {
 
 // Herstellerlogo (gross = Karte/Detail, sonst Listen) höchstens max_b breit; ohne Logo der Name als Text.
 // breite_aus: tatsächliche Breite, damit daneben noch Text passt.
-lv_obj_t* marke(lv_obj_t* p, const std::string& hersteller, bool gross, const lv_font_t* f, uint32_t farbe_, int max_b,
+lv_obj_t* marke(lv_obj_t* p, const std::string& hersteller, LogoArt art, const lv_font_t* f, uint32_t farbe_, int max_b,
                 int* breite_aus = nullptr) {
     const Logo* l = logo_von(hersteller);
-    const lv_img_dsc_t* b = l ? &l->bild[gross ? 1 : 0] : nullptr;
+    const lv_img_dsc_t* b = l ? &l->bild[art] : nullptr;
     if (b && b->header.w && b->header.w <= max_b) {
         lv_obj_t* img = lv_img_create(p);
         lv_img_set_src(img, b);
@@ -249,8 +249,6 @@ lv_obj_t* knopf(lv_obj_t* p, const char* t, Art art, lv_event_cb_t cb, void* dat
         lv_obj_set_style_bg_color(b, farbe(C_LINIE), LV_STATE_PRESSED);
         fg = C_NAV;
     }
-    lv_obj_set_style_bg_color(b, farbe(C_LINIE), LV_STATE_DISABLED);
-    lv_obj_set_style_text_color(b, farbe(0x6b727b), LV_STATE_DISABLED);
     lv_obj_t* l = lv_label_create(b);
     lv_obj_set_style_text_font(l, art == Art::PRIMAER ? F_G : F_N, 0);
     lv_obj_set_style_text_color(l, farbe(fg), 0);
@@ -264,14 +262,9 @@ lv_obj_t* knopf(lv_obj_t* p, const char* t, Art art, lv_event_cb_t cb, void* dat
 void knopf_aktiv(lv_obj_t* b, bool an) {
     if (an) lv_obj_clear_state(b, LV_STATE_DISABLED);
     else lv_obj_add_state(b, LV_STATE_DISABLED);
-    lv_obj_t* l = lv_obj_get_child(b, 0);
-    if (l) lv_obj_set_style_text_opa(l, an ? LV_OPA_COVER : LV_OPA_40, 0);
+    lv_obj_set_style_opa(b, an ? LV_OPA_COVER : LV_OPA_40, 0);  // .knopf:disabled { opacity: .4 }
 }
 
-std::string klein(std::string s) {
-    for (auto& c : s) c = (char)tolower((unsigned char)c);
-    return s;
-}
 
 std::string gramm(int g) { return std::to_string(g) + " g"; }
 
@@ -292,20 +285,6 @@ std::string rest_text(const Filament& f) {
     return std::to_string(f.reste.size()) + " Reste";
 }
 
-bool passt_filter(const Filament& f, int filter) {
-    std::string m = klein(f.material);
-    bool pla = m.rfind("pla", 0) == 0 || m.rfind("apla", 0) == 0;
-    bool petg = m.find("pet") != std::string::npos && !pla;
-    bool abs = m.rfind("abs", 0) == 0 || m.rfind("asa", 0) == 0 || m.rfind("pcabs", 0) == 0;
-    switch (filter) {
-        case 1: return pla;
-        case 2: return petg;
-        case 3: return abs;
-        case 4: return !pla && !petg && !abs;
-        default: return true;
-    }
-}
-
 int leergewicht(int sorte) {
     if (sorte >= 0 && g_lager->sorten[sorte].leer_g > 0) return g_lager->sorten[sorte].leer_g;
     return g_st.leer_standard_g;
@@ -313,15 +292,65 @@ int leergewicht(int sorte) {
 
 void zeige_seite(Seite s);
 
+// ---------------------------------------------------------------- Symbole und Rollen (wie die Web-Oberfläche)
+// Symbol aus src/icons (SVG der Web-Oberfläche), in Farbe c
+lv_obj_t* ikon(lv_obj_t* p, const char* name, int px, uint32_t c) {
+    lv_obj_t* i = lv_img_create(p);
+    const lv_img_dsc_t* b = ikon_bild(name, px);
+    if (b) lv_img_set_src(i, b);
+    lv_obj_set_style_img_recolor(i, farbe(c), 0);
+    lv_obj_set_style_img_recolor_opa(i, LV_OPA_COVER, 0);
+    return i;
+}
+
+void ikon_farbe(lv_obj_t* i, uint32_t c) { lv_obj_set_style_img_recolor(i, farbe(c), 0); }
+
+// Filamentrolle wie rolle() in app.js: ein Platz der Größe platz, das Bild (bild px) ragt darüber hinaus
+lv_obj_t* rolle_platz(lv_obj_t* p, int platz, int bild, uint32_t rgb, const std::vector<std::string>& bes,
+                      bool leer = false) {
+    lv_obj_t* b = box(p);
+    lv_obj_set_size(b, platz, platz);
+    lv_obj_add_flag(b, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_clear_flag(b, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t* i = lv_img_create(b);
+    lv_img_set_src(i, rolle_bild(rgb, bes, bild, leer));
+    lv_obj_center(i);
+    return b;
+}
+
+void rolle_tauschen(lv_obj_t* platz, int bild, uint32_t rgb, const std::vector<std::string>& bes, bool leer = false) {
+    lv_obj_t* i = lv_obj_get_child(platz, 0);
+    if (i) lv_img_set_src(i, rolle_bild(rgb, bes, bild, leer));
+}
+
+// Schriften wie style.css (Pixelgrößen der Web-Oberfläche bei 800×480)
+#if UI_KOMPAKT
+#define T12 (&fl_12)
+#define T13 (&fl_12)
+#define T14 (&fl_12)
+#define T15 (&fl_13)
+#define T17 (&fl_15)
+#define T30 (&fl_20)
+#else
+#define T12 (&fl_12)
+#define T13 (&fl_13)
+#define T14 (&fl_14)
+#define T15 (&fl_15)
+#define T17 (&fl_17)
+#define T30 (&fl_30)
+#endif
+
 // ---------------------------------------------------------------- Kopfzeile
 lv_obj_t* punkt(lv_obj_t* p) {
     lv_obj_t* d = box(p);
-    lv_obj_set_size(d, S(8), S(8));
+    lv_obj_set_size(d, 8, 8);
     lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(d, farbe(C_RAND), 0);
     return d;
 }
+
+lv_obj_t *h_waage, *h_drucker_z, *h_drucker, *h_wlan_i, *h_wlan_t;
 
 void baue_kopf(lv_obj_t* scr) {
     lv_obj_t* k = box(scr);
@@ -331,43 +360,37 @@ void baue_kopf(lv_obj_t* scr) {
     lv_obj_set_style_border_color(k, farbe(C_LINIE), 0);
 
     lv_obj_t* links = zeile(k, S(10));
-    lv_obj_align(links, LV_ALIGN_LEFT_MID, S(18), 0);
-    lv_obj_t* logo = box(links);
-    lv_obj_set_size(logo, S(20), S(20));
-    lv_obj_set_style_radius(logo, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(logo, 2, 0);
-    lv_obj_set_style_border_color(logo, farbe(C_GRUEN), 0);
-    lv_obj_t* loch = box(logo);
-    lv_obj_set_size(loch, S(6), S(6));
-    lv_obj_set_style_radius(loch, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(loch, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(loch, farbe(C_GRUEN), 0);
-    lv_obj_center(loch);
-    text(links, F_G, C_TEXT, "FilamentLager");
-    h_sub = text(links, F_K, C_SUB, "Waage");
+    lv_obj_align(links, LV_ALIGN_LEFT_MID, K(12, 8), 0);
+    // Logo: Filamentrolle in der Akzentfarbe (logoSetzen() in app.js)
+    rolle_platz(links, K(30, 22), K(30, 22), C_GRUEN, {});
+    text(links, T17, C_TEXT, "FilamentLager");
+    h_sub = text(links, T13, C_SUB, "Waage");
+    if (UI_KOMPAKT) lv_obj_add_flag(h_sub, LV_OBJ_FLAG_HIDDEN);  // .app.eng .kopf #kopf-sub { display: none }
 
-    lv_obj_t* rechts = zeile(k, S(14));
-    lv_obj_align(rechts, LV_ALIGN_RIGHT_MID, -S(18), 0);
+    lv_obj_t* rechts = zeile(k, K(12, 7));
+    lv_obj_align(rechts, LV_ALIGN_RIGHT_MID, -K(18, 8), 0);
     auto status = [&](const char* name, lv_obj_t** dot) {
-        lv_obj_t* z = zeile(rechts, S(6));
+        lv_obj_t* z = zeile(rechts, K(6, 4));
         *dot = punkt(z);
-        text(z, F_K, C_SUB, name);
+        text(z, T12, C_SUB, name);
+        return z;
     };
-#if UI_KOMPAKT
-    status("L", &h_nfc_l);
-    status("R", &h_nfc_r);
-    h_wlan = text(rechts, F_K, C_SUB, LV_SYMBOL_WIFI);
-    status("HA", &h_ha);
-#else
-    status("NFC L", &h_nfc_l);
-    status("NFC R", &h_nfc_r);
-    h_wlan = text(rechts, F_K, C_SUB, LV_SYMBOL_WIFI " WLAN");
-    status("Home Assistant", &h_ha);
-#endif
-    h_zeit = text(rechts, F_N, C_TEXT, "--:--");
+    status(KT("NFC L", "L"), &h_nfc_l);
+    status(KT("NFC R", "R"), &h_nfc_r);
+    status("Waage", &h_waage);
+    h_drucker_z = status(KT("Drucker", "Druck."), &h_drucker);
+    lv_obj_add_flag(h_drucker_z, LV_OBJ_FLAG_HIDDEN);
+    h_wlan = zeile(rechts, K(6, 4));
+    h_wlan_i = ikon(h_wlan, "wlan", K(16, 13), C_SUB);
+    h_wlan_t = text(h_wlan, T12, C_SUB, "WLAN");
+    if (UI_KOMPAKT) lv_obj_add_flag(h_wlan_t, LV_OBJ_FLAG_HIDDEN);
+    status(KT("Home Assistant", "HA"), &h_ha);
+    h_zeit = text(rechts, KT(&fl_14, &fl_13), C_TEXT, "--:--");
 }
 
 // ---------------------------------------------------------------- Navigation
+lv_obj_t* g_nav_ikon[3];
+
 void nav_cb(lv_event_t* e) {
     int i = (int)(intptr_t)lv_event_get_user_data(e);
     g_auswahl_modus = false;
@@ -383,15 +406,23 @@ void baue_nav(lv_obj_t* scr) {
     lv_obj_set_style_pad_bottom(n, S(10), 0);
     lv_obj_set_flex_flow(n, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(n, S(8), 0);
-#if UI_KOMPAKT
-    const char* namen[3] = {LV_SYMBOL_HOME " Wiegen", LV_SYMBOL_LIST " Lager", LV_SYMBOL_SETTINGS " Einstellungen"};
-#else
-    const char* namen[3] = {LV_SYMBOL_HOME "  Wiegen", LV_SYMBOL_LIST "  Lager", LV_SYMBOL_SETTINGS "  Einstellungen"};
-#endif
+    const char* namen[3] = {"Wiegen", "Lager", "Einstellungen"};
+    const char* ikone[3] = {"waage", "lager", "einst"};
     for (int i = 0; i < 3; i++) {
-        g_nav[i] = knopf(n, namen[i], Art::FLACH, nav_cb, (void*)(intptr_t)i);
-        lv_obj_set_height(g_nav[i], NAV_H - S(10));
-        lv_obj_set_flex_grow(g_nav[i], 1);
+        lv_obj_t* b = box(n);
+        g_nav[i] = b;
+        lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_height(b, NAV_H - S(10));
+        lv_obj_set_flex_grow(b, 1);
+        lv_obj_set_style_radius(b, S(14), 0);
+        lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(b, farbe(C_PANEL), 0);
+        lv_obj_set_flex_flow(b, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(b, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(b, K(8, 5), 0);
+        g_nav_ikon[i] = ikon(b, ikone[i], K(20, 14), C_NAV);
+        text(b, KT(&fl_15, &fl_13), C_NAV, namen[i]);  // .nav-knopf { font-size: 14px; font-weight: 600 }
+        lv_obj_add_event_cb(b, nav_cb, LV_EVENT_CLICKED, (void*)(intptr_t)i);
     }
 }
 
@@ -399,7 +430,8 @@ void nav_markieren(int aktiv) {
     for (int i = 0; i < 3; i++) {
         bool an = i == aktiv;
         lv_obj_set_style_bg_color(g_nav[i], farbe(an ? C_NAV_AKT : C_PANEL), 0);
-        lv_obj_set_style_text_color(lv_obj_get_child(g_nav[i], 0), farbe(an ? C_GRUEN_T : C_NAV), 0);
+        lv_obj_set_style_text_color(lv_obj_get_child(g_nav[i], 1), farbe(an ? C_GRUEN_T : C_NAV), 0);
+        ikon_farbe(g_nav_ikon[i], an ? C_GRUEN_T : C_NAV);
     }
 }
 
@@ -416,6 +448,10 @@ lv_obj_t* seite(lv_obj_t* scr) {
 // ---------------------------------------------------------------- Wiegen
 void et_oeffnen(int sorte, int rest);
 std::string g_karte_schluessel;  // verhindert unnötiges Neuaufbauen der Karte
+std::string g_spule_schluessel;  // Rolle im Ring nur neu zeichnen, wenn sich die Sorte ändert
+
+constexpr int RING = K(168, 96), RING_W = K(14, 8), SPULE = K(128, 74);
+constexpr int KS_PLATZ = K(34, 24), KS_BILD = K(50, 35);  // .rolle.r34
 
 void haupt_cb(lv_event_t*) {
     switch (g_haupt) {
@@ -457,60 +493,53 @@ void etikett_wiegen_cb(lv_event_t*) {
     et_oeffnen(g_aktive_sorte, da && g_st.stabil ? g_netto : 0);
 }
 
+lv_obj_t* w_etikett_i;
+
 void baue_wiegen(lv_obj_t* s) {
     lv_obj_set_flex_flow(s, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(s, S(14), 0);
 
+    // .wiegen-karte: Ring mit Rolle, daneben Gewicht
     lv_obj_t* karte = box(s);
     panel_stil(karte, C_GRUEN);
     lv_obj_set_height(karte, lv_pct(100));
     lv_obj_set_flex_grow(karte, 1);
     lv_obj_set_style_pad_hor(karte, K(22, 10), 0);
+    lv_obj_set_style_pad_ver(karte, K(18, 10), 0);
     lv_obj_set_flex_flow(karte, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(karte, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(karte, K(22, 10), 0);
 
     lv_obj_t* ring = box(karte);
-    lv_obj_set_size(ring, K(168, 76), K(168, 76));
+    lv_obj_set_size(ring, RING, RING);
     w_arc = lv_arc_create(ring);
     lv_obj_remove_style(w_arc, nullptr, LV_PART_KNOB);
     lv_obj_clear_flag(w_arc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(w_arc, K(168, 76), K(168, 76));
+    lv_obj_set_size(w_arc, RING, RING);
     lv_arc_set_rotation(w_arc, 270);
     lv_arc_set_bg_angles(w_arc, 0, 360);
     lv_arc_set_range(w_arc, 0, 100);
     lv_arc_set_value(w_arc, 0);
-    lv_obj_set_style_arc_width(w_arc, K(14, 8), LV_PART_MAIN);
-    lv_obj_set_style_arc_width(w_arc, K(14, 8), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(w_arc, RING_W, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(w_arc, RING_W, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(w_arc, farbe(C_RAND2), LV_PART_MAIN);
     lv_obj_set_style_arc_color(w_arc, farbe(C_GRUEN), LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(w_arc, false, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(w_arc, false, LV_PART_MAIN);
     lv_obj_set_style_pad_all(w_arc, 0, 0);
     lv_obj_center(w_arc);
-    w_spule = box(ring);
-    lv_obj_set_size(w_spule, K(92, 40), K(92, 40));
-    lv_obj_set_style_radius(w_spule, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(w_spule, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(w_spule, farbe(C_RAND), 0);
-    lv_obj_set_style_border_width(w_spule, 3, 0);
-    lv_obj_set_style_border_color(w_spule, farbe(C_RAND2), 0);
+    w_spule = rolle_platz(ring, SPULE, SPULE, C_RAND, {"matt"}, true);
     lv_obj_center(w_spule);
-    lv_obj_t* nabe = box(w_spule);
-    lv_obj_set_size(nabe, K(26, 12), K(26, 12));
-    lv_obj_set_style_radius(nabe, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(nabe, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(nabe, farbe(C_PANEL), 0);
-    lv_obj_center(nabe);
 
     lv_obj_t* sp = spalte(karte, S(6));
-    w_kopf = text(sp, F_K, C_SUB, "FILAMENT ÜBRIG");
+    w_kopf = text(sp, T12, C_SUB, "FILAMENT ÜBRIG");
     ueberschrift(w_kopf);
     lv_obj_t* zahl = zeile(sp, S(8));
     lv_obj_set_flex_align(zahl, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
     w_zahl = text(zahl, F_Z, C_TEXT, "0");
-    w_einheit = text(zahl, F_T, C_SUB, "g");
-    lv_obj_set_style_pad_bottom(w_einheit, S(14), 0);
-    w_proz = text(sp, F_N, C_SUB, "");
+    w_einheit = text(zahl, T30, C_SUB, "g");
+    lv_obj_set_style_pad_bottom(w_einheit, K(12, 6), 0);
+    w_proz = text(sp, T15, C_SUB, "Spule auflegen");
     lv_obj_t* chips = zeile(sp, S(8));
 #if UI_KOMPAKT
     lv_obj_set_flex_flow(chips, LV_FLEX_FLOW_COLUMN);  // nebeneinander zu breit
@@ -521,8 +550,9 @@ void baue_wiegen(lv_obj_t* s) {
     w_brutto = chip(chips, "Brutto 0 g", C_CHIP, C_TEXT);
     w_leer = chip(chips, "Leerspule 250 g", C_CHIP, C_TEXT);
 
+    // .rechts270: Karte der erkannten Sorte und Knöpfe
     lv_obj_t* seite_r = box(s);
-    lv_obj_set_size(seite_r, K(270, 190), lv_pct(100));
+    lv_obj_set_size(seite_r, K(270, 172), lv_pct(100));
     lv_obj_set_flex_flow(seite_r, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(seite_r, S(10), 0);
 
@@ -530,55 +560,67 @@ void baue_wiegen(lv_obj_t* s) {
     panel_stil(k, C_GRUEN);
     lv_obj_set_width(k, lv_pct(100));
     lv_obj_set_flex_grow(k, 1);
-    lv_obj_set_style_pad_hor(k, S(16), 0);
-    lv_obj_set_style_pad_ver(k, S(14), 0);
+    lv_obj_set_style_pad_hor(k, K(16, 9), 0);
+    lv_obj_set_style_pad_ver(k, K(14, 8), 0);
     lv_obj_set_flex_flow(k, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(k, S(8), 0);
-    w_k_titel = text(k, F_K, C_SUB, "");
-    ueberschrift(w_k_titel);
-    einzeilig(w_k_titel, S(234));
-    lv_obj_t* kz = zeile(k, S(12));
-    w_k_swatch = farbfeld(kz, S(34), S(9), C_RAND);
+    lv_obj_set_style_pad_row(k, K(8, 5), 0);
+    w_k_titel = text(k, KT(&fl_12, &fl_12), C_SUB, "");
+    if (!UI_KOMPAKT) ueberschrift(w_k_titel);
+    einzeilig(w_k_titel, K(234, 150));
+    lv_obj_t* kz = zeile(k, K(12, 7));
+    w_k_swatch = box(kz);  // Platz für Rolle oder Farbfeld
+    lv_obj_set_size(w_k_swatch, KS_PLATZ, KS_PLATZ);
+    lv_obj_add_flag(w_k_swatch, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_t* kt = spalte(kz, S(2));
-    w_k_name = text(kt, F_G, C_TEXT, "");
-    einzeilig(w_k_name, S(188));
-    w_k_sub = box(kt);  // Herstellerlogo oder Text
-    lv_obj_set_size(w_k_sub, S(188), LV_SIZE_CONTENT);
-    lv_obj_set_style_min_height(w_k_sub, lv_font_get_line_height(F_K), 0);
+    w_k_name = text(kt, T17, C_TEXT, "");
+    einzeilig(w_k_name, K(188, 112));
+    w_k_sub = text(kt, T13, C_SUB, "");
+    einzeilig(w_k_sub, K(188, 112));
     w_k_chips = box(k);
     lv_obj_set_size(w_k_chips, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(w_k_chips, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_style_pad_column(w_k_chips, S(6), 0);
     lv_obj_set_style_pad_row(w_k_chips, S(6), 0);
 
-    w_haupt = knopf(seite_r, LV_SYMBOL_OK "  Rest speichern", Art::PRIMAER, haupt_cb, nullptr, &w_haupt_lbl);
-    lv_obj_set_size(w_haupt, lv_pct(100), S(58));
+    w_haupt = knopf(seite_r, "Rest speichern", Art::PRIMAER, haupt_cb, nullptr, &w_haupt_lbl);
+    lv_obj_set_size(w_haupt, lv_pct(100), K(58, 38));
+    lv_obj_set_style_text_font(w_haupt_lbl, T17, 0);
     lv_obj_t* r2 = box(seite_r);
-    lv_obj_set_size(r2, lv_pct(100), S(50));
+    lv_obj_set_size(r2, lv_pct(100), K(50, 36));
     lv_obj_set_flex_flow(r2, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(r2, S(10), 0);
-    lv_obj_set_style_pad_column(r2, S(8), 0);
     w_tara = knopf(r2, "Tara", Art::RAHMEN, tara_cb);
-    w_wahl = knopf(r2, "Andere", Art::RAHMEN, andere_cb, nullptr, &w_wahl_lbl);
-    w_etikett = knopf(r2, "Etikett", Art::RAHMEN, etikett_wiegen_cb);
-    for (lv_obj_t* b : {w_tara, w_wahl, w_etikett}) {
-        lv_obj_set_height(b, S(50));
+    w_wahl = knopf(r2, "Sorte wählen", Art::RAHMEN, andere_cb, nullptr, &w_wahl_lbl);
+    for (lv_obj_t* b : {w_tara, w_wahl}) {
+        lv_obj_set_height(b, lv_pct(100));
         lv_obj_set_flex_grow(b, 1);
-        lv_obj_set_style_pad_hor(b, 2, 0);
-        if (UI_KOMPAKT) lv_obj_set_style_text_font(lv_obj_get_child(b, 0), F_K, 0);
+        lv_obj_set_style_pad_hor(b, 4, 0);
+        lv_obj_t* l = lv_obj_get_child(b, 0);
+        lv_obj_set_style_text_font(l, T15, 0);
+        lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
     }
-}
-
-// Zweite Zeile der Karte: Herstellerlogo/-name oder ein Text
-void karte_sub_text(const std::string& t) {
-    lv_obj_clean(w_k_sub);
-    lv_obj_t* l = text(w_k_sub, F_K, C_SUB, t.c_str());
-    einzeilig(l, S(188));
-}
-
-void karte_sub_marke(const std::string& hersteller) {
-    lv_obj_clean(w_k_sub);
-    marke(w_k_sub, hersteller, true, F_K, C_SUB, S(188));
+    // „Sorte wählen“ bricht wie im Browser um, wenn der Platz nicht reicht
+    if (UI_KOMPAKT) {
+        lv_obj_set_style_text_font(w_wahl_lbl, &fl_12, 0);
+        lv_obj_set_style_pad_hor(w_wahl, 1, 0);
+    }
+    if (UI_KOMPAKT) {
+        lv_label_set_long_mode(w_wahl_lbl, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(w_wahl_lbl, lv_pct(100));
+        lv_obj_set_style_text_line_space(w_wahl_lbl, -2, 0);
+    }
+    // Etikett drucken: quadratischer Knopf mit Druckersymbol
+    w_etikett = box(r2);
+    lv_obj_add_flag(w_etikett, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(w_etikett, K(58, 40), lv_pct(100));
+    lv_obj_set_style_radius(w_etikett, S(14), 0);
+    lv_obj_set_style_border_width(w_etikett, 2, 0);
+    lv_obj_set_style_border_color(w_etikett, farbe(C_RAND), 0);
+    lv_obj_set_style_bg_color(w_etikett, farbe(C_LINIE), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(w_etikett, LV_OPA_COVER, LV_STATE_PRESSED);
+    w_etikett_i = ikon(w_etikett, "drucker", K(22, 16), C_TEXT);
+    lv_obj_center(w_etikett_i);
+    lv_obj_add_event_cb(w_etikett, etikett_wiegen_cb, LV_EVENT_CLICKED, nullptr);
 }
 
 std::string ams_text(const AmsTreffer& t, bool mit_rest) {
@@ -588,16 +630,48 @@ std::string ams_text(const AmsTreffer& t, bool mit_rest) {
 }
 
 void karte_chips(const std::vector<std::pair<std::string, int>>& chips) {
-    // 0 = grau, 1 = grün, 2 = orange (Rahmen), 3 = blau
+    // 0 = grau, 1 = grün (.g), 2 = orange Rahmen (.o), 3 = blau (.b / .ams)
     lv_obj_clean(w_k_chips);
     for (auto& c : chips) {
         switch (c.second) {
             case 1: chip(w_k_chips, c.first, C_CHIP_G, C_GRUEN_T); break;
-            case 2: chip(w_k_chips, c.first, 0, C_ORANGE_T, 0x9a6a2a); break;
+            case 2: chip(w_k_chips, c.first, 0, C_ORANGE_T, 0xa16e22); break;
             case 3: chip(w_k_chips, c.first, C_CHIP_B, C_BLAU_T); break;
             default: chip(w_k_chips, c.first, C_CHIP, C_TEXT); break;
         }
     }
+}
+
+// Platz links in der Karte: Rolle der Sorte oder ein leeres Farbfeld (.swatch.s34)
+void karte_swatch(const Filament* f, uint32_t leer_farbe) {
+    lv_obj_clean(w_k_swatch);
+    if (f) {
+        lv_obj_set_style_bg_opa(w_k_swatch, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(w_k_swatch, 0, 0);
+        lv_obj_t* i = lv_img_create(w_k_swatch);
+        lv_img_set_src(i, rolle_bild(f->rgb, f->besonderheiten, KS_BILD));
+        lv_obj_center(i);
+    } else {
+        lv_obj_set_style_bg_opa(w_k_swatch, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(w_k_swatch, farbe(leer_farbe), 0);
+        lv_obj_set_style_radius(w_k_swatch, S(9), 0);
+        lv_obj_set_style_border_width(w_k_swatch, 1, 0);
+        lv_obj_set_style_border_color(w_k_swatch, farbe(0x4a5058), 0);
+    }
+}
+
+std::string gross_text(std::string s) {  // .ueber: text-transform uppercase (UTF-8 für ä ö ü)
+    for (size_t i = 0; i < s.size(); i++) {
+        unsigned char c = s[i];
+        if (c == 0xC3 && i + 1 < s.size()) {
+            unsigned char d = s[i + 1];
+            if (d == 0xA4 || d == 0xB6 || d == 0xBC) s[i + 1] = (char)(d - 0x20);
+            i++;
+        } else if (c < 0x80) {
+            s[i] = (char)toupper(c);
+        }
+    }
+    return s;
 }
 
 void wiegen_aktualisieren() {
@@ -622,7 +696,13 @@ void wiegen_aktualisieren() {
 
     lv_arc_set_value(w_arc, proz);
     lv_obj_set_style_arc_color(w_arc, farbe(proz < 15 && da ? C_ROT : C_GRUEN), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(w_spule, farbe(sorte >= 0 ? g_lager->sorten[sorte].rgb : C_RAND), 0);
+    // Rolle im Ring in der Farbe der Sorte, sonst grau und blass (.rgross.leer)
+    std::string sk = sorte >= 0 ? g_lager->sorten[sorte].uid + "|" + std::to_string(g_lager->sorten[sorte].rgb) : "";
+    if (sk != g_spule_schluessel) {
+        g_spule_schluessel = sk;
+        if (sorte >= 0) rolle_tauschen(w_spule, SPULE, g_lager->sorten[sorte].rgb, g_lager->sorten[sorte].besonderheiten);
+        else rolle_tauschen(w_spule, SPULE, C_RAND, {"matt"}, true);
+    }
     setze(w_zahl, std::to_string(da ? netto : 0));
     if (!st.sensor_ok) setze(w_proz, "Sensor antwortet nicht");
     else if (!da) setze(w_proz, "Spule auflegen");
@@ -630,13 +710,11 @@ void wiegen_aktualisieren() {
     setze(lv_obj_get_child(w_brutto, 0), "Brutto " + gramm(brutto));
     setze(lv_obj_get_child(w_leer, 0), "Leerspule " + gramm(leer));
 
-    std::string schluessel = std::to_string(sorte) + "|" + tag + "|" + (da ? "1" : "0") + "|" +
-                             std::to_string(g_ams_stand) + "|" + std::to_string(g_logo_stand);
-    if (sorte >= 0) {
-        const Filament& f = g_lager->sorten[sorte];
-        schluessel += "|" + f.description;
-    }
-    knopf_aktiv(w_etikett, sorte >= 0);
+    std::string schluessel = std::to_string(sorte) + "|" + tag + "|" + (da ? "1" : "0") + "|" + std::to_string(g_ams_stand);
+    if (sorte >= 0) schluessel += "|" + g_lager->sorten[sorte].description;
+    if (sorte >= 0) lv_obj_clear_state(w_etikett, LV_STATE_DISABLED);
+    else lv_obj_add_state(w_etikett, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(w_etikett, sorte >= 0 ? LV_OPA_COVER : LV_OPA_40, 0);
     if (schluessel == g_karte_schluessel) return;
     g_karte_schluessel = schluessel;
     AmsTreffer ams = g_ams ? ams_slot_fuer_tag(*g_ams, tag) : AmsTreffer{};
@@ -644,56 +722,157 @@ void wiegen_aktualisieren() {
 
     if (sorte >= 0) {
         const Filament& f = g_lager->sorten[sorte];
-        setze(w_k_titel, tag.empty() ? "GEWÄHLTE SORTE" : std::string(KT("ERKANNT · NFC ", "NFC ")) + leser);
-        lv_obj_set_style_bg_color(w_k_swatch, farbe(f.rgb), 0);
+        setze(w_k_titel, gross_text(tag.empty() ? "Gewählte Sorte" : std::string(KT("Erkannt · NFC ", "NFC ")) + leser));
+        karte_swatch(&f, 0);
         setze(w_k_name, f.kurzname());
-        karte_sub_marke(f.hersteller);
+        setze(w_k_sub, f.hersteller);
         std::vector<std::pair<std::string, int>> c;
+        for (size_t i = 0; i < f.besonderheiten.size() && i < 2; i++) c.push_back({f.besonderheiten[i], 0});
+        c.push_back({spulen_text(f.spulen) + " im Lager", 1});
+        if (!f.reste.empty()) c.push_back({"Rest bisher " + gramm(f.reste.back()), 2});
         if (ams) c.push_back({ams_text(ams, true), 3});
-        for (size_t i = 0; i < f.besonderheiten.size() && i < (UI_KOMPAKT ? 1u : 2u); i++) c.push_back({f.besonderheiten[i], 0});
-        c.push_back({spulen_text(f.spulen) + KT(" im Lager", ""), 1});
-        if (!f.reste.empty()) c.push_back({KT("Rest bisher ", "Rest ") + gramm(f.reste.back()), 2});
         karte_chips(c);
         g_haupt = da ? Haupt::SPEICHERN : Haupt::NICHTS;
         setze(w_haupt_lbl, LV_SYMBOL_OK "  Rest speichern");
-        setze(w_wahl_lbl, "Andere");
+        setze(w_wahl_lbl, "Andere Sorte");
     } else if (!tag.empty()) {
-        setze(w_k_titel, std::string(KT("NEUER TAG · NFC ", "NEU · NFC ")) + leser);
+        setze(w_k_titel, gross_text(std::string(KT("Neuer Tag · NFC ", "Neu · NFC ")) + leser));
+        karte_swatch(nullptr, C_RAND);
+        setze(w_k_name, "Neue Spule");
+        setze(w_k_sub, "UID " + tag);
         g_vorschlag = ams && g_lager ? ams_vorschlag(*g_lager, *ams.slot) : -1;
+        if (ams)
+            karte_chips({{ams_text(ams, false), 3},
+                         {g_vorschlag >= 0 ? "Vorschlag: " + g_lager->sorten[g_vorschlag].kurzname() : ams.slot->name, 1}});
+        else
+            karte_chips({{"Keiner Sorte zugeordnet", 2}});
         if (g_vorschlag >= 0) {
-            // Das AMS kennt die Spule: Bambu-ID und Farbe passen zu einer Sorte im Lager
-            const Filament& v = g_lager->sorten[g_vorschlag];
-            lv_obj_set_style_bg_color(w_k_swatch, farbe(v.rgb), 0);
-            setze(w_k_name, v.kurzname());
-            karte_sub_marke(v.hersteller);
-            karte_chips({{ams_text(ams, false), 3}, {KT("Vorschlag aus dem AMS", "Vorschlag AMS"), 1}});
             g_haupt = Haupt::VORSCHLAG;
-            setze(w_haupt_lbl, LV_SYMBOL_OK "  Übernehmen");
+            setze(w_haupt_lbl, "Als " + g_lager->sorten[g_vorschlag].kurzname() + " speichern");
         } else {
-            lv_obj_set_style_bg_color(w_k_swatch, farbe(ams ? ams.slot->rgb : C_RAND), 0);
-            setze(w_k_name, "Neue Spule");
-            karte_sub_text(ams && !ams.slot->name.empty() ? ams.slot->name : "UID " + tag);
-            if (ams) karte_chips({{ams_text(ams, false), 3}, {KT("Keiner Sorte zugeordnet", "Nicht zugeordnet"), 2}});
-            else karte_chips({{KT("Keiner Sorte zugeordnet", "Nicht zugeordnet"), 2}});
             g_haupt = Haupt::ZUORDNEN;
-            setze(w_haupt_lbl, KT(LV_SYMBOL_LIST "  Sorte zuordnen", LV_SYMBOL_LIST "  Zuordnen"));
+            setze(w_haupt_lbl, "Sorte zuordnen");
         }
-        setze(w_wahl_lbl, "Wählen");
+        setze(w_wahl_lbl, "Sorte wählen");
     } else {
-        setze(w_k_titel, "KEINE SPULE ERKANNT");
-        lv_obj_set_style_bg_color(w_k_swatch, farbe(C_RAND2), 0);
+        setze(w_k_titel, gross_text("Keine Spule erkannt"));
+        karte_swatch(nullptr, C_RAND2);
         setze(w_k_name, da ? "Ohne NFC-Tag" : "Waage ist leer");
-        karte_sub_text(da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen");
+        setze(w_k_sub, da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen");
         karte_chips({});
         g_haupt = da ? Haupt::WAEHLEN : Haupt::NICHTS;
-        setze(w_haupt_lbl, da ? LV_SYMBOL_LIST "  Sorte wählen" : LV_SYMBOL_OK "  Rest speichern");
-        setze(w_wahl_lbl, "Wählen");
+        setze(w_haupt_lbl, da ? "Sorte wählen" : LV_SYMBOL_OK "  Rest speichern");
+        setze(w_wahl_lbl, "Sorte wählen");
     }
+    if (!UI_KOMPAKT) lv_obj_set_style_min_width(w_wahl, text_breite(lv_label_get_text(w_wahl_lbl), T15) + 24, 0);
+    lv_label_set_long_mode(w_haupt_lbl, LV_LABEL_LONG_DOT);
+    lv_obj_set_width(w_haupt_lbl, LV_SIZE_CONTENT);
+    if (lv_obj_get_width(w_haupt) > 0 && text_breite(lv_label_get_text(w_haupt_lbl), T17) > lv_obj_get_width(w_haupt) - 24)
+        lv_obj_set_width(w_haupt_lbl, lv_obj_get_width(w_haupt) - 24);
     knopf_aktiv(w_haupt, g_haupt != Haupt::NICHTS);
 }
 
-// ---------------------------------------------------------------- Lager
+// ---------------------------------------------------------------- Lager (wie in SchichtLohn: „Nach …“, Filter, Gruppen)
 void lager_liste_bauen();
+
+struct LagerOpt {
+    std::string gruppe = "hersteller";            // material, hersteller, farbe, besonderheit, bestand
+    std::string fl_material, fl_hersteller, fl_farbe, fl_ort;
+    std::vector<std::string> auf;                 // aufgeklappte Gruppen – alle anderen sind zu
+    bool filter_auf = false;
+} g_lo;
+std::string g_dd_offen;  // "gruppe", "f-material", … oder leer
+lv_obj_t *l_suchbox, *l_suche_n, *l_leiste, *l_filterzeile, *l_dd_ebene;
+
+const char* const FAM[] = {"Schwarz", "Grau", "Weiß", "Braun", "Beige", "Rot", "Orange", "Gelb", "Grün", "Türkis", "Blau", "Lila", "Pink"};
+const uint32_t FAM_HEX[] = {0x111111, 0x8a8a8a, 0xf2f2f2, 0x6d4c41, 0xd8c3a0, 0xd32f2f, 0xf57c00, 0xfdd835, 0x43a047, 0x26a69a, 0x1e63c8, 0x7b3fb0, 0xec5f9a};
+int fam_index(const std::string& n) {
+    for (int i = 0; i < 13; i++)
+        if (n == FAM[i]) return i;
+    return 99;
+}
+
+// Farbfamilie wie familie() in app.js
+std::string familie(uint32_t rgb) {
+    float r = ((rgb >> 16) & 0xFF) / 255.f, g = ((rgb >> 8) & 0xFF) / 255.f, b = (rgb & 0xFF) / 255.f;
+    float mx = std::max({r, g, b}), mn = std::min({r, g, b}), l = (mx + mn) / 2, d = mx - mn;
+    float s = d == 0 ? 0 : d / (1 - std::fabs(2 * l - 1));
+    float hue = 0;
+    if (d > 0) hue = (mx == r ? std::fmod((g - b) / d, 6.f) : mx == g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+    hue = std::fmod(hue + 360, 360.f);
+    if (l < 0.13f) return "Schwarz";
+    if (l > 0.9f && s < 0.5f) return "Weiß";
+    if (s < 0.15f) return l > 0.82f ? "Weiß" : "Grau";
+    if (hue >= 10 && hue < 45 && (l < 0.4f || (l < 0.5f && s < 0.6f))) return "Braun";
+    if (hue >= 20 && hue < 55 && l >= 0.55f && (s < 0.5f || l > 0.75f)) return "Beige";
+    if (hue < 15 || hue >= 345) return "Rot";
+    if (hue < 40) return "Orange";
+    if (hue < 70) return "Gelb";
+    if (hue < 165) return "Grün";
+    if (hue < 195) return "Türkis";
+    if (hue < 255) return "Blau";
+    if (hue < 300) return "Lila";
+    return "Pink";
+}
+
+std::string material_name(const Filament& f) {
+    std::string m = f.material;
+    while (!m.empty() && m.back() == ' ') m.pop_back();
+    return m.empty() ? "OHNE MATERIAL" : gross_text(m);
+}
+
+std::string gruppe_von(const Filament& f, const std::string& art) {
+    if (art == "hersteller") return f.hersteller.empty() ? "Ohne Marke" : f.hersteller;
+    if (art == "farbe") return familie(f.rgb);
+    if (art == "besonderheit") return f.besonderheiten.empty() ? "Ohne Besonderheit" : f.besonderheiten[0];
+    return material_name(f);
+}
+
+// Sortierschlüssel ohne Groß/Klein und Umlaute (localeCompare mit sensitivity: base)
+std::string normal(const std::string& t) {
+    std::string o;
+    for (size_t i = 0; i < t.size(); i++) {
+        unsigned char c = t[i];
+        if (c == 0xC3 && i + 1 < t.size()) {
+            unsigned char d = t[++i];
+            if (d == 0xA4 || d == 0x84) o += "ae";
+            else if (d == 0xB6 || d == 0x96) o += "oe";
+            else if (d == 0xBC || d == 0x9C) o += "ue";
+            else if (d == 0x9F) o += "ss";
+            else o += 'e';
+        } else {
+            o += (char)tolower(c);
+        }
+    }
+    return o;
+}
+
+bool gruppe_vor(const std::string& art, const std::string& a, const std::string& b) {
+    if (art == "farbe") return fam_index(a) < fam_index(b);
+    bool oa = a.rfind("Ohne ", 0) == 0, ob = b.rfind("Ohne ", 0) == 0;
+    if (oa != ob) return ob;
+    return normal(a) < normal(b);
+}
+
+std::string kg_text(int g) {
+    if (g < 1000) return std::to_string(g) + " g";
+    int z = (g + 50) / 100;  // Zehntel kg
+    std::string s = std::to_string(z / 10);
+    if (z % 10) s += "," + std::to_string(z % 10);
+    return s + " kg";
+}
+
+bool passt_filter(const Filament& f) {
+    if (!g_lo.fl_material.empty() && material_name(f) != g_lo.fl_material) return false;
+    if (!g_lo.fl_hersteller.empty() && (f.hersteller.empty() ? "Ohne Marke" : f.hersteller) != g_lo.fl_hersteller) return false;
+    if (!g_lo.fl_farbe.empty() && familie(f.rgb) != g_lo.fl_farbe) return false;
+    if (g_lo.fl_ort == "angebrochen" && f.reste.empty()) return false;
+    if (g_lo.fl_ort == "voll" && (!f.reste.empty() || !f.spulen)) return false;
+    if (g_lo.fl_ort == "leer" && f.spulen > 0) return false;
+    return true;
+}
+
+bool gruppe_offen(const std::string& g) { return std::find(g_lo.auf.begin(), g_lo.auf.end(), g) != g_lo.auf.end(); }
 
 void zeile_cb(lv_event_t* e) {
     int i = (int)(intptr_t)lv_event_get_user_data(e);
@@ -711,9 +890,18 @@ void zeile_cb(lv_event_t* e) {
     }
 }
 
-void filter_cb(lv_event_t* e) {
-    g_filter = (int)(intptr_t)lv_event_get_user_data(e);
+std::vector<std::string> g_gruppen_namen;  // für die Klicks auf Gruppenköpfe
+
+void gruppe_cb(lv_event_t* e) {
+    size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+    if (i >= g_gruppen_namen.size()) return;
+    const std::string g = g_gruppen_namen[i];
+    auto it = std::find(g_lo.auf.begin(), g_lo.auf.end(), g);
+    if (it != g_lo.auf.end()) g_lo.auf.erase(it);
+    else g_lo.auf.push_back(g);
+    lv_coord_t y = lv_obj_get_scroll_y(l_liste);
     lager_liste_bauen();
+    lv_obj_scroll_to_y(l_liste, y, LV_ANIM_OFF);
 }
 
 void suche_cb(lv_event_t* e) {
@@ -734,69 +922,371 @@ void tastatur_cb(lv_event_t* e) {
     }
 }
 
+// --- Auswahlknöpfe (.dd) und ihre Listen (.dd-panel)
+constexpr int DD_H = K(40, 28);
+
+lv_obj_t* dd_knopf(lv_obj_t* p, const std::string& t, const char* ikon_l, const char* ikon_r, bool an, bool auf,
+                   lv_event_cb_t cb, void* daten, int zahl = 0) {
+    lv_obj_t* b = box(p);
+    lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_height(b, DD_H);
+    lv_obj_set_width(b, LV_SIZE_CONTENT);
+    lv_obj_set_style_radius(b, K(12, 9), 0);
+    lv_obj_set_style_border_width(b, 2, 0);
+    lv_obj_set_style_border_color(b, farbe(an || auf ? C_GRUEN : C_RAND), 0);
+    lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(b, farbe(C_PANEL), 0);
+    lv_obj_set_style_bg_color(b, farbe(C_LINIE), LV_STATE_PRESSED);
+    lv_obj_set_style_pad_hor(b, t.empty() ? 0 : K(12, 7), 0);
+    lv_obj_set_flex_flow(b, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(b, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(b, K(7, 4), 0);
+    uint32_t fg = an ? C_GRUEN_T : C_TEXT;
+    if (ikon_l) ikon(b, ikon_l, K(16, 13), fg);
+    if (!t.empty()) {
+        lv_obj_t* l = text(b, KT(&fl_15, &fl_13), fg, t.c_str());
+        lv_obj_set_style_text_font(l, KT(&fl_15, &fl_13), 0);
+    }
+    if (zahl) {
+        lv_obj_t* z = box(b);
+        lv_obj_set_size(z, LV_SIZE_CONTENT, K(20, 16));
+        lv_obj_set_style_min_width(z, K(20, 16), 0);
+        lv_obj_set_style_radius(z, K(10, 8), 0);
+        lv_obj_set_style_bg_opa(z, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(z, farbe(C_GRUEN), 0);
+        lv_obj_set_style_pad_hor(z, K(6, 4), 0);
+        lv_obj_t* zl = text(z, T12, C_BG, std::to_string(zahl).c_str());
+        lv_obj_center(zl);
+    }
+    if (ikon_r) ikon(b, ikon_r, K(16, 13), fg);
+    if (t.empty()) lv_obj_set_width(b, DD_H);
+    if (cb) lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, daten);
+    return b;
+}
+
+void leiste_bauen();
+
+struct DdWahl {
+    std::string art, wert;  // art: "gruppe" oder Filterschlüssel
+};
+std::vector<DdWahl> g_dd_wahl;
+
+void dd_schliessen() {
+    if (l_dd_ebene) lv_obj_del(l_dd_ebene);
+    l_dd_ebene = nullptr;
+    g_dd_offen.clear();
+}
+
+void dd_ebene_cb(lv_event_t*) {
+    dd_schliessen();
+    lager_liste_bauen();
+}
+
+void dd_wahl_cb(lv_event_t* e) {
+    size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+    if (i >= g_dd_wahl.size()) return;
+    DdWahl w = g_dd_wahl[i];
+    if (w.art == "gruppe") {
+        g_lo.gruppe = w.wert;
+        g_lo.auf.clear();
+    } else if (w.art == "material") g_lo.fl_material = w.wert;
+    else if (w.art == "hersteller") g_lo.fl_hersteller = w.wert;
+    else if (w.art == "farbe") g_lo.fl_farbe = w.wert;
+    else if (w.art == "ort") g_lo.fl_ort = w.wert;
+    dd_schliessen();
+    lager_liste_bauen();
+}
+
+// Liste unter dem Knopf anker öffnen: Einträge (Wert, Text, Anzahl/Zusatz, Farbpunkt)
+struct DdEintrag {
+    std::string wert, text, klein;
+    uint32_t punkt = 0;
+    bool trenner_danach = false;
+};
+
+void dd_liste(lv_obj_t* anker, const std::string& art, const std::vector<DdEintrag>& eintraege, const std::string& aktuell,
+              bool rechts) {
+    dd_schliessen();
+    g_dd_offen = art == "gruppe" ? "gruppe" : "f-" + art;
+    // Fläche über allem: ein Tipp daneben schließt die Liste
+    l_dd_ebene = box(lv_layer_top());
+    lv_obj_set_size(l_dd_ebene, W, H);
+    lv_obj_add_flag(l_dd_ebene, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(l_dd_ebene, dd_ebene_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* p = box(l_dd_ebene);
+    lv_obj_add_flag(p, LV_OBJ_FLAG_CLICKABLE);  // Tipps in die Liste schließen sie nicht
+    lv_obj_set_style_bg_color(p, farbe(C_KACHEL), 0);
+    lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(p, 2, 0);
+    lv_obj_set_style_border_color(p, farbe(C_RAND), 0);
+    lv_obj_set_style_radius(p, K(14, 10), 0);
+    lv_obj_set_style_pad_all(p, K(6, 4), 0);
+    lv_obj_set_style_shadow_width(p, 30, 0);
+    lv_obj_set_style_shadow_color(p, lv_color_black(), 0);
+    lv_obj_set_style_shadow_opa(p, LV_OPA_50, 0);
+    lv_obj_set_flex_flow(p, LV_FLEX_FLOW_COLUMN);
+    lv_obj_add_flag(p, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(p, LV_DIR_VER);
+    lv_area_t a;
+    lv_obj_get_coords(anker, &a);
+    const int breite = std::max(K(220, 160), (int)lv_area_get_width(&a));
+    const int max_h = std::min(K(300, 200), H - a.y2 - 6 - 6);
+    lv_obj_set_size(p, breite, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_height(p, max_h, 0);
+    int x = rechts ? a.x2 - breite + 1 : a.x1;
+    x = std::max(4, std::min(x, W - breite - 4));
+    lv_obj_set_pos(p, x, a.y2 + K(6, 4));
+    leiste_bauen();  // Knopf der offenen Liste grün umranden (.dd.auf)
+    for (const auto& e : eintraege) {
+        bool an = e.wert == aktuell;
+        lv_obj_t* o = box(p);
+        lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_size(o, lv_pct(100), LV_SIZE_CONTENT);
+        lv_obj_set_style_pad_all(o, K(10, 7), 0);
+        lv_obj_set_style_radius(o, K(9, 7), 0);
+        lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(o, farbe(an ? C_NAV_AKT : C_KACHEL), 0);
+        lv_obj_set_style_bg_color(o, farbe(C_LINIE), LV_STATE_PRESSED);
+        lv_obj_set_flex_flow(o, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(o, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(o, K(8, 6), 0);
+        if (e.punkt) {
+            lv_obj_t* d = box(o);
+            lv_obj_set_size(d, K(12, 10), K(12, 10));
+            lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(d, farbe(e.punkt), 0);
+            lv_obj_set_style_border_width(d, 1, 0);
+            lv_obj_set_style_border_color(d, farbe(0x55595f), 0);
+        }
+        lv_obj_t* t = text(o, T14, an ? C_GRUEN_T : C_TEXT, e.text.c_str());
+        lv_obj_set_flex_grow(t, 1);
+        lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+        if (!e.klein.empty()) text(o, T12, an ? C_GRUEN_T : C_SUB, e.klein.c_str());
+        g_dd_wahl.push_back({art, e.wert});
+        lv_obj_add_event_cb(o, dd_wahl_cb, LV_EVENT_CLICKED, (void*)(intptr_t)(g_dd_wahl.size() - 1));
+        if (e.trenner_danach) {
+            lv_obj_t* tr = box(p);
+            lv_obj_set_size(tr, lv_pct(100), 1);
+            lv_obj_set_style_bg_opa(tr, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(tr, farbe(C_LINIE), 0);
+        }
+    }
+}
+
+const char* const GRUPPEN[][2] = {{"material", "Material"}, {"hersteller", "Marke"}, {"farbe", "Farbe"},
+                                  {"besonderheit", "Besonderheit"}, {"bestand", "Bestand"}};
+const char* gruppe_name() {
+    for (auto& g : GRUPPEN)
+        if (g_lo.gruppe == g[0]) return g[1];
+    return "Marke";
+}
+const char* const FILTER_K[] = {"material", "hersteller", "farbe", "ort"};
+const char* const FILTER_TITEL[] = {"Material", "Marke", "Farbe", "Bestand"};
+const char* const FILTER_ALLE[] = {"Alle Materialien", "Alle Marken", "Alle Farben", "Überall"};
+const char* const ORTE[][2] = {{"angebrochen", "Angebrochen"}, {"voll", "Nur volle"}, {"leer", "Aufgebraucht"}};
+
+std::string& filter_wert(const std::string& k) {
+    if (k == "material") return g_lo.fl_material;
+    if (k == "hersteller") return g_lo.fl_hersteller;
+    if (k == "farbe") return g_lo.fl_farbe;
+    return g_lo.fl_ort;
+}
+
+void gruppe_dd_cb(lv_event_t* e) {
+    if (g_dd_offen == "gruppe") {
+        dd_schliessen();
+        return leiste_bauen();
+    }
+    g_dd_wahl.clear();
+    std::vector<DdEintrag> v;
+    for (auto& g : GRUPPEN) v.push_back({g[0], std::string("Nach ") + g[1], !strcmp(g[0], "bestand") ? "WENIG ZUERST" : ""});
+    dd_liste(lv_event_get_current_target(e), "gruppe", v, g_lo.gruppe, false);
+}
+
+void filter_dd_cb(lv_event_t* e) {
+    int k = (int)(intptr_t)lv_event_get_user_data(e);
+    std::string art = FILTER_K[k];
+    if (g_dd_offen == "f-" + art) {
+        dd_schliessen();
+        return leiste_bauen();
+    }
+    g_dd_wahl.clear();
+    std::vector<DdEintrag> v;
+    v.push_back({"", FILTER_ALLE[k], std::to_string(g_lager ? g_lager->sorten.size() : 0)});
+    v.back().trenner_danach = true;
+    if (g_lager) {
+        if (art == "ort") {
+            for (auto& o : ORTE) {
+                int n = 0;
+                for (const Filament& f : g_lager->sorten) {
+                    if (!strcmp(o[0], "angebrochen")) n += !f.reste.empty();
+                    else if (!strcmp(o[0], "leer")) n += !f.spulen;
+                    else n += f.spulen && f.reste.empty();
+                }
+                v.push_back({o[0], o[1], std::to_string(n)});
+            }
+        } else {
+            std::vector<std::pair<std::string, int>> z;
+            for (const Filament& f : g_lager->sorten) {
+                std::string w = art == "material" ? material_name(f) : art == "hersteller" ? (f.hersteller.empty() ? "Ohne Marke" : f.hersteller) : familie(f.rgb);
+                auto it = std::find_if(z.begin(), z.end(), [&](const std::pair<std::string, int>& x) { return x.first == w; });
+                if (it == z.end()) z.push_back({w, 1});
+                else it->second++;
+            }
+            std::sort(z.begin(), z.end(), [&](const std::pair<std::string, int>& a, const std::pair<std::string, int>& b) {
+                return gruppe_vor(art, a.first, b.first);
+            });
+            for (auto& x : z) {
+                DdEintrag d{x.first, x.first, std::to_string(x.second)};
+                if (art == "farbe") d.punkt = FAM_HEX[std::min(12, fam_index(x.first))];
+                v.push_back(d);
+            }
+        }
+    }
+    dd_liste(lv_event_get_current_target(e), art, v, filter_wert(art), k == 3);
+}
+
+void filter_auf_cb(lv_event_t*) {
+    g_lo.filter_auf = !g_lo.filter_auf;
+    dd_schliessen();
+    lager_liste_bauen();
+}
+
+void filter_weg_cb(lv_event_t*) {
+    g_lo.fl_material.clear();
+    g_lo.fl_hersteller.clear();
+    g_lo.fl_farbe.clear();
+    g_lo.fl_ort.clear();
+    dd_schliessen();
+    lager_liste_bauen();
+}
+
+void alle_zu_cb(lv_event_t*) {
+    if (!g_lo.auf.empty()) g_lo.auf.clear();
+    else if (g_lager)
+        for (const Filament& f : g_lager->sorten) {
+            std::string g = gruppe_von(f, g_lo.gruppe);
+            if (!gruppe_offen(g)) g_lo.auf.push_back(g);
+        }
+    lager_liste_bauen();
+}
+
+void leiste_bauen() {
+    lv_obj_clean(l_leiste);
+    int n_f = !g_lo.fl_material.empty() + !g_lo.fl_hersteller.empty() + !g_lo.fl_farbe.empty() + !g_lo.fl_ort.empty();
+    dd_knopf(l_leiste, std::string(KT("Nach ", "")) + gruppe_name(), nullptr, g_dd_offen == "gruppe" ? "hoch" : "runter", false,
+             g_dd_offen == "gruppe", gruppe_dd_cb, nullptr);
+    dd_knopf(l_leiste, "Filter", "filter", nullptr, g_lo.filter_auf || n_f, false, filter_auf_cb, nullptr, n_f);
+    if (g_lo.gruppe != "bestand") dd_knopf(l_leiste, "", g_lo.auf.empty() ? "auf" : "zu", nullptr, false, false, alle_zu_cb, nullptr);
+
+    lv_obj_clean(l_filterzeile);
+    if (!g_lo.filter_auf) {
+        lv_obj_add_flag(l_filterzeile, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    lv_obj_clear_flag(l_filterzeile, LV_OBJ_FLAG_HIDDEN);
+    for (int k = 0; k < 4; k++) {
+        const std::string& w = filter_wert(FILTER_K[k]);
+        std::string t = w.empty() ? FILTER_TITEL[k] : w;
+        if (k == 3 && !w.empty())
+            for (auto& o : ORTE)
+                if (w == o[0]) t = o[1];
+        bool auf = g_dd_offen == std::string("f-") + FILTER_K[k];
+        lv_obj_t* b = dd_knopf(l_filterzeile, t, nullptr, auf ? "hoch" : "runter", !w.empty(), auf, filter_dd_cb, (void*)(intptr_t)k);
+        lv_obj_set_flex_grow(b, 1);
+        lv_obj_set_width(b, 0);
+        lv_obj_set_flex_align(b, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_hor(b, K(10, 6), 0);
+        lv_obj_t* l = lv_obj_get_child(b, 0);
+        lv_obj_set_style_text_font(l, T14, 0);
+        lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+        lv_obj_set_flex_grow(l, 1);
+        lv_obj_set_width(l, 0);
+        lv_obj_set_height(l, lv_font_get_line_height(T14));
+    }
+    if (n_f) dd_knopf(l_filterzeile, "", "x", nullptr, false, false, filter_weg_cb, nullptr);
+}
+
 void baue_lager(lv_obj_t* s) {
     lv_obj_set_flex_flow(s, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(s, S(14), 0);
-    lv_obj_set_style_pad_ver(s, S(12), 0);
 
     lv_obj_t* links = box(s);
     lv_obj_set_height(links, lv_pct(100));
     lv_obj_set_flex_grow(links, 1);
+    lv_obj_set_width(links, 0);
     lv_obj_set_flex_flow(links, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(links, S(10), 0);
 
     lv_obj_t* oben = box(links);
-    lv_obj_set_size(oben, lv_pct(100), S(40));
+    lv_obj_set_size(oben, lv_pct(100), DD_H);
     lv_obj_set_flex_flow(oben, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(oben, S(8), 0);
-    l_suche = lv_textarea_create(oben);
+    // .suche: Lupe, Eingabe, Trefferzahl
+    l_suchbox = box(oben);
+    lv_obj_set_height(l_suchbox, DD_H);
+    lv_obj_set_flex_grow(l_suchbox, 1);
+    lv_obj_set_width(l_suchbox, 0);
+    lv_obj_set_style_min_width(l_suchbox, K(92, 64), 0);
+    lv_obj_set_style_bg_opa(l_suchbox, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(l_suchbox, farbe(C_PANEL), 0);
+    lv_obj_set_style_border_width(l_suchbox, 1, 0);
+    lv_obj_set_style_border_color(l_suchbox, farbe(C_RAND2), 0);
+    lv_obj_set_style_radius(l_suchbox, K(12, 9), 0);
+    lv_obj_set_style_pad_hor(l_suchbox, K(12, 6), 0);
+    lv_obj_set_flex_flow(l_suchbox, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(l_suchbox, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(l_suchbox, K(8, 4), 0);
+    ikon(l_suchbox, "lupe", K(18, 13), C_SUB);
+    l_suche = lv_textarea_create(l_suchbox);
+    lv_obj_remove_style_all(l_suche);
     lv_textarea_set_one_line(l_suche, true);
     lv_textarea_set_placeholder_text(l_suche, "Suchen …");
-    lv_obj_set_height(l_suche, S(40));
     lv_obj_set_flex_grow(l_suche, 1);
-    lv_obj_set_style_bg_color(l_suche, farbe(C_PANEL), 0);
-    lv_obj_set_style_border_color(l_suche, farbe(C_RAND2), 0);
-    lv_obj_set_style_border_width(l_suche, 1, 0);
-    lv_obj_set_style_radius(l_suche, S(12), 0);
-    lv_obj_set_style_text_font(l_suche, F_K, 0);
+    lv_obj_set_width(l_suche, 0);
+    lv_obj_set_height(l_suche, LV_SIZE_CONTENT);
+    lv_obj_set_style_text_font(l_suche, T14, 0);
     lv_obj_set_style_text_color(l_suche, farbe(C_TEXT), 0);
-    lv_obj_set_style_pad_ver(l_suche, S(10), 0);
+    lv_obj_set_style_text_color(l_suche, farbe(C_SUB), LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_border_side(l_suche, LV_BORDER_SIDE_LEFT, LV_PART_CURSOR);
+    lv_obj_set_style_border_width(l_suche, 2, LV_PART_CURSOR);
+    lv_obj_set_style_border_color(l_suche, farbe(C_GRUEN), LV_PART_CURSOR);
+    lv_obj_set_style_anim_time(l_suche, 400, LV_PART_CURSOR);
     lv_obj_add_event_cb(l_suche, suche_cb, LV_EVENT_ALL, nullptr);
-    for (int i = 1; i < 5; i++) {
-        l_filter[i] = knopf(oben, FILTER[i], Art::RAHMEN, filter_cb, (void*)(intptr_t)i);
-        lv_obj_set_size(l_filter[i], LV_SIZE_CONTENT, S(40));
-        lv_obj_set_style_pad_hor(l_filter[i], S(10), 0);
-        lv_obj_set_style_radius(l_filter[i], S(20), 0);
-        lv_obj_set_style_border_width(l_filter[i], 1, 0);
-        lv_obj_set_style_text_font(lv_obj_get_child(l_filter[i], 0), F_K, 0);
-    }
-    l_filter[0] = knopf(oben, FILTER[0], Art::RAHMEN, filter_cb, (void*)(intptr_t)0);
-    lv_obj_set_size(l_filter[0], LV_SIZE_CONTENT, S(40));
-    lv_obj_set_style_pad_hor(l_filter[0], S(10), 0);
-    lv_obj_set_style_radius(l_filter[0], S(20), 0);
-    lv_obj_set_style_border_width(l_filter[0], 1, 0);
-    lv_obj_set_style_text_font(lv_obj_get_child(l_filter[0], 0), F_K, 0);
+    l_suche_n = text(l_suchbox, T12, C_SUB, "");
+    l_leiste = box(oben);
+    lv_obj_set_size(l_leiste, LV_SIZE_CONTENT, DD_H);
+    lv_obj_set_flex_flow(l_leiste, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(l_leiste, K(8, 5), 0);
+
+    l_filterzeile = box(links);
+    lv_obj_set_size(l_filterzeile, lv_pct(100), DD_H);
+    lv_obj_set_flex_flow(l_filterzeile, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(l_filterzeile, K(8, 5), 0);
+    lv_obj_add_flag(l_filterzeile, LV_OBJ_FLAG_HIDDEN);
 
     l_liste = box(links);
     panel_stil(l_liste, C_GRUEN);
     lv_obj_set_width(l_liste, lv_pct(100));
     lv_obj_set_flex_grow(l_liste, 1);
-    lv_obj_set_style_pad_hor(l_liste, S(14), 0);
+    lv_obj_set_style_pad_hor(l_liste, K(14, 8), 0);
+    lv_obj_set_style_pad_ver(l_liste, K(4, 2), 0);
     lv_obj_set_flex_flow(l_liste, LV_FLEX_FLOW_COLUMN);
     lv_obj_add_flag(l_liste, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(l_liste, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(l_liste, LV_SCROLLBAR_MODE_ACTIVE);
 
+    // .reste: angebrochene Rollen
     l_reste = box(s);
-#if UI_KOMPAKT
-    lv_obj_add_flag(l_reste, LV_OBJ_FLAG_HIDDEN);  // kein Platz – angebrochene Rollen stehen in der Liste
-#endif
     panel_stil(l_reste, C_ORANGE);
-    lv_obj_set_size(l_reste, S(232), lv_pct(100));
-    lv_obj_set_style_pad_hor(l_reste, S(14), 0);
-    lv_obj_set_style_pad_ver(l_reste, S(12), 0);
+    lv_obj_set_size(l_reste, K(232, 150), lv_pct(100));
+    lv_obj_set_style_pad_hor(l_reste, K(14, 8), 0);
+    lv_obj_set_style_pad_ver(l_reste, K(12, 8), 0);
     lv_obj_set_flex_flow(l_reste, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(l_reste, S(6), 0);
+    lv_obj_set_style_pad_row(l_reste, K(8, 5), 0);
+    lv_obj_add_flag(l_reste, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(l_reste, LV_DIR_VER);
 
     l_tastatur = lv_keyboard_create(lv_scr_act());
     lv_obj_set_size(l_tastatur, W, S(220));
@@ -806,9 +1296,13 @@ void baue_lager(lv_obj_t* s) {
     lv_obj_add_flag(l_tastatur, LV_OBJ_FLAG_HIDDEN);
 }
 
-void lager_zeile(lv_obj_t* liste, const Filament& f, int index) {
+constexpr int Z_PLATZ = K(30, 22), Z_BILD = K(46, 34);  // .rolle.r30
+constexpr int R_PLATZ = K(22, 16), R_BILD = K(32, 24);  // .rolle.r22
+
+void lager_zeile(lv_obj_t* liste, const Filament& f, int index, bool vorschlag) {
     lv_obj_t* z = box(liste);
-    lv_obj_set_size(z, lv_pct(100), S(54));
+    lv_obj_set_size(z, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_ver(z, K(9, 5), 0);
     lv_obj_add_flag(z, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(z, farbe(C_LINIE), LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(z, LV_OPA_COVER, LV_STATE_PRESSED);
@@ -817,92 +1311,222 @@ void lager_zeile(lv_obj_t* liste, const Filament& f, int index) {
     lv_obj_set_style_border_color(z, farbe(C_LINIE), 0);
     lv_obj_set_flex_flow(z, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(z, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(z, S(12), 0);
+    lv_obj_set_style_pad_column(z, K(12, 7), 0);
     lv_obj_add_event_cb(z, zeile_cb, LV_EVENT_CLICKED, (void*)(intptr_t)index);
 
-    farbfeld(z, S(30), S(8), f.rgb);
+    rolle_platz(z, Z_PLATZ, Z_BILD, f.rgb, f.besonderheiten);
     lv_obj_t* mitte = spalte(z, S(2));
     lv_obj_set_flex_grow(mitte, 1);
-    lv_obj_t* n = text(mitte, F_N, C_TEXT, f.kurzname().c_str());
-    einzeilig(n, f.nfc.empty() ? K(300, 270) : K(250, 228));
-    // Unterzeile: Herstellerlogo (oder Name) · Besonderheiten
-    const int ub = f.nfc.empty() ? K(300, 270) : K(250, 228);
-    lv_obj_t* u = zeile(mitte, S(6));
+    lv_obj_set_width(mitte, 0);
+    lv_obj_t* n = text(mitte, T15, C_TEXT, f.kurzname().c_str());
+    lv_label_set_long_mode(n, LV_LABEL_LONG_DOT);
+    lv_obj_set_size(n, lv_pct(100), lv_font_get_line_height(T15));
+    // Unterzeile: Herstellerlogo (oder Name) · Besonderheiten · Lagerort
+    lv_obj_t* u = zeile(mitte, 0);
+    lv_obj_set_width(u, lv_pct(100));
+    std::string rest;
+    for (size_t i = 0; i < f.besonderheiten.size() && i < 2; i++) rest += " · " + f.besonderheiten[i];
+    if (!f.ort.empty()) rest += " · " + f.ort;
     int mb = 0;
-    if (!f.hersteller.empty()) marke(u, f.hersteller, false, F_K, C_SUB, ub / 2, &mb);
-    std::string bes;
-    for (size_t i = 0; i < f.besonderheiten.size() && i < 2; i++) bes += (bes.empty() && f.hersteller.empty() ? "" : "· ") + f.besonderheiten[i] + " ";
-    if (!bes.empty() && ub - mb - S(6) > 20) einzeilig(text(u, F_K, C_SUB, bes.c_str()), ub - mb - S(6));
-    if (!f.nfc.empty()) chip(z, "NFC", C_CHIP_B, C_BLAU_T);
+    if (!f.hersteller.empty()) {
+        lv_obj_t* m = marke(u, f.hersteller, LOGO_LISTE, T13, C_SUB, LOGO_W[LOGO_LISTE], &mb);
+        lv_obj_set_style_pad_right(m, 0, 0);
+    } else if (!rest.empty()) {
+        rest = rest.substr(4);  // führendes „ · “ weg
+    }
+    if (!rest.empty()) {
+        lv_obj_t* r = text(u, T13, C_SUB, rest.c_str());
+        lv_label_set_long_mode(r, LV_LABEL_LONG_DOT);
+        lv_obj_set_height(r, lv_font_get_line_height(T13));
+        lv_obj_set_flex_grow(r, 1);
+        lv_obj_set_width(r, 0);
+    }
+    if (vorschlag) chip(z, "Vorschlag aus AMS", C_CHIP_B, C_BLAU_T);
+    else if (!f.nfc.empty()) chip(z, "NFC", C_CHIP_B, C_BLAU_T);
     lv_obj_t* r = spalte(z, 0);
-    lv_obj_set_width(r, K(86, 72));
+    lv_obj_set_width(r, K(86, 62));
     lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
-    text(r, KT(F_N, F_K), f.spulen ? C_TEXT : C_ROT, spulen_text(f.spulen).c_str());
-    text(r, F_K, C_SUB, rest_text(f).c_str());
+    lv_obj_t* a = text(r, KT(&fl_15, &fl_13), f.spulen ? C_TEXT : C_ROT, spulen_text(f.spulen).c_str());
+    lv_obj_set_style_text_font(a, KT(&fl_15, &fl_13), 0);
+    text(r, T13, C_SUB, rest_text(f).c_str());
+}
+
+void gruppen_kopf(lv_obj_t* liste, const std::string& name, const std::string& art, int anzahl, int gramm_, bool zu) {
+    lv_obj_t* k = box(liste);
+    lv_obj_set_size(k, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_ver(k, K(9, 6), 0);
+    lv_obj_set_style_pad_hor(k, K(6, 4), 0);
+    lv_obj_set_style_radius(k, K(10, 7), 0);
+    lv_obj_set_style_bg_opa(k, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(k, farbe(0x191c21), 0);  // color-mix(panel 70 %, linie)
+    lv_obj_set_style_bg_color(k, farbe(C_LINIE), LV_STATE_PRESSED);
+    lv_obj_set_style_border_side(k, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_width(k, 1, 0);
+    lv_obj_set_style_border_color(k, farbe(C_LINIE), 0);
+    lv_obj_set_style_opa(k, zu ? 217 : LV_OPA_COVER, 0);  // .g-kopf.zu { opacity: .85 }
+    lv_obj_add_flag(k, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_flex_flow(k, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(k, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(k, K(10, 6), 0);
+    ikon(k, zu ? "runter" : "hoch", K(16, 13), C_SUB);
+    if (art == "material") {
+        lv_obj_t* m = box(k);
+        lv_obj_set_size(m, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_style_pad_hor(m, K(12, 8), 0);
+        lv_obj_set_style_pad_ver(m, 2, 0);
+        lv_obj_set_style_radius(m, K(8, 6), 0);
+        lv_obj_set_style_border_width(m, 1, 0);
+        lv_obj_set_style_border_color(m, farbe(C_GRUEN), 0);
+        lv_obj_set_style_bg_opa(m, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(m, farbe(0x1f2c22), 0);  // gruen 16 % über panel
+        lv_obj_t* l = text(m, T13, C_GRUEN_T, name.c_str());
+        lv_obj_set_style_text_letter_space(l, 1, 0);
+    } else if (art == "hersteller" && name.rfind("Ohne ", 0) != 0) {
+        marke(k, name, LOGO_GRUPPE, T14, C_TEXT, LOGO_W[LOGO_GRUPPE]);
+    } else {
+        lv_obj_t* z = zeile(k, K(8, 5));
+        if (art == "farbe") {
+            lv_obj_t* d = box(z);
+            lv_obj_set_size(d, K(12, 10), K(12, 10));
+            lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(d, farbe(FAM_HEX[std::min(12, fam_index(name))]), 0);
+            lv_obj_set_style_border_width(d, 1, 0);
+            lv_obj_set_style_border_color(d, farbe(0x55595f), 0);
+        }
+        text(z, KT(&fl_14, &fl_13), C_TEXT, name.c_str());
+    }
+    lv_obj_t* fl = box(k);
+    lv_obj_set_flex_grow(fl, 1);
+    lv_obj_set_height(fl, 1);
+    text(k, T13, C_SUB, (std::to_string(anzahl) + (anzahl == 1 ? " Sorte" : " Sorten")).c_str());
+    lv_obj_t* g = text(k, KT(&fl_15, &fl_13), C_TEXT, kg_text(gramm_).c_str());
+    lv_obj_set_style_min_width(g, K(64, 44), 0);
+    lv_obj_set_style_text_align(g, LV_TEXT_ALIGN_RIGHT, 0);
+    g_gruppen_namen.push_back(name);
+    lv_obj_add_event_cb(k, gruppe_cb, LV_EVENT_CLICKED, (void*)(intptr_t)(g_gruppen_namen.size() - 1));
 }
 
 void lager_liste_bauen() {
     if (!g_lager) return;
-    for (int i = 0; i < 5; i++) {
-        bool an = i == g_filter;
-        lv_obj_set_style_bg_color(l_filter[i], farbe(an ? C_GRUEN : C_BG), 0);
-        lv_obj_set_style_border_color(l_filter[i], farbe(an ? C_GRUEN : C_RAND), 0);
-        lv_obj_set_style_text_color(lv_obj_get_child(l_filter[i], 0), farbe(an ? C_BG : C_NAV), 0);
-    }
+    leiste_bauen();
     lv_obj_clean(l_liste);
-    std::string q = klein(lv_textarea_get_text(l_suche));
-    int n = 0, weitere = 0;
+    g_gruppen_namen.clear();
+    std::string q = normal(lv_textarea_get_text(l_suche));
+    while (!q.empty() && q.back() == ' ') q.pop_back();
+    int vorschlag = g_auswahl_modus && !g_auswahl_tag.empty() ? g_vorschlag : -1;
+    std::vector<int> treffer;
     for (size_t i = 0; i < g_lager->sorten.size(); i++) {
         const Filament& f = g_lager->sorten[i];
-        if (!passt_filter(f, g_filter)) continue;
-        if (!q.empty() && klein(f.summary + " " + f.hersteller + " " + f.farbe).find(q) == std::string::npos) continue;
-        if (n >= MAX_ZEILEN) { weitere++; continue; }
-        lager_zeile(l_liste, f, (int)i);
+        if ((int)i == vorschlag || !passt_filter(f)) continue;
+        if (!q.empty()) {
+            std::string alles = f.summary + " " + f.hersteller + " " + f.farbe + " " + f.material + " " + f.fcode + " " + f.ort;
+            for (auto& b : f.besonderheiten) alles += " " + b;
+            if (normal(alles).find(q) == std::string::npos) continue;
+        }
+        treffer.push_back((int)i);
+    }
+    // sortieren: nach Name (bzw. Bestand), Zahlen natürlich wie localeCompare(numeric)
+    auto name_von = [&](int i) { return normal(g_lager->sorten[i].kurzname() + " " + g_lager->sorten[i].hersteller); };
+    if (g_lo.gruppe == "bestand" && q.empty())
+        std::stable_sort(treffer.begin(), treffer.end(), [&](int a, int b) {
+            const Filament &x = g_lager->sorten[a], &y = g_lager->sorten[b];
+            if ((x.spulen == 0) != (y.spulen == 0)) return x.spulen != 0;
+            if (x.bestand_g() != y.bestand_g()) return x.bestand_g() < y.bestand_g();
+            return name_von(a) < name_von(b);
+        });
+    else
+        std::stable_sort(treffer.begin(), treffer.end(), [&](int a, int b) { return name_von(a) < name_von(b); });
+
+    int n = 0, weitere = 0;
+    if (vorschlag >= 0) {
+        lager_zeile(l_liste, g_lager->sorten[vorschlag], vorschlag, true);
         n++;
     }
-    if (n == 0) {
-        lv_obj_t* l = text(l_liste, F_N, C_SUB, g_lager->sorten.empty() ? "Lager wird geladen …" : "Keine passende Sorte");
-        lv_obj_set_style_pad_top(l, S(16), 0);
+    bool gruppiert = q.empty() && vorschlag < 0 && g_lo.gruppe != "bestand";
+    if (gruppiert) {
+        std::vector<std::pair<std::string, std::vector<int>>> gruppen;
+        for (int i : treffer) {
+            std::string k = gruppe_von(g_lager->sorten[i], g_lo.gruppe);
+            auto it = std::find_if(gruppen.begin(), gruppen.end(), [&](const std::pair<std::string, std::vector<int>>& g) { return g.first == k; });
+            if (it == gruppen.end()) gruppen.push_back({k, {i}});
+            else it->second.push_back(i);
+        }
+        std::sort(gruppen.begin(), gruppen.end(), [&](const std::pair<std::string, std::vector<int>>& a, const std::pair<std::string, std::vector<int>>& b) {
+            return gruppe_vor(g_lo.gruppe, a.first, b.first);
+        });
+        for (auto& g : gruppen) {
+            int summe = 0;
+            for (int i : g.second) summe += g_lager->sorten[i].bestand_g();
+            bool zu = !gruppe_offen(g.first);
+            gruppen_kopf(l_liste, g.first, g_lo.gruppe, (int)g.second.size(), summe, zu);
+            if (zu) continue;
+            for (int i : g.second) {
+                if (n >= MAX_ZEILEN) { weitere++; continue; }
+                lager_zeile(l_liste, g_lager->sorten[i], i, false);
+                n++;
+            }
+        }
+    } else {
+        for (int i : treffer) {
+            if (n >= MAX_ZEILEN) { weitere++; continue; }
+            lager_zeile(l_liste, g_lager->sorten[i], i, false);
+            n++;
+        }
+    }
+    setze(l_suche_n, q.empty() ? "" : std::to_string(treffer.size()) + " Treffer");
+    if (treffer.empty() && vorschlag < 0) {
+        lv_obj_t* l = text(l_liste, T15, C_SUB, g_lager->sorten.empty() ? "Lager wird geladen …" : "Keine passende Sorte");
+        lv_obj_set_style_pad_ver(l, K(16, 10), 0);
     }
     if (weitere) {
-        lv_obj_t* l = text(l_liste, F_K, C_SUB, ("… und " + std::to_string(weitere) + " weitere – Suche verwenden").c_str());
-        lv_obj_set_style_pad_ver(l, S(12), 0);
+        lv_obj_t* l = text(l_liste, T13, C_SUB, ("… und " + std::to_string(weitere) + " weitere – Suche verwenden").c_str());
+        lv_obj_set_style_pad_ver(l, K(16, 10), 0);
     }
-    lv_obj_scroll_to_y(l_liste, 0, LV_ANIM_OFF);
 }
 
 void reste_bauen() {
-    if (UI_KOMPAKT) return;
     lv_obj_clean(l_reste);
-    lv_obj_t* t = text(l_reste, F_K, C_ORANGE_T, "ANGEBROCHENE ROLLEN");
+    lv_obj_t* t = text(l_reste, T12, C_ORANGE_T, "ANGEBROCHENE ROLLEN");
     ueberschrift(t);
+    lv_label_set_long_mode(t, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(t, lv_pct(100));
     if (!g_lager) return;
     struct R { int sorte; int g; };
     std::vector<R> alle;
     for (size_t i = 0; i < g_lager->sorten.size(); i++)
         for (int g : g_lager->sorten[i].reste) alle.push_back({(int)i, g});
-    std::sort(alle.begin(), alle.end(), [](const R& a, const R& b) { return a.g > b.g; });
-    if (alle.empty()) text(l_reste, F_K, C_SUB, "Keine angebrochenen Rollen");
+    std::stable_sort(alle.begin(), alle.end(), [](const R& a, const R& b) { return a.g > b.g; });
+    if (alle.empty()) text(l_reste, T13, C_SUB, "Keine angebrochenen Rollen");
     for (size_t k = 0; k < alle.size() && k < 7; k++) {
         const Filament& f = g_lager->sorten[alle[k].sorte];
-        lv_obj_t* z = zeile(l_reste, S(10));
+        lv_obj_t* z = zeile(l_reste, K(10, 6));
         lv_obj_set_width(z, lv_pct(100));
-        lv_obj_set_style_pad_ver(z, S(4), 0);
-        farbfeld(z, S(22), S(6), f.rgb);
-        lv_obj_t* m = spalte(z, S(4));
+        lv_obj_set_style_pad_ver(z, K(4, 2), 0);
+        rolle_platz(z, R_PLATZ, R_BILD, f.rgb, f.besonderheiten);
+        lv_obj_t* m = spalte(z, K(4, 3));
         lv_obj_set_flex_grow(m, 1);
-        lv_obj_t* n = text(m, F_K, C_TEXT, f.kurzname().c_str());
-        einzeilig(n, S(118));
-        lv_obj_t* bar = lv_bar_create(m);
-        lv_obj_set_size(bar, S(118), S(4));
-        lv_bar_set_range(bar, 0, std::max(1, f.gewicht));
-        lv_bar_set_value(bar, std::max(alle[k].g, f.gewicht / 50), LV_ANIM_OFF);
+        lv_obj_set_width(m, 0);
+        lv_obj_t* n = text(m, KT(&fl_13, &fl_12), C_TEXT, f.kurzname().c_str());
+        lv_label_set_long_mode(n, LV_LABEL_LONG_DOT);
+        lv_obj_set_size(n, lv_pct(100), lv_font_get_line_height(KT(&fl_13, &fl_12)));
+        // auf dem 3,5"-Display Balken und Gewicht in der zweiten Zeile, damit der Name Platz hat
+        lv_obj_t* bz = UI_KOMPAKT ? zeile(m, 6) : m;
+        if (UI_KOMPAKT) lv_obj_set_width(bz, lv_pct(100));
+        lv_obj_t* bar = lv_bar_create(bz);
+        lv_obj_set_size(bar, lv_pct(100), 4);
+        if (UI_KOMPAKT) {
+            lv_obj_set_flex_grow(bar, 1);
+            lv_obj_set_width(bar, 0);
+        }
+        lv_bar_set_range(bar, 0, 100);
+        lv_bar_set_value(bar, std::max(2, alle[k].g * 100 / std::max(1, f.gewicht)), LV_ANIM_OFF);
         lv_obj_set_style_bg_color(bar, farbe(C_RAND2), LV_PART_MAIN);
         lv_obj_set_style_bg_color(bar, farbe(alle[k].g < 250 ? C_ROT : C_ORANGE), LV_PART_INDICATOR);
-        lv_obj_set_style_radius(bar, S(2), LV_PART_MAIN);
-        lv_obj_set_style_radius(bar, S(2), LV_PART_INDICATOR);
-        lv_obj_t* g = text(z, F_K, C_TEXT, gramm(alle[k].g).c_str());
-        lv_obj_set_width(g, S(50));
+        lv_obj_set_style_radius(bar, 2, LV_PART_MAIN);
+        lv_obj_set_style_radius(bar, 2, LV_PART_INDICATOR);
+        lv_obj_t* g = text(UI_KOMPAKT ? bz : z, KT(&fl_13, &fl_12), C_TEXT, gramm(alle[k].g).c_str());
+        lv_obj_set_style_min_width(g, K(50, 34), 0);
         lv_obj_set_style_text_align(g, LV_TEXT_ALIGN_RIGHT, 0);
     }
 }
@@ -992,7 +1616,7 @@ void detail_bauen() {
     lv_obj_t* tn = spalte(kopf, 0);
     lv_obj_t* name = text(tn, F_G, C_TEXT, f.kurzname().c_str());
     einzeilig(name, S(210));
-    if (!f.hersteller.empty()) marke(tn, f.hersteller, true, F_K, C_SUB, K(210, 150));
+    if (!f.hersteller.empty()) marke(tn, f.hersteller, LOGO_GROSS, F_K, C_SUB, K(210, 150));
 
     lv_obj_t* o = zeile(l, S(14));
     farbfeld(o, S(64), S(14), f.rgb);
@@ -1440,6 +2064,7 @@ void et_oeffnen(int sorte, int rest) {
 // ---------------------------------------------------------------- Seiten
 void zeige_seite(Seite s) {
     g_seite = s;
+    dd_schliessen();
     for (int i = 0; i < 4; i++) {
         if (i == s) lv_obj_clear_flag(g_seiten[i], LV_OBJ_FLAG_HIDDEN);
         else lv_obj_add_flag(g_seiten[i], LV_OBJ_FLAG_HIDDEN);
@@ -1513,7 +2138,16 @@ void ui_status(const WaagenStatus& s) {
     uint32_t sensor_aus = s.sensor_ok ? C_RAND : C_ROT;
     lv_obj_set_style_bg_color(h_nfc_l, farbe(!s.tag_l.empty() ? C_GRUEN : sensor_aus), 0);
     lv_obj_set_style_bg_color(h_nfc_r, farbe(!s.tag_r.empty() ? C_GRUEN : sensor_aus), 0);
-    lv_obj_set_style_text_color(h_wlan, farbe(s.wlan_ok ? C_SUB : C_ROT), 0);
+    // Waage: grün = misst und ist kalibriert, rot = Sensor antwortet nicht, grau = nicht kalibriert
+    lv_obj_set_style_bg_color(h_waage, farbe(!s.sensor_ok ? C_ROT : s.kalibriert ? C_GRUEN : C_RAND), 0);
+    // Drucker: nur zeigen, wenn Etikettendrucker bekannt sind
+    if (s.drucker < 0) lv_obj_add_flag(h_drucker_z, LV_OBJ_FLAG_HIDDEN);
+    else {
+        lv_obj_clear_flag(h_drucker_z, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_bg_color(h_drucker, farbe(s.drucker == 2 ? C_ROT : s.drucker == 1 ? C_GRUEN : C_RAND), 0);
+    }
+    lv_obj_set_style_text_color(h_wlan_t, farbe(s.wlan_ok ? C_SUB : C_ROT), 0);
+    ikon_farbe(h_wlan_i, s.wlan_ok ? C_GRUEN : C_ROT);
     lv_obj_set_style_bg_color(h_ha, farbe(s.ha_ok ? C_GRUEN : C_ROT), 0);
     setze(h_zeit, s.uhrzeit.empty() ? "--:--" : s.uhrzeit);
     if (g_seite == WIEGEN) wiegen_aktualisieren();
@@ -1576,6 +2210,13 @@ void ui_zeige(const std::string& name) {
     else if (name == "auswahl") { g_auswahl_modus = true; zeige_seite(LAGER); }
     else if (name == "einst") { g_einst_tab = 0; zeige_seite(EINST); }
     else if (name == "drucker") { g_einst_tab = 1; zeige_seite(EINST); }
+    else if (name == "lager_offen" || name == "lager_filter") {
+        g_lo.auf.clear();
+        if (name == "lager_offen") g_lo.auf.push_back("Bambu Lab");
+        g_lo.filter_auf = name == "lager_filter";
+        if (name == "lager_filter") g_lo.fl_material = "PLA";
+        zeige_seite(LAGER);
+    }
     else if (name.rfind("etikett:", 0) == 0) et_oeffnen(atoi(name.c_str() + 8), 562);
     else if (name.rfind("detail:", 0) == 0) { g_detail = atoi(name.c_str() + 7); zeige_seite(DETAIL); }
     else zeige_seite(WIEGEN);

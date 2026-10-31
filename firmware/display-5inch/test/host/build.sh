@@ -47,13 +47,13 @@ fi
 for f in "$FW"/src/fonts/*.c; do gcc -O1 -w "${INC[@]}" -c "$f" -o "$OBJ/$(basename "$f" .c).o"; done
 
 echo "Oberfläche rendern (5\", 800×480) …"
-g++ -std=c++17 -Wall -Wextra -O1 "${INC[@]}" "$HIER/render.cpp" "$FW/src/ui.cpp" "$FW/src/model.cpp" "$FW/src/ams.cpp" "$FW/src/logo.cpp" "$FW/src/etikett.cpp" \
+g++ -std=c++17 -Wall -Wextra -O1 "${INC[@]}" "$HIER/render.cpp" "$FW/src/ui.cpp" "$FW/src/model.cpp" "$FW/src/ams.cpp" "$FW/src/logo.cpp" "$FW/src/etikett.cpp" "$FW/src/rolle.cpp" "$FW/src/icons/icons.cpp" \
     "$OBJ"/fl_*.o "$OBJ/liblvgl.a" -o "$OBJ/render"
 "$OBJ/render" "$FW/../../testdaten/todo_filament.json" "$AUS" "$FW/../../testdaten/ams_vorlage.json" "$FW/../../pi/hersteller"
 
 echo "Oberfläche rendern (SC01 Plus, 480×320) …"
 mkdir -p "$AUS/sc01plus"
-g++ -std=c++17 -Wall -Wextra -O1 -DUI_KOMPAKT=1 "${INC[@]}" "$HIER/render.cpp" "$FW/src/ui.cpp" "$FW/src/model.cpp" "$FW/src/ams.cpp" "$FW/src/logo.cpp" "$FW/src/etikett.cpp" \
+g++ -std=c++17 -Wall -Wextra -O1 -DUI_KOMPAKT=1 "${INC[@]}" "$HIER/render.cpp" "$FW/src/ui.cpp" "$FW/src/model.cpp" "$FW/src/ams.cpp" "$FW/src/logo.cpp" "$FW/src/etikett.cpp" "$FW/src/rolle.cpp" "$FW/src/icons/icons.cpp" \
     "$OBJ"/fl_*.o "$OBJ/liblvgl.a" -o "$OBJ/render_kompakt"
 "$OBJ/render_kompakt" "$FW/../../testdaten/todo_filament.json" "$AUS/sc01plus" "$FW/../../testdaten/ams_vorlage.json" "$FW/../../pi/hersteller"
 

@@ -199,7 +199,7 @@ void als_lvgl(const Rgba& b, lv_img_dsc_t& dsc, std::vector<uint8_t>& px) {
 bool logo_laden(const uint8_t* png, size_t laenge, uint32_t text_rgb, Logo& aus) {
     Rgba b;
     if (!dekodieren(png, laenge, b)) return false;
-    vorab_verkleinern(b, LOGO_H_GROSS * 8 * 2, LOGO_H_GROSS * 2);
+    vorab_verkleinern(b, LOGO_W[LOGO_GROSS] * 2, LOGO_H[LOGO_GROSS] * 2);
     hintergrund_weg(b);
     zuschneiden(b);
     // Schwarze/dunkelgraue Logos wären auf dem dunklen Hintergrund unsichtbar:
@@ -222,10 +222,9 @@ bool logo_laden(const uint8_t* png, size_t laenge, uint32_t text_rgb, Logo& aus)
             }
         }
     }
-    const int hoehen[2] = {LOGO_H_KLEIN, LOGO_H_GROSS};
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < LOGO_ARTEN; i++) {
         Rgba k = b;
-        einpassen(k, hoehen[i] * 8, hoehen[i]);
+        einpassen(k, LOGO_W[i], LOGO_H[i]);
         als_lvgl(k, aus.bild[i], aus.px[i]);
     }
     aus.png.assign(png, png + laenge);

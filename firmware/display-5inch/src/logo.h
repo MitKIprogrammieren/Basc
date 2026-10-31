@@ -9,25 +9,27 @@
 
 #include "lvgl.h"
 
-// Höhen, in denen die Oberfläche Logos zeigt (fertig vorgerechnet – LVGL-Zoom schneidet hier ab)
+// Größen, in denen die Oberfläche Logos zeigt (fertig vorgerechnet – LVGL-Zoom schneidet hier ab).
+// Wie die Web-Oberfläche: .hlogo img { height: 16px; max-width: 90px } – breite Logos werden schmaler statt abgeschnitten.
+enum LogoArt { LOGO_LISTE = 0, LOGO_GRUPPE = 1, LOGO_GROSS = 2, LOGO_ARTEN = 3 };
 #if defined(UI_KOMPAKT) && UI_KOMPAKT
-#define LOGO_H_KLEIN 12
-#define LOGO_H_GROSS 15
+constexpr int LOGO_H[LOGO_ARTEN] = {12, 14, 15};
+constexpr int LOGO_W[LOGO_ARTEN] = {62, 62, 110};
 #else
-#define LOGO_H_KLEIN 15
-#define LOGO_H_GROSS 20
+constexpr int LOGO_H[LOGO_ARTEN] = {16, 20, 20};
+constexpr int LOGO_W[LOGO_ARTEN] = {90, 90, 160};
 #endif
 
 struct Logo {
-    lv_img_dsc_t bild[2]{};       // [0] klein (Listen), [1] groß (Karte, Detail) – LV_IMG_CF_TRUE_COLOR_ALPHA
-    std::vector<uint8_t> px[2];   // Pixel zu bild
-    std::vector<uint8_t> png;     // Original, fürs Etikett
+    lv_img_dsc_t bild[LOGO_ARTEN]{};       // je Art ein fertiges Bild (LV_IMG_CF_TRUE_COLOR_ALPHA)
+    std::vector<uint8_t> px[LOGO_ARTEN];   // Pixel zu bild
+    std::vector<uint8_t> png;              // Original, fürs Etikett
 };
 
 // Dateiname wie kurz() in etiketten.py / oberflaeche.cpp: „Bambu Lab“ → „bambu-lab“
 std::string logo_kurz(const std::string& hersteller);
 
-// PNG → Logo in beiden Größen (Höhe LOGO_H_KLEIN/LOGO_H_GROSS, Breite höchstens das 8-Fache).
+// PNG → Logo in allen Größen aus LOGO_H/LOGO_W.
 // text_rgb: Farbe, in der dunkle, unbunte Logos auf dem dunklen Hintergrund erscheinen.
 bool logo_laden(const uint8_t* png, size_t laenge, uint32_t text_rgb, Logo& aus);
 

@@ -20,11 +20,16 @@ FONTS = [
     # name,     ttf,                       px, zeichen, fallback (eingebaut, für Symbole)
     ("fl_12", "Montserrat-Medium.ttf", 12, LATIN, "lv_font_montserrat_12"),  # 3,5" (SC01 Plus)
     ("fl_14", "Montserrat-Medium.ttf", 14, LATIN, "lv_font_montserrat_14"),
+    # Größen der Web-Oberfläche (pi/filamentwaage/web/style.css), damit Display und Browser gleich aussehen
+    ("fl_13", "Montserrat-Medium.ttf", 13, LATIN, "lv_font_montserrat_12"),
+    ("fl_15", "Montserrat-SemiBold.ttf", 15, LATIN, "lv_font_montserrat_14"),
+    ("fl_17", "Montserrat-Bold.ttf", 17, LATIN, "lv_font_montserrat_16"),
     ("fl_16", "Montserrat-SemiBold.ttf", 16, LATIN, "lv_font_montserrat_16"),
     ("fl_20", "Montserrat-Bold.ttf", 20, LATIN, "lv_font_montserrat_20"),
     ("fl_28", "Montserrat-ExtraBold.ttf", 28, LATIN, "lv_font_montserrat_20"),
+    ("fl_30", "Montserrat-SemiBold.ttf", 30, LATIN, "lv_font_montserrat_20"),
     ("fl_52", "Montserrat-ExtraBold.ttf", 52, DIGITS, "NULL"),  # 3,5" (SC01 Plus)
-    ("fl_96", "Montserrat-ExtraBold.ttf", 96, DIGITS, "NULL"),
+    ("fl_92", "Montserrat-ExtraBold.ttf", 92, DIGITS, "NULL"),
 ]
 
 

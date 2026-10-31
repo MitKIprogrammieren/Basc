@@ -185,6 +185,14 @@ int main(int argc, char** argv) {
     laufen(3000);  // Meldung ausblenden lassen
     speichern(aus + "/8_voll.ppm");
 
+    // 4b/4c: Lager mit aufgeklappter Marke, Lager mit Filterzeile und offener Auswahlliste „Marke“
+    ui_zeige("lager_offen");
+    laufen(100);
+    speichern(aus + "/4b_lager_offen.ppm");
+    ui_zeige("lager_filter");
+    laufen(100);
+    speichern(aus + "/4c_lager_filter.ppm");
+
     // 9: Einstellungen → Drucker & AMS
     ui_zeige("drucker");
     ui_status(st);

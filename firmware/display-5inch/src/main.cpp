@@ -107,6 +107,7 @@ HardwareSerial g_rs485(1);
 bool g_ha_ok = false;
 uint32_t g_letztes_laden = 0;
 AmsStand g_ams;  // gehört der Oberfläche
+int g_drucker_status = -1;  // für die Kopfzeile
 std::map<std::string, std::unique_ptr<Logo>> g_logos;  // fertig geladen (nullptr = keins gefunden)
 std::set<std::string> g_logo_angefragt;
 bool g_logo_neu = false;
@@ -597,7 +598,13 @@ void loop() {
             g_ams = std::move(e.ams);
             ui_ams(&g_ams);
         }
-        if (e.hat_et) ui_etikett(e.et);
+        if (e.hat_et) {
+            ui_etikett(e.et);
+            // Kopfzeile „Drucker“: grün, wenn einer erreichbar ist, rot, wenn alle aus sind
+            bool einer = false;
+            for (auto& d : e.et.drucker) einer |= d.erreichbar;
+            g_drucker_status = e.et.drucker.empty() ? -1 : einer ? 1 : 2;
+        }
         if (e.hat_logo) {
             g_logos[e.logo_name] = std::move(e.logo);
             if (g_logos[e.logo_name]) g_logo_neu = true;
@@ -635,6 +642,8 @@ void loop() {
         WaagenStatus s;
         s.brutto_g = d.gramm;
         s.stabil = d.stabil;
+        s.kalibriert = d.kalibriert;
+        s.drucker = g_drucker_status;
         s.sensor_ok = d.verbunden;
         s.tag_l = d.tag_l;
         s.tag_r = d.tag_r;

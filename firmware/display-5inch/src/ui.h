@@ -13,9 +13,11 @@
 struct WaagenStatus {
     float brutto_g = 0;      // Gewicht auf dem Teller inkl. Spule
     bool stabil = false;     // Gewicht ruhig
+    bool kalibriert = false; // Waage ist kalibriert (Kopfzeile „Waage“: grün)
     bool sensor_ok = false;  // Sensorplatine antwortet
     std::string tag_l, tag_r;  // NFC-UIDs der beiden Leser, leer = kein Tag
     bool wlan_ok = false;
+    int drucker = -1;        // Etikettendrucker: -1 keiner bekannt, 0 grau, 1 bereit, 2 Fehler
     bool ha_ok = false;
     std::string uhrzeit;     // "21:27"
     std::string ip;
