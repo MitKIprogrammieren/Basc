@@ -17,15 +17,16 @@ void HaClient::begin(const char* url, const char* token, const char* todo) {
 bool HaClient::post(const std::string& pfad, const std::string& body, std::string& antwort, std::string& fehler) {
     std::lock_guard<std::recursive_mutex> riegel(g_http_riegel);
     std::string ziel = url_ + pfad;
-    HTTPClient http;
     int code = -1;
-    // bis zu 3 Versuche, solange schon der Verbindungsaufbau scheitert (WLAN-Aussetzer, HA kurz beschäftigt)
+    // bis zu 3 Versuche, solange schon der Verbindungsaufbau scheitert (WLAN-Aussetzer, HA kurz beschäftigt).
+    // Verbindung und Antwort bleiben innerhalb eines Durchlaufs – der WiFiClient darf nicht vor dem Lesen enden.
     for (int versuch = 0; versuch < 3; versuch++) {
         if (versuch) delay(800 * versuch);
         if (WiFi.status() != WL_CONNECTED) {
             fehler = "WLAN getrennt";
             continue;
         }
+        HTTPClient http;
         WiFiClient plain;
         WiFiClientSecure tls;
         bool ok;
@@ -44,24 +45,26 @@ bool HaClient::post(const std::string& pfad, const std::string& body, std::strin
         http.addHeader("Authorization", ("Bearer " + token_).c_str());
         http.addHeader("Content-Type", "application/json");
         code = http.POST((uint8_t*)body.data(), body.size());
-        if (code > 0) break;
-        fehler = std::string("Home Assistant nicht erreichbar (") + http.errorToString(code).c_str() + ")";
+        if (code <= 0) {
+            fehler = std::string("Home Assistant nicht erreichbar (") + http.errorToString(code).c_str() + ")";
+            http.end();
+            if (!http_neu_versuchen(code)) return false;
+            continue;
+        }
+        String s = http.getString();
         http.end();
-        if (!http_neu_versuchen(code)) return false;
+        if (code == 401) {
+            fehler = "Token abgelehnt (401)";
+            return false;
+        }
+        if (code != 200 && code != 201) {
+            fehler = "Home Assistant meldet " + std::to_string(code);
+            return false;
+        }
+        antwort.assign(s.c_str(), s.length());
+        return true;
     }
-    if (code <= 0) return false;
-    String s = http.getString();
-    http.end();
-    if (code == 401) {
-        fehler = "Token abgelehnt (401)";
-        return false;
-    }
-    if (code != 200 && code != 201) {
-        fehler = "Home Assistant meldet " + std::to_string(code);
-        return false;
-    }
-    antwort.assign(s.c_str(), s.length());
-    return true;
+    return false;
 }
 
 bool HaClient::lager_laden(Lager& lager, std::string& fehler) {

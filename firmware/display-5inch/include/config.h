@@ -3,7 +3,7 @@
 //  - WT32-SC01 Plus (3,5", 480×320), env:sc01plus → BOARD_SC01PLUS
 #pragma once
 
-#define FW_VERSION "1.4.1"
+#define FW_VERSION "1.4.2"
 
 #if defined(BOARD_SC01PLUS)
 // ================================================================ WT32-SC01 Plus
