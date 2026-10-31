@@ -5,6 +5,8 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 
+std::recursive_mutex g_http_riegel;
+
 void HaClient::begin(const char* url, const char* token, const char* todo) {
     url_ = url;
     token_ = token;
@@ -13,34 +15,41 @@ void HaClient::begin(const char* url, const char* token, const char* todo) {
 }
 
 bool HaClient::post(const std::string& pfad, const std::string& body, std::string& antwort, std::string& fehler) {
-    if (WiFi.status() != WL_CONNECTED) {
-        fehler = "WLAN getrennt";
-        return false;
-    }
+    std::lock_guard<std::recursive_mutex> riegel(g_http_riegel);
     std::string ziel = url_ + pfad;
     HTTPClient http;
-    WiFiClient plain;
-    WiFiClientSecure tls;
-    bool ok;
-    if (ziel.rfind("https://", 0) == 0) {
-        tls.setInsecure();  // lokales HA mit eigenem Zertifikat
-        ok = http.begin(tls, ziel.c_str());
-    } else {
-        ok = http.begin(plain, ziel.c_str());
-    }
-    if (!ok) {
-        fehler = "Adresse ungültig";
-        return false;
-    }
-    http.setTimeout(10000);
-    http.addHeader("Authorization", ("Bearer " + token_).c_str());
-    http.addHeader("Content-Type", "application/json");
-    int code = http.POST((uint8_t*)body.data(), body.size());
-    if (code <= 0) {
+    int code = -1;
+    // bis zu 3 Versuche, solange schon der Verbindungsaufbau scheitert (WLAN-Aussetzer, HA kurz beschäftigt)
+    for (int versuch = 0; versuch < 3; versuch++) {
+        if (versuch) delay(800 * versuch);
+        if (WiFi.status() != WL_CONNECTED) {
+            fehler = "WLAN getrennt";
+            continue;
+        }
+        WiFiClient plain;
+        WiFiClientSecure tls;
+        bool ok;
+        if (ziel.rfind("https://", 0) == 0) {
+            tls.setInsecure();  // lokales HA mit eigenem Zertifikat
+            ok = http.begin(tls, ziel.c_str());
+        } else {
+            ok = http.begin(plain, ziel.c_str());
+        }
+        if (!ok) {
+            fehler = "Adresse ungültig";
+            return false;
+        }
+        http.setConnectTimeout(4000);
+        http.setTimeout(10000);
+        http.addHeader("Authorization", ("Bearer " + token_).c_str());
+        http.addHeader("Content-Type", "application/json");
+        code = http.POST((uint8_t*)body.data(), body.size());
+        if (code > 0) break;
         fehler = std::string("Home Assistant nicht erreichbar (") + http.errorToString(code).c_str() + ")";
         http.end();
-        return false;
+        if (!http_neu_versuchen(code)) return false;
     }
+    if (code <= 0) return false;
     String s = http.getString();
     http.end();
     if (code == 401) {

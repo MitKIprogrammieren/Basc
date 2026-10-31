@@ -160,6 +160,7 @@ void usb_befehl(const char* zeile) {
         a["geraet"] = GERAETENAME;
         a["wlan"] = wlan;
         a["ip"] = wlan ? WiFi.localIP().toString() : String("0.0.0.0");
+        if (wlan) a["rssi"] = WiFi.RSSI();
         a["ssid"] = g_einst.ssid;
         a["ha"] = g_ha_ok;
         a["ha_url"] = g_einst.ha_url;
@@ -295,6 +296,8 @@ void ha_task(void*) {
             if (g_ha.lager_laden(e.lager, fehler)) {
                 e.hat_lager = true;
                 e.ha_ok = true;
+            } else if (a.art == Auftrag::LADEN && WiFi.status() != WL_CONNECTED) {
+                // WLAN gerade weg: steht schon in der Kopfzeile, kein zusätzlicher Hinweis bei jedem Neuladen
             } else if (e.meldung.empty() || a.art == Auftrag::LADEN) {
                 e.meldung = fehler;
                 e.fehler = true;
@@ -319,33 +322,38 @@ void netz(NetzAuftrag a) {
 // HTTP-Anfrage an eine volle Adresse. Gibt den HTTP-Code zurück (≤ 0 = keine Verbindung).
 int http_anfrage(const std::string& url, const char* methode, const std::string& body, std::string& antwort,
                  uint32_t timeout_ms, bool mit_token) {
-    if (WiFi.status() != WL_CONNECTED) return -1;
-    HTTPClient http;
-    WiFiClient plain;
-    WiFiClientSecure tls;
-    bool ok;
-    if (url.rfind("https://", 0) == 0) {
-        tls.setInsecure();
-        ok = http.begin(tls, url.c_str());
-    } else {
-        ok = http.begin(plain, url.c_str());
+    std::lock_guard<std::recursive_mutex> riegel(g_http_riegel);
+    int code = -1;
+    for (int versuch = 0; versuch < 3; versuch++) {
+        if (versuch) delay(800 * versuch);
+        if (WiFi.status() != WL_CONNECTED) continue;
+        HTTPClient http;
+        WiFiClient plain;
+        WiFiClientSecure tls;
+        bool ok;
+        if (url.rfind("https://", 0) == 0) {
+            tls.setInsecure();
+            ok = http.begin(tls, url.c_str());
+        } else {
+            ok = http.begin(plain, url.c_str());
+        }
+        if (!ok) return -2;
+        http.setTimeout(timeout_ms);
+        http.setConnectTimeout(4000);
+        if (mit_token && g_einst.ha_token.length()) http.addHeader("Authorization", "Bearer " + g_einst.ha_token);
+        if (!strcmp(methode, "POST")) {
+            http.addHeader("Content-Type", "application/json");
+            code = http.POST((uint8_t*)body.data(), body.size());
+        } else {
+            code = http.GET();
+        }
+        if (code > 0) {
+            String s = http.getString();
+            antwort.assign(s.c_str(), s.length());
+        }
+        http.end();
+        if (!http_neu_versuchen(code)) break;
     }
-    if (!ok) return -2;
-    http.setTimeout(timeout_ms);
-    http.setConnectTimeout(3000);
-    if (mit_token && g_einst.ha_token.length()) http.addHeader("Authorization", "Bearer " + g_einst.ha_token);
-    int code;
-    if (!strcmp(methode, "POST")) {
-        http.addHeader("Content-Type", "application/json");
-        code = http.POST((uint8_t*)body.data(), body.size());
-    } else {
-        code = http.GET();
-    }
-    if (code > 0) {
-        String s = http.getString();
-        antwort.assign(s.c_str(), s.length());
-    }
-    http.end();
     return code;
 }
 
@@ -537,6 +545,53 @@ std::string uhrzeit() {
 
 }  // namespace
 
+// ---------------------------------------------------------------- WLAN
+// Der ESP32 verbindet sich nach einem Abbruch nicht zuverlässig von selbst neu (je nach Grund – Router-Neustart,
+// Mesh-Wechsel, Störung – bleibt er einfach getrennt). Darum: Stromsparen aus, Trennungen mitschreiben und
+// alle 10 s selbst neu verbinden, bis es wieder steht.
+static volatile uint8_t g_wlan_grund = 0;
+static uint32_t g_wlan_weg_seit = 0, g_wlan_versuch = 0;
+static int g_wlan_versuche = 0;
+
+void wlan_start() {
+    WiFi.persistent(false);
+    WiFi.mode(WIFI_STA);
+    WiFi.setHostname(GERAETENAME);
+    WiFi.setSleep(false);
+    WiFi.setAutoReconnect(true);
+    WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) { g_wlan_grund = info.wifi_sta_disconnected.reason; },
+                 ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    if (g_einst.ssid.length()) WiFi.begin(g_einst.ssid.c_str(), g_einst.pw.c_str());
+}
+
+void wlan_pruefen() {
+    if (g_einst.ssid.isEmpty()) return;
+    uint32_t jetzt = millis();
+    if (WiFi.status() == WL_CONNECTED) {
+        if (g_wlan_weg_seit) {
+            Serial.printf("WLAN wieder da nach %lu s (%d Versuch(e)), RSSI %d dBm\n",
+                          (unsigned long)((jetzt - g_wlan_weg_seit) / 1000), g_wlan_versuche, WiFi.RSSI());
+            WiFi.setSleep(false);
+        }
+        g_wlan_weg_seit = 0;
+        g_wlan_versuche = 0;
+        return;
+    }
+    if (!g_wlan_weg_seit) {
+        g_wlan_weg_seit = jetzt;
+        g_wlan_versuch = jetzt;
+        Serial.printf("WLAN getrennt, Grund %u\n", (unsigned)g_wlan_grund);
+        return;
+    }
+    if (jetzt - g_wlan_versuch < 10000) return;
+    g_wlan_versuch = jetzt;
+    g_wlan_versuche++;
+    Serial.printf("WLAN: neuer Versuch %d (Status %d, Grund %u)\n", g_wlan_versuche, (int)WiFi.status(),
+                  (unsigned)g_wlan_grund);
+    WiFi.disconnect(false);
+    WiFi.begin(g_einst.ssid.c_str(), g_einst.pw.c_str());
+}
+
 void setup() {
     // Standard sind 256 Bytes – die Einstellungen vom Webflasher (mit HA-Token) sind länger
     Serial.setRxBufferSize(4096);
@@ -561,9 +616,7 @@ void setup() {
     }
     g_sensor.starten();
 
-    WiFi.mode(WIFI_STA);
-    WiFi.setHostname(GERAETENAME);
-    if (g_einst.ssid.length()) WiFi.begin(g_einst.ssid.c_str(), g_einst.pw.c_str());
+    wlan_start();
     configTzTime(ZEITZONE, "pool.ntp.org", "time.google.com");
 
     g_ha.begin(g_einst.ha_url.c_str(), g_einst.ha_token.c_str(), g_einst.ha_todo.c_str());
@@ -575,6 +628,7 @@ void setup() {
 
 void loop() {
     lv_timer_handler();
+    wlan_pruefen();
     {
         bool ok;
         std::string t;

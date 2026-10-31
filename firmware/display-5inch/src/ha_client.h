@@ -1,9 +1,17 @@
 // Home Assistant über die REST-API: Lager lesen und Einträge ändern.
 #pragma once
 
+#include <mutex>
 #include <string>
 
 #include "model.h"
+
+// Nur eine HTTP-Verbindung gleichzeitig (HA-Aufgabe und Netz-Aufgabe teilen sich das WLAN)
+extern std::recursive_mutex g_http_riegel;
+
+// Verbindungsaufbau fehlgeschlagen (-1 „connection refused“ bzw. -4 „not connected“): es wurde nichts
+// gesendet, ein neuer Versuch ist also gefahrlos
+inline bool http_neu_versuchen(int code) { return code == -1 || code == -4; }
 
 class HaClient {
 public:
