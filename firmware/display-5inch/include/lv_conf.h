@@ -11,10 +11,12 @@
 /* Speicher: auf dem ESP32 aus dem PSRAM, damit der interne RAM für WLAN frei bleibt */
 #define LV_MEM_CUSTOM 1
 #ifdef ARDUINO
-#define LV_MEM_CUSTOM_INCLUDE <esp32-hal-psram.h>
-#define LV_MEM_CUSTOM_ALLOC ps_malloc
+/* Kleine Blöcke (Objekte, Stile, Texte) in den schnellen internen RAM, solange genug für WLAN frei bleibt,
+ * große (Bilder, Listen) in den PSRAM – siehe lv_speicher.cpp */
+#define LV_MEM_CUSTOM_INCLUDE "lv_speicher.h"
+#define LV_MEM_CUSTOM_ALLOC lv_speicher_holen
 #define LV_MEM_CUSTOM_FREE free
-#define LV_MEM_CUSTOM_REALLOC ps_realloc
+#define LV_MEM_CUSTOM_REALLOC lv_speicher_neu
 #else
 #define LV_MEM_CUSTOM_INCLUDE <stdlib.h>
 #define LV_MEM_CUSTOM_ALLOC malloc

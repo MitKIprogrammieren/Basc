@@ -111,6 +111,23 @@ int g_drucker_status = -1;  // für die Kopfzeile
 std::map<std::string, std::unique_ptr<Logo>> g_logos;  // fertig geladen (nullptr = keins gefunden)
 std::set<std::string> g_logo_angefragt;
 bool g_logo_neu = false;
+uint32_t g_letztes_logo = 0;  // wann zuletzt ein Logo ankam
+uint32_t g_lager_summe = 0;
+
+// FNV-1a über alles, was die Anzeige eines Eintrags bestimmt
+uint32_t lager_pruefsumme(const Lager& l) {
+    uint32_t h = 2166136261u;
+    auto dazu = [&](const std::string& t) {
+        for (unsigned char c : t) h = (h ^ c) * 16777619u;
+        h = (h ^ 0xff) * 16777619u;
+    };
+    for (auto& f : l.sorten) {
+        dazu(f.uid);
+        dazu(f.summary);
+        dazu(f.description);
+    }
+    return h;
+}
 uint32_t g_letzte_logo_meldung = 0, g_letztes_ams = 0, g_letzte_drucker = 0;
 
 // ---------------------------------------------------------------- Einstellungen
@@ -644,8 +661,13 @@ void loop() {
     }
     for (auto& e : fertig) {
         if (e.hat_lager) {
-            g_lager.sorten.swap(e.lager.sorten);
-            ui_lager_neu();
+            // Das Lager wird jede Minute geholt – die Liste nur neu aufbauen, wenn sich etwas geändert hat
+            uint32_t h = lager_pruefsumme(e.lager);
+            if (h != g_lager_summe || e.lager.sorten.size() != g_lager.sorten.size()) {
+                g_lager_summe = h;
+                g_lager.sorten.swap(e.lager.sorten);
+                ui_lager_neu();
+            }
         }
         if (e.ha_ok_gilt) g_ha_ok = e.ha_ok;
         if (e.hat_ams) {
@@ -661,12 +683,17 @@ void loop() {
         }
         if (e.hat_logo) {
             g_logos[e.logo_name] = std::move(e.logo);
-            if (g_logos[e.logo_name]) g_logo_neu = true;
+            if (g_logos[e.logo_name]) {
+                g_logo_neu = true;
+                g_letztes_logo = millis();
+            }
         }
         if (!e.meldung.empty()) ui_meldung(e.meldung, e.fehler);
     }
     // neue Logos gesammelt melden, damit die Lagerliste nicht bei jedem einzeln neu aufgebaut wird
-    if (g_logo_neu && millis() - g_letzte_logo_meldung > 1000) {
+    // erst, wenn 1,5 s kein weiteres kam (oder spätestens alle 6 s), damit die Liste beim ersten Laden
+    // nicht im Sekundentakt neu aufgebaut wird
+    if (g_logo_neu && (millis() - g_letztes_logo > 1500 || millis() - g_letzte_logo_meldung > 6000)) {
         g_logo_neu = false;
         g_letzte_logo_meldung = millis();
         ui_logos_neu();

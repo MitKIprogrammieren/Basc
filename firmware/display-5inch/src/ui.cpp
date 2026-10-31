@@ -17,6 +17,28 @@
 #include "rolle.h"
 #include "lvgl.h"
 
+// Stil nur setzen, wenn er sich ändert. LVGL zeichnet ein Objekt sonst bei jedem Aufruf neu – und die
+// Kopfzeile, der Ring und die Knöpfe werden 10× pro Sekunde aufgefrischt. Auf dem SC01 Plus (8-Bit-Bus,
+// langsamer PSRAM) kostete das spürbar Reaktionszeit.
+static inline void stil_farbe(lv_obj_t* o, lv_style_prop_t p, lv_color_t c, lv_style_selector_t sel) {
+    lv_style_value_t v;
+    if (lv_obj_get_local_style_prop(o, p, &v, sel) == LV_RES_OK && v.color.full == c.full) return;
+    v.color = c;
+    lv_obj_set_local_style_prop(o, p, v, sel);
+}
+static inline void stil_zahl(lv_obj_t* o, lv_style_prop_t p, int32_t n, lv_style_selector_t sel) {
+    lv_style_value_t v;
+    if (lv_obj_get_local_style_prop(o, p, &v, sel) == LV_RES_OK && v.num == n) return;
+    v.num = n;
+    lv_obj_set_local_style_prop(o, p, v, sel);
+}
+#define lv_obj_set_style_bg_color(o, c, sel) stil_farbe(o, LV_STYLE_BG_COLOR, c, sel)
+#define lv_obj_set_style_text_color(o, c, sel) stil_farbe(o, LV_STYLE_TEXT_COLOR, c, sel)
+#define lv_obj_set_style_arc_color(o, c, sel) stil_farbe(o, LV_STYLE_ARC_COLOR, c, sel)
+#define lv_obj_set_style_img_recolor(o, c, sel) stil_farbe(o, LV_STYLE_IMG_RECOLOR, c, sel)
+#define lv_obj_set_style_border_color(o, c, sel) stil_farbe(o, LV_STYLE_BORDER_COLOR, c, sel)
+#define lv_obj_set_style_opa(o, n, sel) stil_zahl(o, LV_STYLE_OPA, n, sel)
+
 namespace {
 
 // ---------------------------------------------------------------- Farben
