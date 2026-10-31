@@ -58,5 +58,11 @@
 #define LV_USE_TEXTAREA 1
 #define LV_USE_KEYBOARD 1
 #define LV_USE_BTNMATRIX 1
+#define LV_USE_CANVAS 1
+#define LV_USE_IMG 1
+
+/* Herstellerlogos (lodepng) und QR-Code aufs Etikett */
+#define LV_USE_PNG 1
+#define LV_USE_QRCODE 1
 
 #endif /* LV_CONF_H */

@@ -95,3 +95,11 @@ bool HaClient::liste_laden(const std::string& entity, std::string& antwort, std:
     serializeJson(b, body);
     return post("/api/services/todo/get_items?return_response", body, antwort, fehler);
 }
+
+bool HaClient::vorlage(const std::string& tpl, std::string& antwort, std::string& fehler) {
+    JsonDocument b;
+    b["template"] = tpl;
+    std::string body;
+    serializeJson(b, body);
+    return post("/api/template", body, antwort, fehler);
+}

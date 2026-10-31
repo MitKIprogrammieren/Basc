@@ -18,6 +18,8 @@ public:
     bool ereignis_senden(const std::string& name, const std::string& body, std::string& fehler);
     // todo.get_items für eine beliebige Liste, Rohantwort (z. B. todo.filament_verbrauch)
     bool liste_laden(const std::string& entity, std::string& antwort, std::string& fehler);
+    // POST /api/template: rendert ein Template in Home Assistant (z. B. AMS_VORLAGE), Antwort als Text
+    bool vorlage(const std::string& tpl, std::string& antwort, std::string& fehler);
 
 private:
     bool post(const std::string& pfad, const std::string& body, std::string& antwort, std::string& fehler);

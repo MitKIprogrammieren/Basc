@@ -9,6 +9,7 @@ on:
       - "firmware/sensor-s3zero/**"
       - "firmware/display-5inch/src/model.*"
       - "firmware/display-5inch/src/ha_client.*"
+      - "firmware/display-5inch/src/ams.*"
       - "pi/filamentwaage/web/**"
       - "pi/hersteller/**"
       - "tools/webflasher/**"

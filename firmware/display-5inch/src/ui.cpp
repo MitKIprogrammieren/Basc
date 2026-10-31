@@ -68,10 +68,11 @@ lv_obj_t *h_sub, *h_nfc_l, *h_nfc_r, *h_wlan, *h_ha, *h_zeit;
 // Wiegen
 lv_obj_t *w_arc, *w_spule, *w_zahl, *w_einheit, *w_proz, *w_brutto, *w_leer, *w_kopf;
 lv_obj_t *w_k_titel, *w_k_swatch, *w_k_name, *w_k_sub, *w_k_chips;
-lv_obj_t *w_haupt, *w_haupt_lbl, *w_tara, *w_wahl, *w_wahl_lbl;
+lv_obj_t *w_haupt, *w_haupt_lbl, *w_tara, *w_wahl, *w_wahl_lbl, *w_etikett;
 std::string g_auswahl_uid;  // per Hand gewählte Sorte für die Spule auf dem Teller
 bool g_spule_war_da = false;
-enum class Haupt { NICHTS, SPEICHERN, ZUORDNEN, WAEHLEN } g_haupt = Haupt::NICHTS;
+enum class Haupt { NICHTS, SPEICHERN, ZUORDNEN, WAEHLEN, VORSCHLAG } g_haupt = Haupt::NICHTS;
+int g_vorschlag = -1;  // Sorte, die das AMS für einen neuen Tag vorschlägt
 std::string g_aktiver_tag;
 int g_aktive_sorte = -1;
 int g_netto = 0;
@@ -90,6 +91,19 @@ int g_detail = -1;
 // Einstellungen
 lv_obj_t *e_kal_wert, *e_info;
 int g_kal_g = 1000;
+lv_obj_t *e_tab[2], *e_waage, *e_drucker;
+int g_einst_tab = 0;  // 0 = Waage, 1 = Drucker
+
+// AMS, Etiketten, Logos
+const AmsStand* g_ams = nullptr;
+int g_ams_stand = 0, g_logo_stand = 0;  // zählen hoch, damit die Wiegen-Karte neu aufgebaut wird
+EtikettEinst g_et;
+lv_obj_t* g_et_dlg = nullptr;   // Druckdialog, nullptr = zu
+EtikettBild g_et_bild;
+EtikettVorschau g_et_vorschau;
+int g_et_sorte = -1, g_et_rest = 0;
+bool g_et_mit_rest = true;
+std::string g_et_drucker;
 
 lv_obj_t* g_toast;
 lv_obj_t* g_toast_lbl;
@@ -183,6 +197,35 @@ lv_obj_t* farbfeld(lv_obj_t* p, int groesse, int radius, uint32_t rgb) {
     return f;
 }
 
+int text_breite(const char* t, const lv_font_t* f) {
+    lv_point_t p;
+    lv_txt_get_size(&p, t, f, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    return p.x;
+}
+
+const Logo* logo_von(const std::string& hersteller) {
+    return g_akt && !hersteller.empty() ? g_akt->logo(hersteller) : nullptr;
+}
+
+// Herstellerlogo (gross = Karte/Detail, sonst Listen) höchstens max_b breit; ohne Logo der Name als Text.
+// breite_aus: tatsächliche Breite, damit daneben noch Text passt.
+lv_obj_t* marke(lv_obj_t* p, const std::string& hersteller, bool gross, const lv_font_t* f, uint32_t farbe_, int max_b,
+                int* breite_aus = nullptr) {
+    const Logo* l = logo_von(hersteller);
+    const lv_img_dsc_t* b = l ? &l->bild[gross ? 1 : 0] : nullptr;
+    if (b && b->header.w && b->header.w <= max_b) {
+        lv_obj_t* img = lv_img_create(p);
+        lv_img_set_src(img, b);
+        if (breite_aus) *breite_aus = b->header.w;
+        return img;
+    }
+    lv_obj_t* t = text(p, f, farbe_, hersteller.c_str());
+    int w = std::min(max_b, text_breite(hersteller.c_str(), f) + 2);
+    einzeilig(t, w);
+    if (breite_aus) *breite_aus = w;
+    return t;
+}
+
 enum class Art { PRIMAER, RAHMEN, FLACH };
 
 lv_obj_t* knopf(lv_obj_t* p, const char* t, Art art, lv_event_cb_t cb, void* daten = nullptr,
@@ -247,12 +290,6 @@ std::string rest_text(const Filament& f) {
     if (f.reste.empty()) return f.refills ? std::to_string(f.refills) + " Refill" : "voll";
     if (f.reste.size() == 1) return "Rest " + gramm(f.reste[0]);
     return std::to_string(f.reste.size()) + " Reste";
-}
-
-std::string unterzeile(const Filament& f) {
-    std::string s = f.hersteller;
-    for (size_t i = 0; i < f.besonderheiten.size() && i < 2; i++) s += (s.empty() ? "" : " · ") + f.besonderheiten[i];
-    return s;
 }
 
 bool passt_filter(const Filament& f, int filter) {
@@ -377,8 +414,19 @@ lv_obj_t* seite(lv_obj_t* scr) {
 }
 
 // ---------------------------------------------------------------- Wiegen
+void et_oeffnen(int sorte, int rest);
+std::string g_karte_schluessel;  // verhindert unnötiges Neuaufbauen der Karte
+
 void haupt_cb(lv_event_t*) {
     switch (g_haupt) {
+        case Haupt::VORSCHLAG:
+            if (g_vorschlag >= 0 && g_akt) {
+                const Filament& f = g_lager->sorten[g_vorschlag];
+                g_auswahl_uid = f.uid;
+                g_akt->tag_zuordnen(f.uid, g_aktiver_tag);
+                g_karte_schluessel.clear();
+            }
+            break;
         case Haupt::SPEICHERN:
             if (g_aktive_sorte >= 0 && g_akt)
                 g_akt->rest_speichern(g_lager->sorten[g_aktive_sorte].uid, g_netto, g_aktiver_tag);
@@ -401,6 +449,12 @@ void andere_cb(lv_event_t*) {
     g_auswahl_modus = true;
     g_auswahl_tag = g_aktiver_tag;
     zeige_seite(LAGER);
+}
+
+void etikett_wiegen_cb(lv_event_t*) {
+    if (g_aktive_sorte < 0) return;
+    bool da = g_st.brutto_g >= SPULE_DA_G;
+    et_oeffnen(g_aktive_sorte, da && g_st.stabil ? g_netto : 0);
 }
 
 void baue_wiegen(lv_obj_t* s) {
@@ -488,8 +542,9 @@ void baue_wiegen(lv_obj_t* s) {
     lv_obj_t* kt = spalte(kz, S(2));
     w_k_name = text(kt, F_G, C_TEXT, "");
     einzeilig(w_k_name, S(188));
-    w_k_sub = text(kt, F_K, C_SUB, "");
-    einzeilig(w_k_sub, S(188));
+    w_k_sub = box(kt);  // Herstellerlogo oder Text
+    lv_obj_set_size(w_k_sub, S(188), LV_SIZE_CONTENT);
+    lv_obj_set_style_min_height(w_k_sub, lv_font_get_line_height(F_K), 0);
     w_k_chips = box(k);
     lv_obj_set_size(w_k_chips, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(w_k_chips, LV_FLEX_FLOW_ROW_WRAP);
@@ -502,12 +557,34 @@ void baue_wiegen(lv_obj_t* s) {
     lv_obj_set_size(r2, lv_pct(100), S(50));
     lv_obj_set_flex_flow(r2, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(r2, S(10), 0);
+    lv_obj_set_style_pad_column(r2, S(8), 0);
     w_tara = knopf(r2, "Tara", Art::RAHMEN, tara_cb);
-    lv_obj_set_height(w_tara, S(50));
-    lv_obj_set_flex_grow(w_tara, 1);
-    w_wahl = knopf(r2, KT("Andere Sorte", "Andere"), Art::RAHMEN, andere_cb, nullptr, &w_wahl_lbl);
-    lv_obj_set_height(w_wahl, S(50));
-    lv_obj_set_flex_grow(w_wahl, 1);
+    w_wahl = knopf(r2, "Andere", Art::RAHMEN, andere_cb, nullptr, &w_wahl_lbl);
+    w_etikett = knopf(r2, "Etikett", Art::RAHMEN, etikett_wiegen_cb);
+    for (lv_obj_t* b : {w_tara, w_wahl, w_etikett}) {
+        lv_obj_set_height(b, S(50));
+        lv_obj_set_flex_grow(b, 1);
+        lv_obj_set_style_pad_hor(b, 2, 0);
+        if (UI_KOMPAKT) lv_obj_set_style_text_font(lv_obj_get_child(b, 0), F_K, 0);
+    }
+}
+
+// Zweite Zeile der Karte: Herstellerlogo/-name oder ein Text
+void karte_sub_text(const std::string& t) {
+    lv_obj_clean(w_k_sub);
+    lv_obj_t* l = text(w_k_sub, F_K, C_SUB, t.c_str());
+    einzeilig(l, S(188));
+}
+
+void karte_sub_marke(const std::string& hersteller) {
+    lv_obj_clean(w_k_sub);
+    marke(w_k_sub, hersteller, true, F_K, C_SUB, S(188));
+}
+
+std::string ams_text(const AmsTreffer& t, bool mit_rest) {
+    std::string s = t.drucker->name + " · " + ams_slot_kurz(*t.ams, *t.slot);
+    if (mit_rest && t.slot->rest >= 0) s += " · " + std::to_string(t.slot->rest) + " %";
+    return s;
 }
 
 void karte_chips(const std::vector<std::pair<std::string, int>>& chips) {
@@ -522,8 +599,6 @@ void karte_chips(const std::vector<std::pair<std::string, int>>& chips) {
         }
     }
 }
-
-std::string g_karte_schluessel;  // verhindert unnötiges Neuaufbauen der Chips
 
 void wiegen_aktualisieren() {
     const WaagenStatus& st = g_st;
@@ -555,46 +630,64 @@ void wiegen_aktualisieren() {
     setze(lv_obj_get_child(w_brutto, 0), "Brutto " + gramm(brutto));
     setze(lv_obj_get_child(w_leer, 0), "Leerspule " + gramm(leer));
 
-    std::string schluessel = std::to_string(sorte) + "|" + tag + "|" + (da ? "1" : "0");
+    std::string schluessel = std::to_string(sorte) + "|" + tag + "|" + (da ? "1" : "0") + "|" +
+                             std::to_string(g_ams_stand) + "|" + std::to_string(g_logo_stand);
     if (sorte >= 0) {
         const Filament& f = g_lager->sorten[sorte];
         schluessel += "|" + f.description;
     }
+    knopf_aktiv(w_etikett, sorte >= 0);
     if (schluessel == g_karte_schluessel) return;
     g_karte_schluessel = schluessel;
+    AmsTreffer ams = g_ams ? ams_slot_fuer_tag(*g_ams, tag) : AmsTreffer{};
+    g_vorschlag = -1;
 
     if (sorte >= 0) {
         const Filament& f = g_lager->sorten[sorte];
         setze(w_k_titel, tag.empty() ? "GEWÄHLTE SORTE" : std::string(KT("ERKANNT · NFC ", "NFC ")) + leser);
         lv_obj_set_style_bg_color(w_k_swatch, farbe(f.rgb), 0);
         setze(w_k_name, f.kurzname());
-        setze(w_k_sub, f.hersteller);
+        karte_sub_marke(f.hersteller);
         std::vector<std::pair<std::string, int>> c;
-        for (size_t i = 0; i < f.besonderheiten.size() && i < 2; i++) c.push_back({f.besonderheiten[i], 0});
-        c.push_back({spulen_text(f.spulen) + " im Lager", 1});
-        if (!f.reste.empty()) c.push_back({"Rest bisher " + gramm(f.reste.back()), 2});
+        if (ams) c.push_back({ams_text(ams, true), 3});
+        for (size_t i = 0; i < f.besonderheiten.size() && i < (UI_KOMPAKT ? 1u : 2u); i++) c.push_back({f.besonderheiten[i], 0});
+        c.push_back({spulen_text(f.spulen) + KT(" im Lager", ""), 1});
+        if (!f.reste.empty()) c.push_back({KT("Rest bisher ", "Rest ") + gramm(f.reste.back()), 2});
         karte_chips(c);
         g_haupt = da ? Haupt::SPEICHERN : Haupt::NICHTS;
         setze(w_haupt_lbl, LV_SYMBOL_OK "  Rest speichern");
-        setze(w_wahl_lbl, KT("Andere Sorte", "Andere"));
+        setze(w_wahl_lbl, "Andere");
     } else if (!tag.empty()) {
         setze(w_k_titel, std::string(KT("NEUER TAG · NFC ", "NEU · NFC ")) + leser);
-        lv_obj_set_style_bg_color(w_k_swatch, farbe(C_RAND), 0);
-        setze(w_k_name, "Neue Spule");
-        setze(w_k_sub, "UID " + tag);
-        karte_chips({{"Keiner Sorte zugeordnet", 2}});
-        g_haupt = Haupt::ZUORDNEN;
-        setze(w_haupt_lbl, LV_SYMBOL_LIST "  Sorte zuordnen");
-        setze(w_wahl_lbl, KT("Sorte wählen", "Wählen"));
+        g_vorschlag = ams && g_lager ? ams_vorschlag(*g_lager, *ams.slot) : -1;
+        if (g_vorschlag >= 0) {
+            // Das AMS kennt die Spule: Bambu-ID und Farbe passen zu einer Sorte im Lager
+            const Filament& v = g_lager->sorten[g_vorschlag];
+            lv_obj_set_style_bg_color(w_k_swatch, farbe(v.rgb), 0);
+            setze(w_k_name, v.kurzname());
+            karte_sub_marke(v.hersteller);
+            karte_chips({{ams_text(ams, false), 3}, {KT("Vorschlag aus dem AMS", "Vorschlag AMS"), 1}});
+            g_haupt = Haupt::VORSCHLAG;
+            setze(w_haupt_lbl, LV_SYMBOL_OK "  Übernehmen");
+        } else {
+            lv_obj_set_style_bg_color(w_k_swatch, farbe(ams ? ams.slot->rgb : C_RAND), 0);
+            setze(w_k_name, "Neue Spule");
+            karte_sub_text(ams && !ams.slot->name.empty() ? ams.slot->name : "UID " + tag);
+            if (ams) karte_chips({{ams_text(ams, false), 3}, {KT("Keiner Sorte zugeordnet", "Nicht zugeordnet"), 2}});
+            else karte_chips({{KT("Keiner Sorte zugeordnet", "Nicht zugeordnet"), 2}});
+            g_haupt = Haupt::ZUORDNEN;
+            setze(w_haupt_lbl, KT(LV_SYMBOL_LIST "  Sorte zuordnen", LV_SYMBOL_LIST "  Zuordnen"));
+        }
+        setze(w_wahl_lbl, "Wählen");
     } else {
         setze(w_k_titel, "KEINE SPULE ERKANNT");
         lv_obj_set_style_bg_color(w_k_swatch, farbe(C_RAND2), 0);
         setze(w_k_name, da ? "Ohne NFC-Tag" : "Waage ist leer");
-        setze(w_k_sub, da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen");
+        karte_sub_text(da ? "Sorte aus dem Lager wählen" : "Spule mit Tag auflegen");
         karte_chips({});
         g_haupt = da ? Haupt::WAEHLEN : Haupt::NICHTS;
         setze(w_haupt_lbl, da ? LV_SYMBOL_LIST "  Sorte wählen" : LV_SYMBOL_OK "  Rest speichern");
-        setze(w_wahl_lbl, KT("Sorte wählen", "Wählen"));
+        setze(w_wahl_lbl, "Wählen");
     }
     knopf_aktiv(w_haupt, g_haupt != Haupt::NICHTS);
 }
@@ -732,8 +825,14 @@ void lager_zeile(lv_obj_t* liste, const Filament& f, int index) {
     lv_obj_set_flex_grow(mitte, 1);
     lv_obj_t* n = text(mitte, F_N, C_TEXT, f.kurzname().c_str());
     einzeilig(n, f.nfc.empty() ? K(300, 270) : K(250, 228));
-    lv_obj_t* u = text(mitte, F_K, C_SUB, unterzeile(f).c_str());
-    einzeilig(u, f.nfc.empty() ? K(300, 270) : K(250, 228));
+    // Unterzeile: Herstellerlogo (oder Name) · Besonderheiten
+    const int ub = f.nfc.empty() ? K(300, 270) : K(250, 228);
+    lv_obj_t* u = zeile(mitte, S(6));
+    int mb = 0;
+    if (!f.hersteller.empty()) marke(u, f.hersteller, false, F_K, C_SUB, ub / 2, &mb);
+    std::string bes;
+    for (size_t i = 0; i < f.besonderheiten.size() && i < 2; i++) bes += (bes.empty() && f.hersteller.empty() ? "" : "· ") + f.besonderheiten[i] + " ";
+    if (!bes.empty() && ub - mb - S(6) > 20) einzeilig(text(u, F_K, C_SUB, bes.c_str()), ub - mb - S(6));
     if (!f.nfc.empty()) chip(z, "NFC", C_CHIP_B, C_BLAU_T);
     lv_obj_t* r = spalte(z, 0);
     lv_obj_set_width(r, K(86, 72));
@@ -822,6 +921,10 @@ void wiegen_cb(lv_event_t*) {
 
 void zurueck_cb(lv_event_t*) { zeige_seite(LAGER); }
 
+void etikett_detail_cb(lv_event_t*) {
+    if (g_detail >= 0) et_oeffnen(g_detail, 0);
+}
+
 lv_obj_t* kachel(lv_obj_t* p, const std::string& wert, const char* name, const lv_font_t* f, bool klein_ = false) {
     lv_obj_t* k = box(p);
     lv_obj_set_style_radius(k, klein_ ? S(12) : S(16), 0);
@@ -889,7 +992,7 @@ void detail_bauen() {
     lv_obj_t* tn = spalte(kopf, 0);
     lv_obj_t* name = text(tn, F_G, C_TEXT, f.kurzname().c_str());
     einzeilig(name, S(210));
-    text(tn, F_K, C_SUB, f.hersteller.c_str());
+    if (!f.hersteller.empty()) marke(tn, f.hersteller, true, F_K, C_SUB, K(210, 150));
 
     lv_obj_t* o = zeile(l, S(14));
     farbfeld(o, S(64), S(14), f.rgb);
@@ -909,13 +1012,17 @@ void detail_bauen() {
     lv_obj_set_flex_flow(kn, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(kn, S(8), 0);
     lv_obj_t* minus = knopf(kn, LV_SYMBOL_MINUS, Art::RAHMEN, spulen_cb, (void*)(intptr_t)-1);
-    lv_obj_set_size(minus, S(58), S(52));
-    lv_obj_t* w = knopf(kn, KT("Spule wiegen", "Wiegen"), Art::PRIMAER, wiegen_cb);
-    lv_obj_set_height(w, S(52));
-    lv_obj_set_flex_grow(w, 1);
-    lv_obj_set_style_text_font(lv_obj_get_child(w, 0), F_N, 0);
+    lv_obj_set_size(minus, K(52, 34), S(52));
+    lv_obj_t* w = knopf(kn, "Wiegen", Art::PRIMAER, wiegen_cb);
+    lv_obj_t* et = knopf(kn, "Etikett", Art::RAHMEN, etikett_detail_cb);
+    for (lv_obj_t* b : {w, et}) {
+        lv_obj_set_height(b, S(52));
+        lv_obj_set_flex_grow(b, 1);
+        lv_obj_set_style_pad_hor(b, 2, 0);
+        lv_obj_set_style_text_font(lv_obj_get_child(b, 0), KT(F_N, F_K), 0);
+    }
     lv_obj_t* plus = knopf(kn, LV_SYMBOL_PLUS, Art::RAHMEN, spulen_cb, (void*)(intptr_t)1);
-    lv_obj_set_size(plus, S(58), S(52));
+    lv_obj_set_size(plus, K(52, 34), S(52));
 
     lv_obj_t* r = box(d_inhalt);
     lv_obj_set_height(r, lv_pct(100));
@@ -964,7 +1071,41 @@ void laden_cb(lv_event_t*) {
     if (g_akt) g_akt->neu_laden();
 }
 
-void baue_einst(lv_obj_t* s) {
+void drucker_bauen();
+void einst_tab_markieren();
+
+void einst_tab_cb(lv_event_t* e) {
+    g_einst_tab = (int)(intptr_t)lv_event_get_user_data(e);
+    einst_tab_markieren();
+    if (g_einst_tab == 1) {
+        drucker_bauen();
+        if (g_akt) g_akt->drucker_laden();
+    }
+}
+
+void baue_einst(lv_obj_t* seite_) {
+    lv_obj_set_flex_flow(seite_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(seite_, S(10), 0);
+    lv_obj_set_style_pad_top(seite_, S(10), 0);
+    lv_obj_t* tabs = box(seite_);
+    lv_obj_set_size(tabs, lv_pct(100), K(40, 28));
+    lv_obj_set_flex_flow(tabs, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(tabs, S(8), 0);
+    const char* namen[2] = {"Waage", "Drucker & AMS"};
+    for (int i = 0; i < 2; i++) {
+        e_tab[i] = knopf(tabs, namen[i], Art::FLACH, einst_tab_cb, (void*)(intptr_t)i);
+        lv_obj_set_size(e_tab[i], K(200, 130), lv_pct(100));
+        lv_obj_set_style_text_font(lv_obj_get_child(e_tab[i], 0), F_K, 0);
+    }
+    e_drucker = box(seite_);
+    lv_obj_set_width(e_drucker, lv_pct(100));
+    lv_obj_set_flex_grow(e_drucker, 1);
+    lv_obj_set_flex_flow(e_drucker, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(e_drucker, S(14), 0);
+    e_waage = box(seite_);
+    lv_obj_set_width(e_waage, lv_pct(100));
+    lv_obj_set_flex_grow(e_waage, 1);
+    lv_obj_t* s = e_waage;
     lv_obj_set_flex_flow(s, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(s, S(14), 0);
 
@@ -972,32 +1113,32 @@ void baue_einst(lv_obj_t* s) {
     panel_stil(a, C_GRUEN);
     lv_obj_set_height(a, lv_pct(100));
     lv_obj_set_flex_grow(a, 1);
-    lv_obj_set_style_pad_all(a, S(18), 0);
+    lv_obj_set_style_pad_all(a, K(18, 10), 0);
     lv_obj_set_flex_flow(a, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(a, S(12), 0);
+    lv_obj_set_style_pad_row(a, K(12, 6), 0);
     lv_obj_t* t = text(a, F_K, C_SUB, "WAAGE");
     ueberschrift(t);
 #if UI_KOMPAKT
-    text(a, F_K, C_SUB, "Leerer Teller: Tara.\nGewicht auflegen: Kalibrieren.");
+    // kein Platz für die Erklärung – die Knöpfe sprechen für sich
 #else
     text(a, F_K, C_SUB, "Teller leer machen und Tara drücken. Dann das\nKalibriergewicht auflegen und Kalibrieren drücken.");
 #endif
     lv_obj_t* tara = knopf(a, "Tara", Art::RAHMEN, tara_cb);
-    lv_obj_set_size(tara, lv_pct(100), S(50));
+    lv_obj_set_size(tara, lv_pct(100), K(50, 30));
     lv_obj_t* z = box(a);
-    lv_obj_set_size(z, lv_pct(100), S(52));
+    lv_obj_set_size(z, lv_pct(100), K(52, 34));
     lv_obj_set_flex_flow(z, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(z, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(z, S(8), 0);
     lv_obj_t* m = knopf(z, LV_SYMBOL_MINUS, Art::RAHMEN, kal_cb, (void*)(intptr_t)-100);
-    lv_obj_set_size(m, S(58), S(52));
+    lv_obj_set_size(m, K(58, 40), K(52, 34));
     e_kal_wert = text(z, F_T, C_TEXT, "1000 g");
     lv_obj_set_flex_grow(e_kal_wert, 1);
     lv_obj_set_style_text_align(e_kal_wert, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_t* p = knopf(z, LV_SYMBOL_PLUS, Art::RAHMEN, kal_cb, (void*)(intptr_t)100);
-    lv_obj_set_size(p, S(58), S(52));
+    lv_obj_set_size(p, K(58, 40), K(52, 34));
     lv_obj_t* k = knopf(a, "Kalibrieren", Art::PRIMAER, kalibrieren_cb);
-    lv_obj_set_size(k, lv_pct(100), S(54));
+    lv_obj_set_size(k, lv_pct(100), K(54, 34));
 
     lv_obj_t* b = box(s);
     panel_stil(b, C_RAND2, S(18));
@@ -1023,6 +1164,279 @@ void einst_aktualisieren() {
     setze(e_info, s);
 }
 
+// ---------------------------------------------------------------- Drucker & AMS
+void einst_tab_markieren() {
+    for (int i = 0; i < 2; i++) {
+        bool an = i == g_einst_tab;
+        lv_obj_set_style_bg_color(e_tab[i], farbe(an ? C_NAV_AKT : C_PANEL), 0);
+        lv_obj_set_style_text_color(lv_obj_get_child(e_tab[i], 0), farbe(an ? C_GRUEN_T : C_NAV), 0);
+    }
+    if (g_einst_tab == 0) {
+        lv_obj_clear_flag(e_waage, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(e_drucker, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(e_waage, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(e_drucker, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void drucker_neu_cb(lv_event_t*) {
+    if (g_akt) g_akt->drucker_laden();
+    ui_meldung("Frage Drucker ab …");
+}
+
+// Ein AMS-Fach: Farbkreis, Name, Füllstand
+void ams_fach(lv_obj_t* p, const AmsEinheit& a, const AmsSlot& sl, int b) {
+    lv_obj_t* f = spalte(p, 2);
+    lv_obj_set_width(f, b);
+    lv_obj_set_flex_align(f, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_t* kreis = box(f);
+    int d = K(30, 20);
+    lv_obj_set_size(kreis, d, d);
+    lv_obj_set_style_radius(kreis, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(kreis, sl.aktiv ? 3 : 1, 0);
+    lv_obj_set_style_border_color(kreis, farbe(sl.aktiv ? C_GRUEN : 0x4a5058), 0);
+    if (!sl.leer) {
+        lv_obj_set_style_bg_color(kreis, farbe(sl.rgb), 0);
+        lv_obj_set_style_bg_opa(kreis, LV_OPA_COVER, 0);
+    }
+    std::string nr = ams_slot_kurz(a, sl);
+    lv_obj_t* l = text(kreis, F_K, (sl.rgb & 0xFF) + ((sl.rgb >> 8) & 0xFF) + ((sl.rgb >> 16) & 0xFF) > 450 && !sl.leer ? C_BG : C_TEXT,
+                       sl.leer ? "–" : "");
+    lv_obj_center(l);
+    lv_obj_t* n = text(f, F_K, sl.leer ? C_SUB : C_TEXT, sl.leer ? "leer" : (sl.name.empty() ? nr.c_str() : sl.name.c_str()));
+    einzeilig(n, b);
+    lv_obj_set_style_text_align(n, LV_TEXT_ALIGN_CENTER, 0);
+    std::string r = sl.leer ? nr : nr + (sl.rest >= 0 ? " · " + std::to_string(sl.rest) + " %" : "");
+    lv_obj_t* rl = text(f, F_K, C_SUB, r.c_str());
+    einzeilig(rl, b);
+    lv_obj_set_style_text_align(rl, LV_TEXT_ALIGN_CENTER, 0);
+}
+
+void drucker_bauen() {
+    lv_obj_clean(e_drucker);
+    // links: AMS-Belegung je Drucker
+    lv_obj_t* a = box(e_drucker);
+    panel_stil(a, C_GRUEN);
+    lv_obj_set_height(a, lv_pct(100));
+    lv_obj_set_flex_grow(a, 1);
+    lv_obj_set_style_pad_all(a, K(16, 8), 0);
+    lv_obj_set_flex_flow(a, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(a, K(10, 5), 0);
+    lv_obj_add_flag(a, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(a, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(a, LV_SCROLLBAR_MODE_ACTIVE);
+    lv_obj_t* t = text(a, F_K, C_SUB, "AMS-BELEGUNG");
+    ueberschrift(t);
+    const int innen = W - 2 * S(16) - K(300, 196) - S(14) - 2 * K(16, 8) - 4;
+    if (!g_ams || !g_ams->geladen) text(a, F_K, C_SUB, "Wird aus Home Assistant geladen …");
+    else if (g_ams->drucker.empty()) text(a, F_K, C_SUB, "Keine Bambu-Lab-Drucker in Home Assistant gefunden");
+    std::vector<const AmsDrucker*> liste;
+    if (g_ams)
+        for (const auto& d : g_ams->drucker) liste.push_back(&d);
+    std::stable_sort(liste.begin(), liste.end(), [](const AmsDrucker* x, const AmsDrucker* y) { return x->online && !y->online; });
+    {
+        for (const AmsDrucker* dp : liste) {
+            const AmsDrucker& d = *dp;
+            lv_obj_t* k = zeile(a, S(8));
+            lv_obj_t* p = box(k);
+            lv_obj_set_size(p, 8, 8);
+            lv_obj_set_style_radius(p, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_color(p, farbe(d.online ? C_GRUEN : C_ROT), 0);
+            text(k, F_N, C_TEXT, d.name.c_str());
+            if (!d.online) text(k, F_K, C_SUB, "offline");
+            for (const auto& e : d.ams) {
+                std::string kopf = e.name + (e.feuchte >= 0 ? " · " + std::to_string(e.feuchte) + (e.feuchte <= 5 ? "" : " %") : "");
+                text(a, F_K, C_SUB, kopf.c_str());
+                lv_obj_t* r = zeile(a, S(6));
+                int n = std::max<int>(4, (int)e.slots.size());
+                int b = (innen - (n - 1) * S(6)) / n;
+                for (const auto& sl : e.slots) ams_fach(r, e, sl, b);
+            }
+        }
+    }
+    // rechts: Etikettendrucker in Home Assistant
+    lv_obj_t* b = box(e_drucker);
+    panel_stil(b, C_RAND2, 18);
+    lv_obj_set_size(b, K(300, 196), lv_pct(100));
+    lv_obj_set_style_pad_all(b, K(16, 8), 0);
+    lv_obj_set_flex_flow(b, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(b, K(10, 6), 0);
+    lv_obj_t* t2 = text(b, F_K, C_SUB, "ETIKETTENDRUCKER");
+    ueberschrift(t2);
+    if (!g_et.fehler.empty()) einzeilig(text(b, F_K, C_ROT, g_et.fehler.c_str()), K(268, 178));
+    else if (!g_et.geladen) text(b, F_K, C_SUB, "Wird abgefragt …");
+    else if (g_et.drucker.empty()) text(b, F_K, C_SUB, "Keine Drucker eingerichtet");
+    for (const auto& d : g_et.drucker) {
+        lv_obj_t* z = zeile(b, S(8));
+        lv_obj_t* p = box(z);
+        lv_obj_set_size(p, 8, 8);
+        lv_obj_set_style_radius(p, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(p, farbe(d.erreichbar ? C_GRUEN : C_ROT), 0);
+        lv_obj_t* n = text(z, F_N, C_TEXT, d.name.c_str());
+        einzeilig(n, K(250, 160));
+    }
+    lv_obj_t* fl = box(b);
+    lv_obj_set_flex_grow(fl, 1);
+    lv_obj_t* k = knopf(b, LV_SYMBOL_REFRESH "  Neu abfragen", Art::RAHMEN, drucker_neu_cb);
+    lv_obj_set_size(k, lv_pct(100), K(50, 34));
+    if (UI_KOMPAKT) lv_obj_set_style_text_font(lv_obj_get_child(k, 0), F_K, 0);
+}
+
+// ---------------------------------------------------------------- Etikett drucken
+void et_bauen();
+
+void et_schliessen() {
+    if (g_et_dlg) lv_obj_del(g_et_dlg);
+    g_et_dlg = nullptr;
+    g_et_sorte = -1;
+}
+
+void et_zu_cb(lv_event_t*) { et_schliessen(); }
+
+void et_drucker_cb(lv_event_t* e) {
+    size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+    if (i < g_et.drucker.size()) g_et_drucker = g_et.drucker[i].id;
+    et_bauen();
+}
+
+void et_format_cb(lv_event_t* e) {
+    g_et.breit = (intptr_t)lv_event_get_user_data(e) != 0;
+    et_bauen();
+}
+
+void et_rest_cb(lv_event_t*) {
+    g_et_mit_rest = !g_et_mit_rest;
+    et_bauen();
+}
+
+void et_druck_cb(lv_event_t*) {
+    if (g_et_sorte < 0 || !g_akt || g_et_drucker.empty()) return;
+    g_akt->etikett_drucken(etikett_titel(g_lager->sorten[g_et_sorte]), g_et_bild, g_et_drucker);
+    et_schliessen();
+    ui_meldung("Etikett geht an den Drucker …");
+}
+
+// Auswahlknopf (gewählt = grün umrandet)
+lv_obj_t* wahl(lv_obj_t* p, const std::string& t, bool an, lv_event_cb_t cb, void* daten) {
+    lv_obj_t* b = knopf(p, t.c_str(), Art::RAHMEN, cb, daten);
+    lv_obj_set_height(b, K(44, 30));
+    lv_obj_set_style_border_color(b, farbe(an ? C_GRUEN : C_RAND2), 0);
+    lv_obj_set_style_bg_color(b, farbe(an ? C_NAV_AKT : C_BG), 0);
+    lv_obj_set_style_text_font(lv_obj_get_child(b, 0), F_K, 0);
+    lv_obj_set_style_text_color(lv_obj_get_child(b, 0), farbe(an ? C_GRUEN_T : C_TEXT), 0);
+    return b;
+}
+
+void et_bauen() {
+    if (g_et_sorte < 0 || !g_lager || g_et_sorte >= (int)g_lager->sorten.size()) return;
+    const Filament& f = g_lager->sorten[g_et_sorte];
+    // Drucker vorwählen: zuletzt gewählter, sonst der erste erreichbare
+    bool gibt = false;
+    for (auto& d : g_et.drucker) gibt |= d.id == g_et_drucker;
+    if (!gibt) {
+        g_et_drucker.clear();
+        for (auto& d : g_et.drucker)
+            if (d.erreichbar) { g_et_drucker = d.id; break; }
+        if (g_et_drucker.empty() && !g_et.drucker.empty()) g_et_drucker = g_et.drucker[0].id;
+    }
+    // Etikett zeichnen
+    EtikettOpt o;
+    o.breit = g_et.breit;
+    o.rest_g = g_et_mit_rest ? g_et_rest : 0;
+    o.qr = etikett_qr(f, g_et.qr_basis, g_et.lager_url);
+    const Logo* l = logo_von(f.hersteller);
+    if (l) o.logo_png = &l->png;
+    etikett_zeichnen(f, o, g_et_bild);
+
+    if (g_et_dlg) lv_obj_del(g_et_dlg);
+    g_et_dlg = box(lv_layer_top());
+    lv_obj_set_size(g_et_dlg, W, H);
+    lv_obj_add_flag(g_et_dlg, LV_OBJ_FLAG_CLICKABLE);  // fängt Tipps neben dem Dialog ab
+    lv_obj_set_style_bg_color(g_et_dlg, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(g_et_dlg, LV_OPA_60, 0);
+    lv_obj_t* p = box(g_et_dlg);
+    panel_stil(p, C_GRUEN);
+    lv_obj_set_size(p, K(720, 468), K(420, 304));
+    lv_obj_center(p);
+    lv_obj_set_style_pad_all(p, K(18, 8), 0);
+    lv_obj_set_flex_flow(p, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(p, K(12, 6), 0);
+    lv_obj_t* kopf = zeile(p, S(10));
+    text(kopf, F_G, C_TEXT, "Etikett drucken");
+    einzeilig(text(kopf, F_K, C_SUB, f.kurzname().c_str()), K(420, 260));
+
+    lv_obj_t* mitte = box(p);
+    lv_obj_set_width(mitte, lv_pct(100));
+    lv_obj_set_flex_grow(mitte, 1);
+    lv_obj_set_flex_flow(mitte, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(mitte, K(16, 8), 0);
+    // Vorschau auf weißem Grund (fertig verkleinert)
+    const int vh = K(240, 166);
+    etikett_vorschau(g_et_bild, vh, g_et_vorschau);
+    lv_obj_t* papier = box(mitte);
+    lv_obj_set_size(papier, g_et_vorschau.bild.header.w + 8, g_et_vorschau.bild.header.h + 8);
+    lv_obj_set_style_bg_color(papier, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(papier, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(papier, 6, 0);
+    lv_obj_t* img = lv_img_create(papier);
+    lv_img_set_src(img, &g_et_vorschau.bild);
+    lv_obj_set_pos(img, 4, 4);
+
+    lv_obj_t* r = box(mitte);
+    lv_obj_set_height(r, lv_pct(100));
+    lv_obj_set_flex_grow(r, 1);
+    lv_obj_set_flex_flow(r, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(r, K(8, 4), 0);
+    lv_obj_add_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(r, LV_DIR_VER);
+    text(r, F_K, C_SUB, "DRUCKER");
+    if (g_et.drucker.empty())
+        einzeilig(text(r, F_K, C_SUB, !g_et.fehler.empty() ? g_et.fehler.c_str() : g_et.geladen ? "Keine Drucker in Home Assistant" : "Drucker werden abgefragt …"), K(300, 180));
+    for (size_t i = 0; i < g_et.drucker.size(); i++) {
+        const auto& d = g_et.drucker[i];
+        lv_obj_t* b = wahl(r, d.name + (d.erreichbar ? "" : " (aus)"), d.id == g_et_drucker, et_drucker_cb, (void*)(intptr_t)i);
+        lv_obj_set_width(b, lv_pct(100));
+    }
+    text(r, F_K, C_SUB, "FORMAT");
+    lv_obj_t* fz = box(r);
+    lv_obj_set_size(fz, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(fz, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(fz, S(6), 0);
+    for (int i = 0; i < 2; i++) lv_obj_set_flex_grow(wahl(fz, i ? "50×30" : "40×30", g_et.breit == (i == 1), et_format_cb, (void*)(intptr_t)i), 1);
+    if (g_et_rest > 0) {
+        lv_obj_t* b = wahl(r, (g_et_mit_rest ? LV_SYMBOL_OK " Rest " : "Rest ") + gramm(g_et_rest), g_et_mit_rest, et_rest_cb, nullptr);
+        lv_obj_set_width(b, lv_pct(100));
+    }
+
+    lv_obj_t* unten = box(p);
+    lv_obj_set_size(unten, lv_pct(100), K(52, 36));
+    lv_obj_set_flex_flow(unten, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(unten, S(10), 0);
+    lv_obj_t* zu = knopf(unten, "Abbrechen", Art::RAHMEN, et_zu_cb);
+    lv_obj_set_height(zu, lv_pct(100));
+    lv_obj_set_flex_grow(zu, 1);
+    lv_obj_t* dr = knopf(unten, LV_SYMBOL_OK "  Drucken", Art::PRIMAER, et_druck_cb);
+    lv_obj_set_height(dr, lv_pct(100));
+    lv_obj_set_flex_grow(dr, 2);
+    knopf_aktiv(dr, !g_et_drucker.empty());
+    if (UI_KOMPAKT) {
+        lv_obj_set_style_text_font(lv_obj_get_child(zu, 0), F_K, 0);
+        lv_obj_set_style_text_font(lv_obj_get_child(dr, 0), F_N, 0);
+    }
+}
+
+void et_oeffnen(int sorte, int rest) {
+    g_et_sorte = sorte;
+    g_et_rest = rest;
+    g_et_mit_rest = rest > 0;
+    lv_obj_add_flag(l_tastatur, LV_OBJ_FLAG_HIDDEN);
+    et_bauen();
+    if (g_akt && !g_et.geladen) g_akt->drucker_laden();
+}
+
 // ---------------------------------------------------------------- Seiten
 void zeige_seite(Seite s) {
     g_seite = s;
@@ -1046,7 +1460,9 @@ void zeige_seite(Seite s) {
         detail_bauen();
     } else {
         setze(h_sub, "Einstellungen");
+        einst_tab_markieren();
         einst_aktualisieren();
+        if (g_einst_tab == 1) drucker_bauen();
     }
 }
 
@@ -1072,7 +1488,7 @@ void ui_start(UiAktionen* aktionen, const Lager* lager) {
     baue_einst(g_seiten[EINST]);
     baue_nav(scr);
 
-    g_toast = box(scr);
+    g_toast = box(lv_layer_top());  // auch über dem Druckdialog
     lv_obj_set_size(g_toast, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(g_toast, farbe(C_PANEL), 0);
     lv_obj_set_style_bg_opa(g_toast, LV_OPA_COVER, 0);
@@ -1118,6 +1534,34 @@ void ui_lager_neu() {
     }
 }
 
+void ui_ams(const AmsStand* ams) {
+    g_ams = ams;
+    g_ams_stand++;
+    if (g_seite == WIEGEN) wiegen_aktualisieren();
+    else if (g_seite == EINST && g_einst_tab == 1) drucker_bauen();
+}
+
+void ui_etikett(const EtikettEinst& e) {
+    bool breit = g_et.breit;
+    g_et = e;
+    g_et.breit = breit;  // Wahl im Dialog bleibt
+    if (g_et_dlg) et_bauen();
+    if (g_seite == EINST && g_einst_tab == 1) drucker_bauen();
+}
+
+void ui_logos_neu() {
+    g_logo_stand++;
+    if (g_seite == LAGER) {
+        lv_coord_t y = lv_obj_get_scroll_y(l_liste);
+        lager_liste_bauen();
+        lv_obj_scroll_to_y(l_liste, y, LV_ANIM_OFF);
+    } else if (g_seite == DETAIL) {
+        detail_bauen();
+    } else if (g_seite == WIEGEN) {
+        wiegen_aktualisieren();
+    }
+}
+
 void ui_meldung(const std::string& t, bool fehler) {
     lv_label_set_text(g_toast_lbl, t.c_str());
     lv_obj_set_style_border_color(g_toast, farbe(fehler ? C_ROT : C_GRUEN), 0);
@@ -1130,7 +1574,9 @@ void ui_meldung(const std::string& t, bool fehler) {
 void ui_zeige(const std::string& name) {
     if (name == "lager") zeige_seite(LAGER);
     else if (name == "auswahl") { g_auswahl_modus = true; zeige_seite(LAGER); }
-    else if (name == "einst") zeige_seite(EINST);
+    else if (name == "einst") { g_einst_tab = 0; zeige_seite(EINST); }
+    else if (name == "drucker") { g_einst_tab = 1; zeige_seite(EINST); }
+    else if (name.rfind("etikett:", 0) == 0) et_oeffnen(atoi(name.c_str() + 8), 562);
     else if (name.rfind("detail:", 0) == 0) { g_detail = atoi(name.c_str() + 7); zeige_seite(DETAIL); }
     else zeige_seite(WIEGEN);
 }

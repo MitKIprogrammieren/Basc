@@ -36,6 +36,7 @@
 
 #include "config.h"
 #include "drucker.h"
+#include "ams.h"
 #include "ha_client.h"
 #include "model.h"
 #include "sensor.h"
@@ -64,6 +65,7 @@ struct HaCfg {
     String url, token, todo;
 };
 HaCfg g_ha;
+std::shared_ptr<const std::string> g_ams_json;  // AMS-Belegung für /api/ams (wie die Pi-Variante), jede Minute neu
 JsonDocument g_einst;  // Einstellungen der Oberfläche (Design, Waage, Bambu)
 Preferences g_prefs;
 
@@ -190,6 +192,22 @@ HaCfg ha_cfg() {
 }
 
 void sorte_json(JsonObject o, const Filament& f);
+
+// AMS-Belegung der Bambu-Drucker aus Home Assistant – gleiche Abfrage wie pi_system.py (gemeinsam: ams.cpp)
+void ams_nach_cache() {
+    HaClient ha;
+    std::string fehler, antwort;
+    if (!client_fuer(ha_cfg(), ha, fehler) || !ha.vorlage(AMS_VORLAGE, antwort, fehler)) return;
+    AmsStand s;
+    if (!ams_aufbereiten(antwort.data(), antwort.size(), s)) return;
+    JsonDocument d;
+    ams_als_json(s, d.to<JsonObject>());
+    d["abbuchungen"].to<JsonArray>();
+    auto j = std::make_shared<std::string>();
+    serializeJson(d, *j);
+    std::lock_guard<std::mutex> l(g_mx);
+    g_ams_json = j;
+}
 
 std::shared_ptr<const std::string> lager_als_json(const Lager& lager, int version) {
     auto s = std::make_shared<std::string>();
@@ -510,6 +528,7 @@ void arbeiter(void*) {
                 if (a->zahl == 1) {  // jede Minute: Werte der Waage und der Druckbrücke als Sensoren in HA
                     waage_nach_ha();
                     bruecke_nach_ha();
+                    ams_nach_cache();
                 }
                 break;
         }
@@ -932,9 +951,15 @@ void routen() {
         senden(r, 200, d);
     });
 
-    // AMS gibt es nur in der Pi-Variante – die Oberfläche bekommt eine leere Antwort
+    // AMS-Belegung aus Home Assistant (ams_nach_cache), bis zur ersten Abfrage leer
     g_server.on("/api/ams", HTTP_GET, [](AsyncWebServerRequest* r) {
-        r->send(200, "application/json", "{\"drucker\":[],\"abbuchungen\":[]}");
+        std::shared_ptr<const std::string> j;
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            j = g_ams_json;
+        }
+        if (!j) return r->send(200, "application/json", "{\"drucker\":[],\"abbuchungen\":[]}");
+        r->send(200, "application/json", j->c_str());
     });
     // Etiketten: Phomemo per Bluetooth (drucker.cpp)
     auto etikett = [](AsyncWebServerRequest* r) {

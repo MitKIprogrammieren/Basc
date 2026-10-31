@@ -6,21 +6,33 @@
 //  - Sensorplatine über RS485 oder WLAN abfragen (Gewicht, NFC-Tags)
 //  - Home Assistant (todo.filament) in einer eigenen Task auf Kern 0,
 //    damit langsame HTTP-Anfragen die Oberfläche nicht einfrieren
+//  - Netz-Task (Kern 0): AMS-Belegung aus Home Assistant, Etikettendrucker (Integration m20_druckbruecke),
+//    Herstellerlogos (von der Sensorplatine bzw. aus Home Assistant) und Druckaufträge
 //  - Einstellungen (WLAN, Home Assistant, Sensor-IP) im Flash; der Webflasher schickt sie per USB
 //    ({"c":"wlan",…} und {"c":"einst",…}), secrets.h liefert nur noch Vorgaben für den ersten Start
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <mbedtls/base64.h>
 #include <time.h>
+
+#include <map>
+#include <memory>
+#include <set>
 
 #include <deque>
 #include <functional>
 #include <mutex>
 
+#include "ams.h"
 #include "board.h"
 #include "config.h"
+#include "etikett.h"
+#include "logo.h"
 #include "ha_client.h"
 #include "lvgl.h"
 #include "model.h"
@@ -61,7 +73,27 @@ struct Ergebnis {
     std::string meldung;
     bool fehler = false;
     bool ha_ok = false;
+    bool ha_ok_gilt = true;  // false: Ergebnis der Netz-Task, ändert den HA-Zustand nicht
+    // aus der Netz-Task
+    bool hat_ams = false;
+    AmsStand ams;
+    bool hat_et = false;
+    EtikettEinst et;
+    bool hat_logo = false;
+    std::string logo_name;
+    std::unique_ptr<Logo> logo;  // nullptr = kein Logo zu finden
 };
+
+// Aufträge an die Netz-Task
+struct NetzAuftrag {
+    enum Art { AMS, DRUCKER, LOGO, DRUCK } art;
+    std::string name;  // Hersteller (LOGO), Titel (DRUCK)
+    std::string drucker;
+    int breite = 0, hoehe = 0;
+    std::vector<uint8_t> raster;
+};
+std::deque<NetzAuftrag> g_netz;
+TaskHandle_t g_netz_task = nullptr;
 
 std::mutex g_mx;
 std::deque<Auftrag> g_auftraege;
@@ -74,6 +106,11 @@ SensorLink g_sensor;
 HardwareSerial g_rs485(1);
 bool g_ha_ok = false;
 uint32_t g_letztes_laden = 0;
+AmsStand g_ams;  // gehört der Oberfläche
+std::map<std::string, std::unique_ptr<Logo>> g_logos;  // fertig geladen (nullptr = keins gefunden)
+std::set<std::string> g_logo_angefragt;
+bool g_logo_neu = false;
+uint32_t g_letzte_logo_meldung = 0, g_letztes_ams = 0, g_letzte_drucker = 0;
 
 // ---------------------------------------------------------------- Einstellungen
 struct Einstellungen {
@@ -266,6 +303,174 @@ void ha_task(void*) {
     }
 }
 
+// ---------------------------------------------------------------- Netz-Task
+void netz(NetzAuftrag a) {
+    {
+        std::lock_guard<std::mutex> l(g_mx);
+        if (a.art == NetzAuftrag::AMS || a.art == NetzAuftrag::DRUCKER)
+            for (auto& x : g_netz)
+                if (x.art == a.art) return;  // steht schon an
+        g_netz.push_back(std::move(a));
+    }
+    if (g_netz_task) xTaskNotifyGive(g_netz_task);
+}
+
+// HTTP-Anfrage an eine volle Adresse. Gibt den HTTP-Code zurück (≤ 0 = keine Verbindung).
+int http_anfrage(const std::string& url, const char* methode, const std::string& body, std::string& antwort,
+                 uint32_t timeout_ms, bool mit_token) {
+    if (WiFi.status() != WL_CONNECTED) return -1;
+    HTTPClient http;
+    WiFiClient plain;
+    WiFiClientSecure tls;
+    bool ok;
+    if (url.rfind("https://", 0) == 0) {
+        tls.setInsecure();
+        ok = http.begin(tls, url.c_str());
+    } else {
+        ok = http.begin(plain, url.c_str());
+    }
+    if (!ok) return -2;
+    http.setTimeout(timeout_ms);
+    http.setConnectTimeout(3000);
+    if (mit_token && g_einst.ha_token.length()) http.addHeader("Authorization", "Bearer " + g_einst.ha_token);
+    int code;
+    if (!strcmp(methode, "POST")) {
+        http.addHeader("Content-Type", "application/json");
+        code = http.POST((uint8_t*)body.data(), body.size());
+    } else {
+        code = http.GET();
+    }
+    if (code > 0) {
+        String s = http.getString();
+        antwort.assign(s.c_str(), s.length());
+    }
+    http.end();
+    return code;
+}
+
+std::string url_kodieren(const std::string& s) {
+    std::string o;
+    for (unsigned char c : s) {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') o += (char)c;
+        else {
+            char h[4];
+            snprintf(h, sizeof h, "%%%02X", c);
+            o += h;
+        }
+    }
+    return o;
+}
+
+std::string json_text(const std::string& s) {
+    JsonDocument d;
+    d.set(s);
+    std::string o;
+    serializeJson(d, o);
+    return o;
+}
+
+// Druck-Schnittstelle der Integration m20_druckbruecke in Home Assistant
+std::string bruecke() { return std::string(g_einst.ha_url.c_str()) + "/api/m20_druckbruecke"; }
+
+void netz_ams(Ergebnis& e) {
+    std::string antwort, fehler;
+    if (!g_ha.vorlage(AMS_VORLAGE, antwort, fehler)) return;  // ohne Home Assistant kein AMS – kein Fehlertext
+    if (ams_aufbereiten(antwort.data(), antwort.size(), e.ams)) e.hat_ams = true;
+}
+
+void netz_drucker(Ergebnis& e) {
+    e.hat_et = true;
+    e.et.geladen = true;
+    e.et.lager_url = std::string(g_einst.ha_url.c_str()) + "/todo?entity_id=" + g_einst.ha_todo.c_str();
+    std::string antwort;
+    int code = http_anfrage(bruecke() + "/drucker", "GET", "", antwort, 6000, true);
+    if (code == 404) e.et.fehler = "Integration m20_druckbruecke fehlt in Home Assistant";
+    else if (code <= 0) e.et.fehler = "Home Assistant nicht erreichbar";
+    else if (code == 403) e.et.fehler = "Druck nur aus dem Heimnetz erlaubt";
+    else {
+        JsonDocument d;
+        if (deserializeJson(d, antwort)) e.et.fehler = "Antwort der Druck-Integration unlesbar";
+        for (JsonVariantConst x : d["drucker"].as<JsonArrayConst>()) {
+            EtikettDrucker dr;
+            dr.id = x["id"] | "";
+            dr.name = x["name"] | dr.id.c_str();
+            dr.erreichbar = x["erreichbar"] | true;
+            if (!dr.id.empty()) e.et.drucker.push_back(dr);
+        }
+    }
+    // eigene QR-Adresse (SchichtLohn) steht in den Etikett-Einstellungen der Sensorplatine
+    if (g_einst.sensor.length()) {
+        std::string a2;
+        if (http_anfrage("http://" + std::string(g_einst.sensor.c_str()) + "/api/etikett/einstellungen", "GET", "", a2, 5000, false) == 200) {
+            JsonDocument d;
+            if (!deserializeJson(d, a2)) {
+                e.et.qr_basis = d["qr"] | "";
+                std::string lu = d["lager_url"] | "";
+                if (!lu.empty()) e.et.lager_url = lu;
+            }
+        }
+    }
+}
+
+void netz_logo(const std::string& name, Ergebnis& e) {
+    e.hat_logo = true;
+    e.logo_name = name;
+    std::string url, png;
+    if (g_einst.sensor.length())  // die Sensorplatine kennt alle mitgelieferten Logos und holt fehlende selbst nach
+        url = "http://" + std::string(g_einst.sensor.c_str()) + "/api/hersteller_bild?name=" + url_kodieren(name);
+    else
+        url = std::string(g_einst.ha_url.c_str()) + "/local/hersteller/" + logo_kurz(name) + ".png";
+    if (http_anfrage(url, "GET", "", png, 12000, false) != 200 || png.size() < 8) return;
+    std::unique_ptr<Logo> l(new Logo);
+    if (logo_laden((const uint8_t*)png.data(), png.size(), 0xf1f3f5, *l)) e.logo = std::move(l);
+}
+
+void netz_druck(const NetzAuftrag& a, Ergebnis& e) {
+    size_t n = 0;
+    mbedtls_base64_encode(nullptr, 0, &n, a.raster.data(), a.raster.size());
+    std::string b64(n, '\0');
+    mbedtls_base64_encode((unsigned char*)&b64[0], n, &n, a.raster.data(), a.raster.size());
+    b64.resize(n);
+    std::string body = "{\"breite\":" + std::to_string(a.breite) + ",\"hoehe\":" + std::to_string(a.hoehe) +
+                       ",\"kopien\":1,\"titel\":" + json_text(a.name) + ",\"drucker\":" + json_text(a.drucker) +
+                       ",\"daten\":\"" + b64 + "\"}";
+    std::string antwort;
+    int code = http_anfrage(bruecke() + "/drucken", "POST", body, antwort, 15000, true);
+    JsonDocument d;
+    deserializeJson(d, antwort);
+    std::string text = d["text"] | "";
+    if (code == 202 || code == 200) {
+        e.meldung = text.empty() ? "Druckauftrag angenommen" : text;
+    } else {
+        e.fehler = true;
+        e.meldung = !text.empty() ? text : code <= 0 ? "Home Assistant nicht erreichbar" : "Druck fehlgeschlagen (" + std::to_string(code) + ")";
+    }
+}
+
+void netz_task(void*) {
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
+        for (;;) {
+            NetzAuftrag a;
+            {
+                std::lock_guard<std::mutex> l(g_mx);
+                if (g_netz.empty()) break;
+                a = std::move(g_netz.front());
+                g_netz.pop_front();
+            }
+            Ergebnis e;
+            e.ha_ok_gilt = false;
+            switch (a.art) {
+                case NetzAuftrag::AMS: netz_ams(e); break;
+                case NetzAuftrag::DRUCKER: netz_drucker(e); break;
+                case NetzAuftrag::LOGO: netz_logo(a.name, e); break;
+                case NetzAuftrag::DRUCK: netz_druck(a, e); break;
+            }
+            ergebnis(std::move(e));
+        }
+    }
+}
+
 // ---------------------------------------------------------------- Aktionen der Oberfläche
 struct Aktionen : UiAktionen {
     void tara() override { g_sensor.tara(); }
@@ -294,6 +499,30 @@ struct Aktionen : UiAktionen {
     void neu_laden() override {
         ui_meldung("Lade Lager …");
         auftrag({Auftrag::LADEN, "", "", 0});
+    }
+    const Logo* logo(const std::string& h) override {
+        auto it = g_logos.find(h);
+        if (it != g_logos.end()) return it->second.get();
+        // höchstens 48 Hersteller anfragen (Speicher), jeden nur einmal
+        if (WiFi.status() == WL_CONNECTED && g_logo_angefragt.size() < 48 && g_logo_angefragt.insert(h).second) {
+            NetzAuftrag a{NetzAuftrag::LOGO};
+            a.name = h;
+            netz(std::move(a));
+        }
+        return nullptr;
+    }
+    void etikett_drucken(const std::string& titel, const EtikettBild& b, const std::string& drucker) override {
+        NetzAuftrag a{NetzAuftrag::DRUCK};
+        a.name = titel;
+        a.drucker = drucker;
+        a.breite = b.breite;
+        a.hoehe = b.hoehe;
+        a.raster = b.raster;
+        netz(std::move(a));
+    }
+    void drucker_laden() override {
+        netz({NetzAuftrag::AMS});
+        netz({NetzAuftrag::DRUCKER});
     }
 } g_aktionen;
 
@@ -338,6 +567,7 @@ void setup() {
 
     g_ha.begin(g_einst.ha_url.c_str(), g_einst.ha_token.c_str(), g_einst.ha_todo.c_str());
     xTaskCreatePinnedToCore(ha_task, "ha", 12288, nullptr, 1, &g_ha_task, 0);
+    xTaskCreatePinnedToCore(netz_task, "netz", 12288, nullptr, 1, &g_netz_task, 0);
     if (g_einst.ssid.isEmpty()) ui_meldung("Kein WLAN eingerichtet – Webflasher benutzen", true);
     else if (g_einst.ha_url.isEmpty() || g_einst.ha_token.isEmpty()) ui_meldung("Home Assistant fehlt – Webflasher benutzen", true);
 }
@@ -362,8 +592,23 @@ void loop() {
             g_lager.sorten.swap(e.lager.sorten);
             ui_lager_neu();
         }
-        g_ha_ok = e.ha_ok;
+        if (e.ha_ok_gilt) g_ha_ok = e.ha_ok;
+        if (e.hat_ams) {
+            g_ams = std::move(e.ams);
+            ui_ams(&g_ams);
+        }
+        if (e.hat_et) ui_etikett(e.et);
+        if (e.hat_logo) {
+            g_logos[e.logo_name] = std::move(e.logo);
+            if (g_logos[e.logo_name]) g_logo_neu = true;
+        }
         if (!e.meldung.empty()) ui_meldung(e.meldung, e.fehler);
+    }
+    // neue Logos gesammelt melden, damit die Lagerliste nicht bei jedem einzeln neu aufgebaut wird
+    if (g_logo_neu && millis() - g_letzte_logo_meldung > 1000) {
+        g_logo_neu = false;
+        g_letzte_logo_meldung = millis();
+        ui_logos_neu();
     }
 
     uint32_t jetzt = millis();
@@ -372,6 +617,15 @@ void loop() {
     if (wlan && ha_da && (g_letztes_laden == 0 || jetzt - g_letztes_laden > LAGER_NEU_LADEN_MS)) {
         g_letztes_laden = jetzt;
         auftrag({Auftrag::LADEN, "", "", 0});
+    }
+    // AMS jede Minute, Etikettendrucker alle 5 Minuten
+    if (wlan && ha_da && (g_letztes_ams == 0 || jetzt - g_letztes_ams > 60000)) {
+        g_letztes_ams = jetzt;
+        netz({NetzAuftrag::AMS});
+    }
+    if (wlan && ha_da && (g_letzte_drucker == 0 || jetzt - g_letzte_drucker > 300000)) {
+        g_letzte_drucker = jetzt;
+        netz({NetzAuftrag::DRUCKER});
     }
 
     static uint32_t letzte_anzeige = 0;

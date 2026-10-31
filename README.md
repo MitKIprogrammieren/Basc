@@ -62,6 +62,11 @@ Danach am Display: **Einstellungen → Tara** bei leerem Teller, Gewicht auflege
 Gleiche Firmware, eigener Treiber für ST7796 und Touch FT6336U, Oberfläche in kompakter Anordnung (480×320).
 Auf dem kleinen Display fehlt nur die Seitenleiste „Angebrochene Rollen“ im Lager – die Reste stehen in der Liste.
 
+Beide Displays zeigen ab Firmware 1.3.0 auch **Herstellerlogos** (von der Sensorplatine bzw. aus `/local/hersteller/`
+in Home Assistant), die **AMS-Belegung** der Bambu-Drucker (Chip beim Wiegen, Vorschlag der Sorte für neue Bambu-Tags,
+Einstellungen → Drucker & AMS) und drucken **Etiketten** (Classic 40×30 oder 50×30) direkt über die
+Home-Assistant-Integration `m20_druckbruecke` – mit Vorschau und Wahl zwischen M20 Pro und M110.
+
 ![SC01 Plus](docs/bilder/sc01plus.png)
 
 **Ohne Installation flashen:** `FilamentLager-Webflasher-SC01Plus.html` aus dem Branch

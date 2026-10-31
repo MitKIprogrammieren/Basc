@@ -7,3 +7,4 @@
 
 #include "../../display-5inch/src/model.cpp"
 #include "../../display-5inch/src/ha_client.cpp"
+#include "../../display-5inch/src/ams.cpp"
