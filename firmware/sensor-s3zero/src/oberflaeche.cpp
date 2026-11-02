@@ -613,7 +613,8 @@ String bild_quelle() {  // g_mx gehalten
     if (!q.length()) {
         q = g_ha.url;
         while (q.endsWith("/")) q.remove(q.length() - 1);
-        q += "/local/hersteller/";
+        // SchichtLohn-Server (Port 8093) liefert die Logos unter /hersteller/, Home Assistant unter /local/hersteller/
+        q += q.endsWith(":8093") ? "/hersteller/" : "/local/hersteller/";
     }
     if (!q.endsWith("/")) q += "/";
     return q;

@@ -1045,7 +1045,7 @@ function einst() {
         <span class="hinweis">Auswahlliste zeigt alle Materialien aus deinem Lager. Gilt nur für dieses Gerät.</span></div>
       <div class="e-block"><span class="ueber">Herstellerlogos im Lager</span><div class="seg">${[[true, "Logo"], [false, "Nur Name"]].map(([k, t]) =>
         `<button class="${logosAn() === k ? "an" : ""}" data-logos="${k}">${t}</button>`).join("")}</div>
-        <span class="hinweis">Logos kommen aus Home Assistant (config/www/hersteller). Fehlt eins, steht der Name da.</span></div>`;
+        <span class="hinweis">Logos kommen aus SchichtLohn bzw. Home Assistant (Ordner config/www/hersteller). Fehlt eins, steht der Name da.</span></div>`;
   } else if (S.eSeite === "wlan") {
     const w = e.wlan || {};
     h = `<div class="e-zeile"><span class="e-titel wachsen">WLAN</span>${pill(!!w.ssid, w.ssid ? "verbunden" : "getrennt")}</div>
@@ -1075,7 +1075,7 @@ function einst() {
     if (!S.amsDrucker && dr.length) S.amsDrucker = (dr.find((d) => (e.drucker || []).includes(d.id)) || dr[0]).id;
     const d = dr.find((x) => x.id === S.amsDrucker);
     h = `<span class="e-titel">Bambu Lab</span>
-      <span class="hinweis">Die Drucker kommen über deine Bambu-Lab-Integration in Home Assistant. Hier wählst du, welche die Waage kennen soll.</span>
+      <span class="hinweis">Die Drucker kommen von SchichtLohn (bzw. aus Home Assistant, wenn dort eingetragen). Hier wählst du, welche die Waage kennen soll.</span>
       <div class="e-block"><span class="ueber">Drucker</span>
         ${dr.length ? dr.map((x) => `<div class="e-zeile"><span class="e-name">${esc(x.name)}</span>${pill(x.online, x.online ? "online" : "aus")}${schalter((e.drucker || []).includes(x.id), "drucker:" + x.id)}</div>`).join("")
           : '<span class="sub14">Keine Drucker gefunden</span>'}</div>
@@ -1087,7 +1087,7 @@ function einst() {
             <b>${esc(a.kurz)}${sl.slot}${sl.aktiv ? " · aktiv" : ""}</b><small>${sl.leer ? "leer" : esc(sl.name)}</small>${sl.leer ? "" : `<small>${sl.rest >= 0 ? sl.rest + " % laut AMS" : ""}</small>`}</div>`).join("")}</div>`).join("") || '<span class="sub14">Kein AMS</span>'}</div>` : ""}
       <div class="e-block"><span class="ueber">Abbuchen nach dem Druck</span>
         <div class="e-zeile"><span class="e-name">Verbrauch wird nach jedem Druck automatisch abgezogen</span>${pill(e.abbuchung_aktiv, e.abbuchung_aktiv ? "aktiv" : "aus")}</div>
-        <span class="hinweis">Das erledigt „Ernsthaft gelagert“ in Home Assistant. Die Waage zeigt die letzten Abbuchungen und korrigiert Reste, wenn du eine Spule nachwiegst.</span>
+        <span class="hinweis">Das erledigt der SchichtLohn-Server. Die Waage zeigt die letzten Abbuchungen und korrigiert Reste, wenn du eine Spule nachwiegst.</span>
         ${(S.ams.abbuchungen || []).slice(0, 4).map((x) => `<div class="e-zeile"><span class="sub14" style="width:86px">${esc(x.zeit)}</span><span class="e-name">${esc(x.text)}</span></div>`).join("")}</div>`;
   } else if (S.eSeite === "waage") {
     h = `<span class="e-titel">Waage</span>
@@ -1578,7 +1578,7 @@ function etEinstHtml() {
       <div class="e-zeile"><div class="feld wachsen"><input id="et-bruecke" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.bruecke)}" placeholder="http://192.168.1.250:8765" aria-label="Adresse der Druckbrücke"></div>
         <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" data-et="bruecke">Speichern</button></div></div>` : ""}
     <div class="e-block"><span class="ueber">QR-Code auf dem Etikett</span>
-      <span class="hinweis">Adresse von SchichtLohn, am besten über Tailscale (z. B. https://schichtlohn.dein-tailnet.ts.net). Dann öffnet der QR-Code mit der Handy-Kamera genau diese Rolle. Leer = Lager-Liste in Home Assistant.</span>
+      <span class="hinweis">Adresse von SchichtLohn, am besten über Tailscale (z. B. https://schichtlohn.dein-tailnet.ts.net). Dann öffnet der QR-Code mit der Handy-Kamera genau diese Rolle. Leer = kein Link auf die Rolle.</span>
       <div class="e-zeile"><div class="feld wachsen"><input id="et-qr" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(et.qr || "")}" placeholder="https://….ts.net" aria-label="Adresse für den QR-Code"></div>
         <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" data-et="qr">Speichern</button></div></div>
     <div class="e-block"><span class="ueber">Standardformat</span>
