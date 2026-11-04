@@ -120,8 +120,9 @@ function kopfLager() {
 function kopf() {
   const z = S.z;
   const aus = z.sensor_ok ? "" : "aus";
-  $("dot-l").className = "dot " + (z.tag_l ? "an" : aus);
-  $("dot-r").className = "dot " + (z.tag_r ? "an" : aus);
+  // NFC: grün = Tag liegt auf, rot = Leser antwortet nicht (Sensorplatine ab 2.23), grau = kein Tag
+  $("dot-l").className = "dot " + (z.tag_l ? "an" : z.nfc_l_ok === false ? "aus" : aus);
+  $("dot-r").className = "dot " + (z.tag_r ? "an" : z.nfc_r_ok === false ? "aus" : aus);
   $("dot-ha").className = "dot " + (z.ha_ok ? "an" : "aus");
   if ($("ha-name") && $("ha-name").textContent !== serverName()) $("ha-name").textContent = serverName();
   // Waage: grün = misst und ist kalibriert, rot = Wägezelle antwortet nicht, grau = nicht kalibriert
@@ -196,6 +197,9 @@ function wiegen() {
   if (!z) return;
   const tag = z.tag_r || z.tag_l;
   const leser = z.tag_r ? "rechts" : "links";
+  // Inhalt eines Bambu-Lab-Tags (Sensorplatine ab 2.23): Material, Farbe, Gewicht
+  const bambuRoh = z.tag_r ? z.bambu_r : z.bambu_l;
+  const bambu = bambuRoh && bambuRoh.uid === tag ? bambuRoh : null;
   const da = z.brutto_g >= SPULE_DA_G;
   if (S.spuleWarDa && !da) S.auswahlUid = "";
   S.spuleWarDa = da;
@@ -204,16 +208,17 @@ function wiegen() {
   const leer = sorte && sorte.leer_g > 0 ? sorte.leer_g : z.leer_standard_g;
   const brutto = Math.round(z.brutto_g);
   const netto = Math.max(0, brutto - leer);
-  const soll = sorte ? sorte.gewicht : 1000;
+  const soll = sorte ? sorte.gewicht : (bambu && bambu.gewicht) || 1000;
   const proz = da ? Math.min(100, Math.floor((netto * 100) / Math.max(1, soll))) : 0;
   S.aktiv = { sorte, tag, netto, da };
 
   const farbe = proz < 15 && da ? "var(--rot)" : "var(--gruen)";
   $("ring").style.background = `conic-gradient(${farbe} 0 ${proz}%, var(--rand2) ${proz}% 100%)`;
-  const rk = sorte ? sorte.uid : "";
+  const rk = sorte ? sorte.uid : bambu ? "bambu" + bambu.farbe : "";
   if ($("spule").dataset.k !== rk || !$("spule").firstChild) {  // nur neu zeichnen, wenn sich die Sorte ändert
     $("spule").dataset.k = rk;
-    $("spule").innerHTML = sorte ? rolle(sorte.hex, sorte.besonderheiten, "rgross") : rolle("#3a4048", ["matt"], "rgross leer");
+    $("spule").innerHTML = sorte ? rolle(sorte.hex, sorte.besonderheiten, "rgross")
+      : bambu ? rolle(bambuHex(bambu), [], "rgross") : rolle("#3a4048", ["matt"], "rgross leer");
   }
   $("zahl").textContent = da ? netto : 0;
   $("proz").textContent = !z.sensor_ok ? "Sensor antwortet nicht"
@@ -221,7 +226,7 @@ function wiegen() {
   $("chip-brutto").textContent = `Brutto ${gramm(brutto)}`;
   $("chip-leer").textContent = `Leerspule ${gramm(leer)}`;
 
-  const schluessel = [sorte ? sorte.uid + JSON.stringify(sorte) : "", tag, da].join("|");
+  const schluessel = [sorte ? sorte.uid + JSON.stringify(sorte) : "", tag, da, bambu ? JSON.stringify(bambu) : ""].join("|");
   if (schluessel === S.karteSchluessel) return;
   S.karteSchluessel = schluessel;
 
@@ -242,6 +247,22 @@ function wiegen() {
     S.haupt = da ? "speichern" : "nichts";
     haupt.textContent = "✓  Rest speichern";
     $("btn-wahl").textContent = "Andere Sorte";
+  } else if (tag && bambu) {
+    // Bambu-Lab-Spule, die noch keiner Sorte zugeordnet ist: Inhalt vom Tag zeigen und passende Sorte vorschlagen
+    $("k-titel").textContent = `Bambu-Tag · NFC ${leser}`;
+    $("k-swatch").className = "k-rolle";
+    $("k-swatch").style.background = "";
+    $("k-swatch").innerHTML = rolle(bambuHex(bambu), [], "r34");
+    $("k-name").textContent = bambu.detail || bambu.typ || "Bambu Lab";
+    $("k-sub").textContent = ["Bambu Lab", bambu.material_id, bambu.variante].filter(Boolean).join(" · ");
+    S.vorschlag = vorschlagFuerSlot({ filament_id: bambu.material_id, hex: bambuHex(bambu) });
+    const c = [[bambuHex(bambu).toUpperCase(), ""]];
+    if (bambu.gewicht) c.push([gramm(bambu.gewicht), ""]);
+    c.push(S.vorschlag ? [`Vorschlag: ${kurzname(S.vorschlag)}`, "g"] : ["Nicht im Lager", "o"]);
+    karteChips(c);
+    S.haupt = "zuordnen";
+    haupt.textContent = S.vorschlag ? `Als ${kurzname(S.vorschlag)} speichern` : "Sorte zuordnen";
+    $("btn-wahl").textContent = "Sorte wählen";
   } else if (tag) {
     $("k-titel").textContent = `Neuer Tag · NFC ${leser}`;
     $("k-swatch").className = "swatch s34";
@@ -1252,6 +1273,8 @@ function farbAbstand(a, b) {
   const x = a.match(/\w\w/g).map((v) => parseInt(v, 16)), y = b.match(/\w\w/g).map((v) => parseInt(v, 16));
   return x.reduce((s, v, i) => s + (v - y[i]) ** 2, 0);
 }
+// Farbe vom Bambu-Tag („RRGGBBAA“) als #RRGGBB
+function bambuHex(b) { return "#" + String(b.farbe || "808080").slice(0, 6).toLowerCase(); }
 function vorschlagFuerSlot(sl) {
   if (!sl || !sl.filament_id) return null;
   const kand = S.sorten.filter((s) => s.bambu_id === sl.filament_id);
@@ -1724,6 +1747,7 @@ async function lagerLaden() {
   etLaden();
   if (S.seite === "lager") { kopfLager(); liste(); reste(); }
   else if (S.seite === "detail") detail();
+  else if (S.seite === "wiegen") { S.karteSchluessel = ""; wiegen(); }  // Vorschlag für einen neuen Tag braucht das Lager
 }
 
 function zustand(z) {

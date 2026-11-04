@@ -747,6 +747,13 @@ String zustand_text() {
     d["kalibriert"] = m.kalibriert;
     d["tag_l"] = m.tag_l;
     d["tag_r"] = m.tag_r;
+    d["nfc_l_ok"] = m.nfc_l_ok;
+    d["nfc_r_ok"] = m.nfc_r_ok;
+    for (int i = 0; i < 2; i++) {
+        const String& b = i ? m.bambu_r : m.bambu_l;
+        JsonDocument bd;
+        if (b.length() && !deserializeJson(bd, b)) d[i ? "bambu_r" : "bambu_l"] = bd;
+    }
     d["sensor_ok"] = m.hx711_ok;
     {
         std::lock_guard<std::mutex> l(g_mx);

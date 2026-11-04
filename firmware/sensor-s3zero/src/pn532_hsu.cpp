@@ -1,5 +1,6 @@
 #include "pn532_hsu.h"
 #include "config.h"
+#include "mbedtls/md.h"
 
 namespace {
 constexpr uint8_t TFI_HOST = 0xD4;
@@ -144,6 +145,9 @@ String Pn532Hsu::lese_uid() {
     if (n < 6 || a[0] == 0) return "";
     uint8_t uid_len = a[5];
     if (uid_len == 0 || 6 + uid_len > n) return "";
+    sak_ = a[4];
+    uid_len_ = uid_len > sizeof uid_ ? sizeof uid_ : uid_len;
+    memcpy(uid_, a + 6, uid_len_);
     String s;
     char h[3];
     for (uint8_t i = 0; i < uid_len; i++) {
@@ -151,4 +155,92 @@ String Pn532Hsu::lese_uid() {
         s += h;
     }
     return s;
+}
+
+// ---------------------------------------------------------------- Bambu-Lab-Tags
+namespace {
+// Schlüssel A je Sektor: HKDF-SHA256(UID, Salz, „RFID-A\0“) → 16 × 6 Bytes
+// (github.com/Bambu-Research-Group/RFID-Tag-Guide, deriveKeys.py)
+const uint8_t BAMBU_SALZ[16] = {0x9a, 0x75, 0x9c, 0xf2, 0xc4, 0xf7, 0xca, 0xff,
+                                0x22, 0x2c, 0xb9, 0x76, 0x9b, 0x41, 0xbc, 0x96};
+
+void hkdf_sha256(const uint8_t* ikm, size_t ikm_len, uint8_t* aus, size_t aus_len) {
+    const mbedtls_md_info_t* md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    uint8_t prk[32], t[32];
+    mbedtls_md_hmac(md, BAMBU_SALZ, sizeof BAMBU_SALZ, ikm, ikm_len, prk);
+    const uint8_t info[7] = {'R', 'F', 'I', 'D', '-', 'A', 0};
+    size_t fertig = 0, t_len = 0;
+    for (uint8_t i = 1; fertig < aus_len; i++) {
+        uint8_t ein[32 + sizeof info + 1];
+        memcpy(ein, t, t_len);
+        memcpy(ein + t_len, info, sizeof info);
+        ein[t_len + sizeof info] = i;
+        mbedtls_md_hmac(md, prk, sizeof prk, ein, t_len + sizeof info + 1, t);
+        t_len = 32;
+        size_t n = aus_len - fertig < 32 ? aus_len - fertig : 32;
+        memcpy(aus + fertig, t, n);
+        fertig += n;
+    }
+}
+
+String text_aus(const uint8_t* d, size_t n) {
+    String s;
+    for (size_t i = 0; i < n && d[i]; i++)
+        if (d[i] >= 0x20 && d[i] < 0x7f) s += (char)d[i];
+    s.trim();
+    return s;
+}
+}  // namespace
+
+bool Pn532Hsu::mifare_auth(uint8_t block, const uint8_t* key) {
+    uint8_t cmd[14] = {0x40, 0x01, 0x60, block};  // InDataExchange, Ziel 1, Auth mit Schlüssel A, Schlüssel, UID
+    memcpy(cmd + 4, key, 6);
+    memcpy(cmd + 10, uid_, 4);
+    uint8_t a[4];
+    uint8_t n = sizeof a;
+    return befehl(cmd, sizeof cmd, a, n, 100) && n >= 1 && a[0] == 0x00;
+}
+
+bool Pn532Hsu::mifare_lesen(uint8_t block, uint8_t* daten16) {
+    const uint8_t cmd[] = {0x40, 0x01, 0x30, block};
+    uint8_t a[20];
+    uint8_t n = sizeof a;
+    if (!befehl(cmd, sizeof cmd, a, n, 100) || n < 17 || a[0] != 0x00) return false;
+    memcpy(daten16, a + 1, 16);
+    return true;
+}
+
+void Pn532Hsu::feld_neu() {
+    // HF-Feld kurz aus und an: Der Tag startet frisch und wird bei der nächsten Suche wie gewohnt gefunden
+    uint8_t a[4];
+    uint8_t n = sizeof a;
+    const uint8_t aus[] = {0x32, 0x01, 0x00};
+    befehl(aus, sizeof aus, a, n, 50);
+    delay(5);
+    n = sizeof a;
+    const uint8_t an[] = {0x32, 0x01, 0x01};
+    befehl(an, sizeof an, a, n, 50);
+}
+
+bool Pn532Hsu::lese_bambu(BambuTag& t) {
+    // Bambu Lab nutzt MIFARE Classic 1K (SAK 0x08) mit 4-Byte-UID
+    if (!bereit_ || uid_len_ != 4 || (sak_ & 0x18) != 0x08) return false;
+    uint8_t keys[96];
+    hkdf_sha256(uid_, 4, keys, sizeof keys);
+    uint8_t b1[16], b2[16], b4[16], b5[16];
+    bool ok = mifare_auth(1, keys) && mifare_lesen(1, b1) && mifare_lesen(2, b2) &&
+              mifare_auth(4, keys + 6) && mifare_lesen(4, b4) && mifare_lesen(5, b5);
+    feld_neu();
+    if (!ok) return false;
+    t.variante = text_aus(b1, 8);
+    t.material_id = text_aus(b1 + 8, 8);
+    t.typ = text_aus(b2, 16);
+    t.detail = text_aus(b4, 16);
+    char h[9];
+    snprintf(h, sizeof h, "%02X%02X%02X%02X", b5[0], b5[1], b5[2], b5[3]);
+    t.farbe = h;
+    t.gewicht = (uint16_t)(b5[4] | (b5[5] << 8));
+    memcpy(&t.durchmesser, b5 + 8, 4);
+    // Ohne Materialangabe ist es kein (gültiger) Bambu-Tag
+    return t.material_id.length() > 0 || t.typ.length() > 0;
 }

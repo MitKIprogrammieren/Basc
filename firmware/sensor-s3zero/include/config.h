@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.22.2"
+#define FW_VERSION "2.23.0"
 
 // Wägezelle über NAU7802 (I²C, Adresse 0x2A)
 #define WAAGE_SDA 1
@@ -26,7 +26,8 @@
 #define RS485_BAUD 115200
 
 #define LED_PIN 21   // WS2812 auf dem Waveshare S3-Zero
-#define LED_PIN2 48  // WS2812 auf dem ESP32-S3 Super Mini (HW-747) – beide werden angesteuert
+#define LED_PIN2 48  // WS2812 auf dem ESP32-S3 Super Mini (HW-747) und DevKitC-1
+#define LED_PIN3 38  // WS2812 auf dem Waveshare ESP32-S3-DEV-KIT-NxRx – alle drei werden angesteuert
 
 // Messung
 #define GLAETTUNG 0.25f      // Anteil des neuen Werts (EMA), kleiner = ruhiger

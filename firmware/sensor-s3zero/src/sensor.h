@@ -9,6 +9,8 @@ struct Messwert {
     bool kalibriert = false;
     bool hx711_ok = false;  // in der letzten Sekunde kam ein Messwert
     String tag_l, tag_r;
+    String bambu_l, bambu_r;  // Inhalt eines Bambu-Lab-Tags als JSON, sonst leer
+    bool nfc_l_ok = false, nfc_r_ok = false;  // Leser antwortet
 };
 
 Messwert messwert();

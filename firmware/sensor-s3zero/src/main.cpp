@@ -9,16 +9,17 @@
 
 #include "config.h"
 
-// Zustands-LED: Waveshare S3-Zero (GPIO21) und Super Mini (GPIO48) – an beide senden, die jeweils andere ist unbelegt.
+// Zustands-LED: Waveshare S3-Zero (GPIO21), Super Mini und DevKitC-1 (GPIO48), Waveshare ESP32-S3-DEV-KIT (GPIO38) –
+// an alle senden, die jeweils anderen Pins sind unbelegt.
 // Eigener RMT-Kanal je Pin: neopixelWrite() des Arduino-Kerns 2.x bedient nur den ersten Pin, den es je gesehen hat.
 #include "esp32-hal-rmt.h"
 static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
-    static rmt_obj_t* kanal[2] = {nullptr, nullptr};
+    static rmt_obj_t* kanal[3] = {nullptr, nullptr, nullptr};
     static bool versucht = false;
-    const int pins[2] = {LED_PIN, LED_PIN2};
+    const int pins[3] = {LED_PIN, LED_PIN2, LED_PIN3};
     if (!versucht) {
         versucht = true;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 3; i++) {
             kanal[i] = rmtInit(pins[i], RMT_TX_MODE, RMT_MEM_64);
             if (kanal[i]) rmtSetTick(kanal[i], 100);  // 100 ns je Takt
         }
@@ -35,7 +36,7 @@ static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
             daten[n].duration1 = eins ? 4 : 8;
             n++;
         }
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 3; i++)
         if (kanal[i]) rmtWrite(kanal[i], daten, 24);
 }
 #include <ArduinoJson.h>
@@ -147,6 +148,9 @@ std::mutex g_nfc_mx;
 String g_tag[2];  // 0 = links, 1 = rechts
 uint32_t g_tag_zeit[2] = {0, 0};
 uint32_t g_nfc_versuch[2] = {0, 0};  // letzter Neustart-Versuch je Leser
+String g_bambu[2];      // Inhalt des Bambu-Tags als JSON (leer = kein Bambu-Tag oder noch nicht gelesen)
+String g_bambu_uid[2];  // zu welcher UID g_bambu gehört
+uint8_t g_bambu_versuche[2] = {0, 0};
 
 void nfc_task(void*) {
     Pn532Hsu* leser[2] = {&g_nfc_l, &g_nfc_r};
@@ -165,13 +169,42 @@ void nfc_task(void*) {
                 continue;
             }
             String uid = leser[i]->lese_uid();
+            // Neuer Tag: einmal versuchen, ihn als Bambu-Lab-Tag auszulesen (Material, Farbe, Gewicht)
+            String bambu;
+            bool bambu_neu = false;
+            if (uid.length() && uid != g_bambu_uid[i]) {
+                g_bambu_uid[i] = uid;
+                g_bambu_versuche[i] = 0;
+                bambu_neu = true;  // alten Inhalt verwerfen
+            }
+            if (uid.length() && g_bambu_versuche[i] < 3 && (bambu_neu || g_bambu[i].isEmpty())) {
+                g_bambu_versuche[i]++;
+                BambuTag t;
+                if (leser[i]->lese_bambu(t)) {
+                    JsonDocument b;
+                    b["uid"] = uid;
+                    b["material_id"] = t.material_id;
+                    b["variante"] = t.variante;
+                    b["typ"] = t.typ;
+                    b["detail"] = t.detail;
+                    b["farbe"] = t.farbe;
+                    b["gewicht"] = t.gewicht;
+                    b["durchmesser"] = roundf(t.durchmesser * 100) / 100;
+                    serializeJson(b, bambu);
+                    g_bambu_versuche[i] = 3;  // fertig
+                }
+                bambu_neu = true;
+            }
             uint32_t jetzt = millis();
             std::lock_guard<std::mutex> l(g_nfc_mx);
+            if (bambu_neu) g_bambu[i] = bambu;
             if (uid.length()) {
                 g_tag[i] = uid;
                 g_tag_zeit[i] = jetzt;
             } else if (g_tag[i].length() && jetzt - g_tag_zeit[i] > TAG_WEG_MS) {
                 g_tag[i] = "";
+                g_bambu[i] = "";
+                g_bambu_uid[i] = "";
             }
         }
         vTaskDelay(pdMS_TO_TICKS(40));
@@ -523,6 +556,10 @@ Messwert messwert() {
     std::lock_guard<std::mutex> l(g_nfc_mx);
     m.tag_l = g_tag[0];
     m.tag_r = g_tag[1];
+    m.bambu_l = g_bambu[0];
+    m.bambu_r = g_bambu[1];
+    m.nfc_l_ok = g_nfc_l.bereit();
+    m.nfc_r_ok = g_nfc_r.bereit();
     return m;
 }
 
