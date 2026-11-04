@@ -123,6 +123,7 @@ function kopf() {
   $("dot-l").className = "dot " + (z.tag_l ? "an" : aus);
   $("dot-r").className = "dot " + (z.tag_r ? "an" : aus);
   $("dot-ha").className = "dot " + (z.ha_ok ? "an" : "aus");
+  if ($("ha-name") && $("ha-name").textContent !== serverName()) $("ha-name").textContent = serverName();
   // Waage: grün = misst und ist kalibriert, rot = Wägezelle antwortet nicht, grau = nicht kalibriert
   $("dot-waage").className = "dot " + (!z.sensor_ok ? "aus" : z.kalibriert ? "an" : "");
   // Drucker (nur Sensorplatine): grün = eingerichtet, rot = letzter Druck fehlgeschlagen, grau = keiner
@@ -854,11 +855,14 @@ const ICONS = {
   bruecke: '<path d="M2 18h20"/><path d="M4 18v-6a8 8 0 0 1 16 0v6"/><path d="M8 18v-5M12 18v-6M16 18v-5"/>',
   system: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
 };
+// Ist der SchichtLohn-Server eingetragen (Port 8093), heißt die Gegenstelle überall „SchichtLohn“, sonst „Home Assistant“
+const istSL = () => /:8093(\/|$)/.test(((S.e || {}).ha || {}).url || "");
+const serverName = () => (istSL() ? "SchichtLohn" : "Home Assistant");
 const MENUE = [
   ["design", "Design"], ["wlan", "WLAN"], ["ha", "Home Assistant"], ["bambu", "Bambu Lab"], ["waage", "Waage"], ["etikett", "Etiketten"], ["bruecke", "Drucker"], ["system", "System"],
 ];
 // Die Druckbrücke steht nur im Menü, wenn unter Etiketten eine eingetragen ist
-const menueListe = () => MENUE.filter(([n]) => n !== "bruecke" || (S.et && S.et.bruecke));
+const menueListe = () => MENUE.filter(([n]) => n !== "bruecke" || (S.et && S.et.bruecke)).map(([n, t]) => [n, n === "ha" ? serverName() : t]);
 S.e = null;          // Einstellungen vom Dienst
 S.eSeite = "design";
 S.ams = { drucker: [], abbuchungen: [] };
@@ -930,8 +934,8 @@ function menueText(n) {
   const e = S.e || {}, z = S.z || {};
   if (n === "design") return `${AKZENT_NAMEN[AKZENTE.indexOf(e.akzent)] || "Eigene Farbe"} · ${e.helligkeit ?? 100} %`;
   if (n === "wlan") return e.wlan?.ssid ? `${e.wlan.ssid}` : "nicht verbunden";
-  if (n === "ha") return z.ha_ok ? `verbunden · ${e.ha?.todo || ""}` : "keine Verbindung";
-  if (n === "bambu") { const n2 = (S.ams.drucker || []).filter((d) => (e.drucker || []).includes(d.id)).length; return `${n2} Drucker über Home Assistant`; }
+  if (n === "ha") return z.ha_ok ? (istSL() ? "verbunden · Lager" : `verbunden · ${e.ha?.todo || ""}`) : "keine Verbindung";
+  if (n === "bambu") { const n2 = (S.ams.drucker || []).filter((d) => (e.drucker || []).includes(d.id)).length; return `${n2} Drucker über ${serverName()}`; }
   if (n === "etikett") {
     if (!S.et) return "wird geladen …";
     const f = (Etikett.FORMATE[S.et.format] || {}).name || "";
@@ -1061,15 +1065,17 @@ function einst() {
           <button class="knopf primaer" style="height:42px;padding:0 16px;font-size:14px" id="e-wlan-ok">Verbinden</button></div>` : ""}`).join("")}</div>`;
   } else if (S.eSeite === "ha") {
     const ha = e.ha || {};
-    h = `<div class="e-zeile"><span class="e-titel wachsen">Home Assistant</span>${pill(z.ha_ok, z.ha_ok ? "verbunden" : "keine Verbindung")}</div>
-      <div class="feld"><label for="e-ha-url">Adresse</label><input id="e-ha-url" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(ha.url || "")}"></div>
-      <div class="feld"><label for="e-ha-todo">Filamentliste</label><input id="e-ha-todo" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(ha.todo || "todo.filament")}"></div>
-      <div class="feld"><label for="e-ha-token">Zugriffstoken</label><input id="e-ha-token" data-tastatur="frei" inputmode="none" autocomplete="off" placeholder="${ha.token_gesetzt ? `gespeichert · endet auf …${esc(ha.token_ende || "")}` : "noch kein Token"}"></div>
+    const sl = istSL();
+    h = `<div class="e-zeile"><span class="e-titel wachsen">${serverName()}</span>${pill(z.ha_ok, z.ha_ok ? "verbunden" : "keine Verbindung")}</div>
+      <div class="feld"><label for="e-ha-url">Adresse</label><input id="e-ha-url" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(ha.url || "")}" placeholder="http://192.168.1.66:8093"></div>
+      <div class="feld${sl ? " versteckt" : ""}"><label for="e-ha-todo">Filamentliste</label><input id="e-ha-todo" data-tastatur="frei" inputmode="none" autocomplete="off" value="${esc(ha.todo || "todo.filament")}"></div>
+      <div class="feld"><label for="e-ha-token">${sl ? "Schlüssel" : "Zugriffstoken"}</label><input id="e-ha-token" data-tastatur="frei" inputmode="none" autocomplete="off" placeholder="${ha.token_gesetzt ? `gespeichert · endet auf …${esc(ha.token_ende || "")}` : sl ? "beliebig, außer im Server ist einer gesetzt" : "noch kein Token"}"></div>
       <div class="e-zeile">
         <button class="knopf rahmen h50 wachsen" id="e-ha-test">Verbindung testen</button>
         <button class="knopf primaer h50 wachsen" id="e-ha-ok" style="font-size:15px">Speichern</button></div>
-      <button class="knopf rahmen h50" id="e-qr">Token am Handy eingeben</button>
-      <span class="hinweis">Ein Token ist über 180 Zeichen lang. Am bequemsten fügst du es am Handy ein: Code scannen, Token einfügen, fertig.</span>`;
+      ${sl ? `<span class="hinweis">Lager, Drucker und AMS kommen vom SchichtLohn-Server. Die Werte der Waage reicht er an Home Assistant weiter.</span>`
+        : `<button class="knopf rahmen h50" id="e-qr">Token am Handy eingeben</button>
+      <span class="hinweis">Ein Token ist über 180 Zeichen lang. Am bequemsten fügst du es am Handy ein: Code scannen, Token einfügen, fertig. Mit dem SchichtLohn-Server: Adresse http://&lt;Server&gt;:8093, Token beliebig.</span>`}`;
   } else if (S.eSeite === "bambu") {
     const dr = S.ams.drucker || [];
     if (!S.amsDrucker && dr.length) S.amsDrucker = (dr.find((d) => (e.drucker || []).includes(d.id)) || dr[0]).id;
