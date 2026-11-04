@@ -568,7 +568,7 @@ bool nfc_leser_bereit(int seite) { return seite == 0 ? g_nfc_l.bereit() : g_nfc_
 const char* vorgang_starten(bool kal, int gramm, Stream* s) {
     if (g_vorgang != Vorgang::KEINER) return "beschäftigt";
     if (kal) {
-        if (gramm < 50) return "Kalibriergewicht fehlt";
+        if (gramm < 20) return "Kalibriergewicht fehlt (mindestens 20 g)";
         g_kal_gramm = gramm;
         g_vorgang = Vorgang::KAL;
     } else {

@@ -240,8 +240,8 @@ class SensorGpio(Sensor):
             self._vorgang = ("tara", 0, [])
 
     def kalibrieren(self, gramm):
-        if gramm < 50:
-            self.rueckmeldung(False, "Kalibriergewicht fehlt")
+        if gramm < 20:
+            self.rueckmeldung(False, "Kalibriergewicht fehlt (mindestens 20 g)")
             return
         with self._lock:
             self._vorgang = ("kal", int(gramm), [])

@@ -1120,11 +1120,17 @@ function einst() {
     h = `<span class="e-titel">Waage</span>
       <div class="e-block"><span class="ueber">Tara und Kalibrieren</span>
         <span class="hinweis">Teller leer machen und Tara drücken. Dann das Kalibriergewicht auflegen und Kalibrieren drücken.</span>
-        <div class="e-zeile"><button class="knopf rahmen h50 wachsen" id="e-tara">Tara</button>
-          <button class="knopf rahmen quadrat" data-kal="-100" aria-label="100 g weniger">−</button>
-          <span class="name20" style="width:86px;text-align:center" id="kal-wert">${gramm(S.kalG)}</span>
-          <button class="knopf rahmen quadrat" data-kal="100" aria-label="100 g mehr">+</button></div>
-        <button class="knopf primaer h54" id="e-kal">Kalibrieren</button></div>
+        <div class="e-zeile">
+          <button class="knopf rahmen quadrat" style="font-size:15px" data-kal="-100" aria-label="100 g weniger">−100</button>
+          <button class="knopf rahmen quadrat" style="font-size:15px" data-kal="-5" aria-label="5 g weniger">−5</button>
+          <div class="feld wachsen" style="margin:0;min-width:0"><input id="kal-wert" data-tastatur="frei" inputmode="numeric" autocomplete="off"
+            style="text-align:center;width:100%;min-width:0" value="${S.kalG}" aria-label="Kalibriergewicht in Gramm"></div>
+          <span class="sub14">g</span>
+          <button class="knopf rahmen quadrat" style="font-size:15px" data-kal="5" aria-label="5 g mehr">+5</button>
+          <button class="knopf rahmen quadrat" style="font-size:15px" data-kal="100" aria-label="100 g mehr">+100</button></div>
+        <span class="hinweis">In 5-g-Schritten oder genau eintippen, ab 20 g. Je schwerer das Gewicht, desto genauer die Waage.</span>
+        <div class="e-zeile"><button class="knopf rahmen h54 wachsen" id="e-tara">Tara</button>
+          <button class="knopf primaer h54 wachsen" id="e-kal">Kalibrieren</button></div></div>
       <div class="e-block"><span class="ueber">Leere Spule</span>
         <div class="e-zeile"><span class="e-name">Gewicht, wenn die Sorte keinen eigenen Wert hat</span>
           <button class="knopf rahmen quadrat" data-leer="-5" aria-label="5 g weniger">−</button><span class="e-wert" style="width:64px;text-align:center">${gramm(e.leerspule_g)}</span>
@@ -1188,7 +1194,7 @@ $("e-inhalt").onclick = async (e) => {
     return einstSetzen({ [d.schalter]: !S.e[d.schalter] });
   }
   if (d.drucker) { S.amsDrucker = d.drucker; return einst(); }
-  if (d.kal) { S.kalG = Math.max(100, Math.min(5000, S.kalG + Number(d.kal))); $("kal-wert").textContent = gramm(S.kalG); return; }
+  if (d.kal) { kalWert(); S.kalG = Math.max(20, Math.min(5000, S.kalG + Number(d.kal))); $("kal-wert").value = S.kalG; return; }
   if (d.leer) return einstSetzen({ leerspule_g: Math.max(0, Math.min(1000, S.e.leerspule_g + Number(d.leer))) });
   if (d.ssid !== undefined && b.classList.contains("netz")) { S.wlanWahl = S.wlanWahl === d.ssid ? "" : d.ssid; einst(); $("e-wlan-pw")?.focus(); return; }
   if (d.system) {
@@ -1201,7 +1207,7 @@ $("e-inhalt").onclick = async (e) => {
   }
   switch (b.id) {
     case "e-tara": return post("/api/tara");
-    case "e-kal": return post("/api/kalibrieren", { g: S.kalG });
+    case "e-kal": kalWert(); $("kal-wert").value = S.kalG; return post("/api/kalibrieren", { g: S.kalG });
     case "e-scan": return wlanSuchen();
     case "e-wlan-ok": {
       tastatur(false);
@@ -1274,6 +1280,12 @@ function farbAbstand(a, b) {
   return x.reduce((s, v, i) => s + (v - y[i]) ** 2, 0);
 }
 // Farbe vom Bambu-Tag („RRGGBBAA“) als #RRGGBB
+// Kalibriergewicht aus dem Eingabefeld übernehmen (eingetippt oder per Knopf), 20–5000 g
+function kalWert() {
+  const f = $("kal-wert");
+  const g = f ? parseInt(String(f.value).replace(/[^0-9]/g, ""), 10) : NaN;
+  if (g > 0) S.kalG = Math.max(20, Math.min(5000, g));
+}
 function bambuHex(b) { return "#" + String(b.farbe || "808080").slice(0, 6).toLowerCase(); }
 function vorschlagFuerSlot(sl) {
   if (!sl || !sl.filament_id) return null;
