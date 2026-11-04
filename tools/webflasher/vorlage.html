@@ -210,9 +210,22 @@ $('ssid').oninput = $('pw').oninput = () => { if ($('meldung').className==='fehl
 
 // Chrome setzt beim Öffnen DTR und RTS – beim ESP32-S3 (USB-JTAG) hält RTS den Chip im Reset.
 // Beide zugleich loslassen: Die Waage startet normal und antwortet nach etwa zwei Sekunden.
+// Boards mit USB-Seriell-Chip (CH343, CP2102 … – z. B. Waveshare ESP32-S3-DEV-KIT): Beim Öffnen zieht die
+// Reset-Schaltung GPIO0 kurz auf Masse, der Chip bleibt dann in „waiting for download“. Darum einmal sauber
+// neu starten: RTS kurz an (EN auf Masse), DTR aus (GPIO0 bleibt oben) – die Firmware startet normal.
 async function freigeben(port){
   try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) { log('Steuerleitungen: ' + e.message); }
-  await sleep(2000);
+  const info = (port.getInfo && port.getInfo()) || {};
+  if (info.usbVendorId && info.usbVendorId !== 0x303a) {
+    try {
+      await sleep(50);
+      await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await sleep(120);
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      log('Neustart über den USB-Seriell-Chip');
+    } catch (e) { log('Neustart: ' + e.message); }
+  }
+  await sleep(2500);
 }
 
 // ---------- serielle Zeilen zur Firmware (JSON-Protokoll, docs/PROTOKOLL.md)
