@@ -213,18 +213,15 @@ $('ssid').oninput = $('pw').oninput = () => { if ($('meldung').className==='fehl
 // Boards mit USB-Seriell-Chip (CH343, CP2102 … – z. B. Waveshare ESP32-S3-DEV-KIT): Beim Öffnen zieht die
 // Reset-Schaltung GPIO0 kurz auf Masse, der Chip bleibt dann in „waiting for download“. Darum einmal sauber
 // neu starten: RTS kurz an (EN auf Masse), DTR aus (GPIO0 bleibt oben) – die Firmware startet normal.
+// Gilt auch für den eingebauten USB des S3 (USB-JTAG): Beide Leitungen auf einmal loslassen (1,1 → 0,0) startet ihn
+// ebenfalls in den Download-Modus. Darum wie esptool beim „hard reset“: erst DTR aus und RTS halten (Reset mit
+// GPIO0 oben), dann RTS los – die Firmware startet normal.
 async function freigeben(port){
-  try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) { log('Steuerleitungen: ' + e.message); }
-  const info = (port.getInfo && port.getInfo()) || {};
-  if (info.usbVendorId && info.usbVendorId !== 0x303a) {
-    try {
-      await sleep(50);
-      await port.setSignals({ dataTerminalReady: false, requestToSend: true });
-      await sleep(120);
-      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-      log('Neustart über den USB-Seriell-Chip');
-    } catch (e) { log('Neustart: ' + e.message); }
-  }
+  try {
+    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+    await sleep(120);
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+  } catch (e) { log('Steuerleitungen: ' + e.message); }
   await sleep(2500);
 }
 
