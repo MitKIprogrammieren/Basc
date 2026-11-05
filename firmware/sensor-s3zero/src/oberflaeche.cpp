@@ -293,6 +293,31 @@ static String anzeige(const char* teil) {
     return t + " " + teil;
 }
 
+// Zuletzt gemeldetes Gewicht: ändert es sich (Spule auf- oder abgelegt), meldet die Waage sofort, nicht erst nach einer Minute
+float g_gewicht_gemeldet = -1000;
+uint32_t g_gewicht_gemeldet_um = 0;
+
+void gewicht_nach_ha(const Messwert& m) {
+    if (WiFi.status() != WL_CONNECTED || !m.hx711_ok || !m.kalibriert) return;
+    HaClient ha;
+    std::string fehler;
+    if (!client_fuer(ha_cfg(), ha, fehler)) return;
+    float g = m.gramm < 0 ? 0.0f : m.gramm;
+    JsonDocument d;
+    d["state"] = roundf(g * 10) / 10;
+    d["attributes"]["friendly_name"] = anzeige("Gewicht").c_str();
+    d["attributes"]["unit_of_measurement"] = "g";
+    d["attributes"]["state_class"] = "measurement";
+    d["attributes"]["device_class"] = "weight";
+    d["attributes"]["icon"] = "mdi:scale";
+    std::string body;
+    serializeJson(d, body);
+    if (ha.zustand_setzen(ent("gewicht").c_str(), body, fehler)) {
+        g_gewicht_gemeldet = g;
+        g_gewicht_gemeldet_um = millis();
+    }
+}
+
 void waage_nach_ha() {
     if (WiFi.status() != WL_CONNECTED) return;
     HaClient ha;
@@ -371,8 +396,11 @@ void waage_nach_ha() {
     }
     {  // Gewicht auf der Waage (brutto, mit Spule) – Schichtlohn zeigt es im Lager an
         Messwert m = messwert();
-        if (m.hx711_ok && m.kalibriert)
+        if (m.hx711_ok && m.kalibriert) {
             wert(ent("gewicht"), anzeige("Gewicht"), m.gramm < 0 ? 0.0f : m.gramm, "g", "weight", "mdi:scale");
+            g_gewicht_gemeldet = m.gramm < 0 ? 0.0f : m.gramm;
+            g_gewicht_gemeldet_um = millis();
+        }
     }
     wert(ent("temperatur"), anzeige("Temperatur"), temperatureRead(), "°C", "temperature", nullptr);
     wert(ent("wlan"), anzeige("WLAN"), WiFi.RSSI(), "dBm", "signal_strength", nullptr);
@@ -515,8 +543,17 @@ void arbeiter(void*) {
     for (;;) {
         Auftrag* a = nullptr;
         uint32_t jetzt = millis();
-        TickType_t warte = naechstes_laden > jetzt ? pdMS_TO_TICKS(naechstes_laden - jetzt) : 0;
+        // höchstens 2 s warten: dazwischen schauen, ob sich das Gewicht geändert hat
+        uint32_t bis = naechstes_laden > jetzt ? naechstes_laden - jetzt : 0;
+        TickType_t warte = pdMS_TO_TICKS(bis < 2000 ? bis : 2000);
         if (xQueueReceive(g_auftraege, &a, warte) != pdTRUE) {
+            if ((int32_t)(millis() - naechstes_laden) < 0) {
+                Messwert m = messwert();
+                float g = m.gramm < 0 ? 0.0f : m.gramm;
+                if (m.stabil && fabsf(g - g_gewicht_gemeldet) >= 3.0f && millis() - g_gewicht_gemeldet_um >= 3000)
+                    gewicht_nach_ha(m);
+                continue;
+            }
             a = new Auftrag{Art::LADEN, "", "", 1, {}};  // zahl = 1: regelmäßiges Laden
         }
         std::string text, fehler;
