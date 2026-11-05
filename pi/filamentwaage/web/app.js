@@ -840,6 +840,9 @@ function detail() {
         <div class="info-zeile mitte"><span>Lagerort</span>${S.ortBearbeiten === s.uid
           ? `<span class="reihe gap6 mitte wachsen" style="justify-content:flex-end"><input id="d-ort" class="et-eigene klein" data-tastatur="frei" maxlength="40" placeholder="z. B. Regal 2 oben" value="${esc(s.ort || "")}" aria-label="Lagerort"><button class="mini-knopf" id="d-ort-ok">OK</button></span>`
           : `<span class="reihe gap8 mitte">${esc(s.ort || "–")}<button class="mini-knopf" id="d-ort-an">Ändern</button></span>`}</div>
+        <div class="info-zeile mitte"><span>Leere Spule</span><span class="reihe gap8 mitte">${s.leer_g > 0 ? gramm(s.leer_g) : `${gramm(leerFuer(s, null, S.z || {}))} <span class="sub14">Standard</span>`}
+          ${s.leer_g > 0 ? '<button class="mini-knopf" id="d-leer-weg">Standard</button>' : ""}
+          <button class="mini-knopf" id="d-leer" title="Leere Spule auflegen, dann tippen">Jetzt wiegen</button></span></div>
         ${zeile("Reste", s.reste.map(gramm).join(", "))}${zeile("Bambu-ID", s.bambu_id)}${zeile("Farbcode", s.fcode)}
         ${zeile("EAN", s.codes[0])}${zeile("NFC-Tags", s.nfc.length ? `${s.nfc.length} zugeordnet` : "")}</div>
       <button class="knopf rahmen h50" id="d-etikett">${icon("etikett")}Etikett drucken</button>
@@ -857,6 +860,11 @@ function detail() {
     $("d-ort").onkeydown = (e) => { if (e.key === "Enter") $("d-ort-ok").click(); };
   }
   $("d-wiegen").onclick = () => { S.auswahlUid = s.uid; zeige("wiegen"); };
+  $("d-leer").onclick = () => {
+    if (!leerWiegbar()) return meldung("Leere Spule auflegen und warten, bis die Waage ruhig ist", true);
+    post("/api/feld", { sorte: s.uid, feld: "leer_g", wert: String(Math.round(S.z.brutto_g)) });
+  };
+  if ($("d-leer-weg")) $("d-leer-weg").onclick = () => post("/api/feld", { sorte: s.uid, feld: "leer_g", wert: "" });
   $("d-etikett").onclick = () => {
     const a = S.aktiv;
     etikettOeffnen(s, a.sorte && a.sorte.uid === s.uid && a.da && S.z && S.z.stabil ? a.netto : 0);
@@ -1296,6 +1304,8 @@ function kalWert() {
   const g = f ? parseInt(String(f.value).replace(/[^0-9]/g, ""), 10) : NaN;
   if (g > 0) S.kalG = Math.max(20, Math.min(5000, g));
 }
+// „Leere Spule wiegen“: nur bei ruhiger Waage und einem Gewicht, das nach leerer Spule aussieht (20–600 g)
+function leerWiegbar() { const z = S.z; return !!(z && z.stabil && z.kalibriert && z.brutto_g >= 20 && z.brutto_g <= 600); }
 // Gewicht der leeren Spule: eigener Wert der Sorte, sonst bei Bambu-Lab-Spulen der Bambu-Wert
 // (Hochtemperatur-Materialien kommen auf der leichteren grauen Spule), sonst der allgemeine Standard.
 // Werte gewogen von Nutzern im Bambu-Forum: Mehrwegspule ca. 250 g, graue HT-Spule ca. 216 g.

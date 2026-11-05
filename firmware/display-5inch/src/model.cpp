@@ -316,6 +316,24 @@ Aenderung spulen_aendern(const std::string& beschreibung, int delta) {
 
 Aenderung feld_setzen(const std::string& beschreibung, const std::string& feld, const std::string& wert) {
     Aenderung a;
+    if (feld == "leer_g") {  // Gewicht der leeren Spule, auf der Waage gewogen ("" = wieder Standard)
+        JsonDocument doc;
+        if (!lesen(beschreibung, doc)) { a.meldung = "Eintrag nicht lesbar"; return a; }
+        if (wert.empty()) {
+            if (doc["leer_g"].isNull()) { a.meldung = "Unverändert"; return a; }
+            doc.remove("leer_g");
+            a.meldung = "Leerspule: wieder Standardwert";
+        } else {
+            int g = atoi(wert.c_str());
+            if (g < 20 || g > 1500) { a.meldung = "Leerspule: Gewicht ungültig"; return a; }
+            if (als_int(doc["leer_g"], -1) == g) { a.meldung = "Unverändert"; return a; }
+            doc["leer_g"] = g;
+            a.meldung = "Leerspule gespeichert: " + std::to_string(g) + " g";
+        }
+        a.geaendert = true;
+        a.beschreibung = schreiben(doc);
+        return a;
+    }
     if (feld != "ort" && feld != "getrocknet") { a.meldung = "Unbekanntes Feld"; return a; }
     if (wert.size() > 60) { a.meldung = "Text zu lang"; return a; }
     if (feld == "getrocknet" && !wert.empty()) {
