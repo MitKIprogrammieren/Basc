@@ -369,7 +369,6 @@ void vorgang_weiter(long roh) {
 // ---------------------------------------------------------------- Nullpunkt-Nachführung
 // Wägezellen driften über Stunden (Temperatur, Kriechen). Liegt nichts auf – ruhig, wenige Gramm, kein NFC-Tag –,
 // zieht die Waage den Nullpunkt langsam nach. Eine Spule wiegt weit mehr als NULL_BAND_G und wird nie „weggenullt“.
-volatile bool g_null_auto = true;  // Einstellung „Nullpunkt automatisch nachführen“ (oberflaeche.cpp)
 constexpr float NULL_BAND_G = 25.0f;        // nur so nah an 0 wird nachgeführt
 constexpr uint32_t NULL_WARTE_MS = 20000;   // so lange muss die Waage ruhig und leer sein
 constexpr float NULL_ANTEIL = 0.02f;        // je Messung (10/s) dieser Anteil der Abweichung
@@ -408,7 +407,6 @@ void nullpunkt_nachfuehren() {
 // ---------------------------------------------------------------- Name der Waage
 // Mehrere Waagen im selben Netz: jede bekommt einen eigenen Namen (name.local, Setup-WLAN, Sensoren in Home Assistant).
 String g_name = WLAN_HOSTNAME;
-const String& waage_name() { return g_name; }
 static bool name_gueltig(const String& n) {
     if (n.length() < 2 || n.length() > 24 || n[0] == '-' || n[n.length() - 1] == '-') return false;
     for (char c : n)
@@ -422,7 +420,7 @@ static void name_laden() {
     p.end();
     g_name = name_gueltig(n) ? n : String(WLAN_HOSTNAME);
 }
-bool waage_name_setzen(String n) {
+bool name_setzen_intern(String n) {
     n.trim();
     n.toLowerCase();
     n.replace(' ', '-');
@@ -581,6 +579,11 @@ void led() {
 }
 
 }  // namespace
+
+// ---------------------------------------------------------------- für die Oberfläche (sensor.h): Name und Nullpunkt
+volatile bool g_null_auto = true;  // Einstellung „Nullpunkt automatisch nachführen“
+const String& waage_name() { return g_name; }
+bool waage_name_setzen(String n) { return name_setzen_intern(n); }
 
 // ---------------------------------------------------------------- Startprotokoll
 // Überlebt Neustarts (nicht das Abschalten): welcher Startschritt zuletzt lief und wie oft die Waage
