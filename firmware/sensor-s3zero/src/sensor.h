@@ -15,6 +15,11 @@ struct Messwert {
 
 Messwert messwert();
 bool nfc_leser_bereit(int seite);  // 0 = links, 1 = rechts
+// Nullpunkt automatisch nachführen, solange nichts aufliegt (Einstellung, Standard an)
+extern volatile bool g_null_auto;
+// Name der Waage im Netz (Standard „filamentwaage“) – wird nach einem Neustart wirksam
+const String& waage_name();
+bool waage_name_setzen(String n);  // false bei ungültigem Namen (a–z, 0–9, -, 2–24 Zeichen)
 
 // Tara (kal = false) oder Kalibrieren mit gramm. Rückgabe: Fehlertext oder nullptr.
 // antwort_an = nullptr, wenn die Oberfläche den Vorgang startet.

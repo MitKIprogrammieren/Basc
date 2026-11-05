@@ -88,6 +88,8 @@ void einst_standard(JsonDocument& e) {
     if (!e["nfc_stufe"].is<int>()) e["nfc_stufe"] = 3;
     if (!e["drucker"].is<JsonArray>()) e["drucker"].to<JsonArray>();
     if (!e["ams_suche"].is<bool>()) e["ams_suche"] = false;
+    if (!e["nullpunkt_auto"].is<bool>()) e["nullpunkt_auto"] = true;
+    g_null_auto = e["nullpunkt_auto"].as<bool>();
     e["abbuchung_aktiv"] = false;
 }
 
@@ -132,6 +134,7 @@ void einst_json(JsonDocument& d) {
     ha["token_gesetzt"] = g_ha.token.length() > 0;
     ha["token_ende"] = g_ha.token.length() > 4 ? g_ha.token.substring(g_ha.token.length() - 4) : String("");
     d["einrichten_url"] = "http://" + ip_text() + "/";
+    d["name"] = waage_name();
     d["update"] = true;  // Oberfläche zeigt „Update einspielen“
 }
 
@@ -267,22 +270,43 @@ bool aendern(const std::string& uid, const std::function<Aenderung(const std::st
 // Holt den Status der Druckbrücke und meldet ihn als Sensoren an Home Assistant (ohne YAML).
 // Die Sensoren entstehen über die REST-API; nach einem HA-Neustart sind sie nach spätestens einer Minute wieder da.
 // Systemwerte der Waage selbst (ESP32) als Sensoren in Home Assistant
+// Entitäten in Home Assistant: sensor.<name>_gewicht … – bei mehreren Waagen je Waage eigene
+static String ent(const char* teil) {
+    String n = waage_name();
+    n.replace('-', '_');
+    return "sensor." + n + "_" + teil;
+}
+static String anzeige(const char* teil) {
+    // „filamentwaage“ → „Waage“, „waage2“ → „Waage 2“, sonst der Name mit großem Anfangsbuchstaben
+    const String& n = waage_name();
+    String t;
+    if (n == WLAN_HOSTNAME) t = "Waage";
+    else if (n.startsWith("waage") && n.length() > 5) {
+        String rest = n.substring(n[5] == '-' ? 6 : 5);
+        bool zahl = rest.length() > 0;
+        for (char c : rest) zahl = zahl && isdigit((unsigned char)c);
+        t = zahl ? "Waage " + rest : n;
+    } else t = n;
+    if (t.length()) t.setCharAt(0, toupper((unsigned char)t[0]));
+    return t + " " + teil;
+}
+
 void waage_nach_ha() {
     if (WiFi.status() != WL_CONNECTED) return;
     HaClient ha;
     std::string fehler;
     if (!client_fuer(ha_cfg(), ha, fehler)) return;
-    auto wert = [&](const char* entity, const char* name, float w, const char* einheit, const char* klasse, const char* icon) {
+    auto wert = [&](const String& entity, const String& name, float w, const char* einheit, const char* klasse, const char* icon) {
         JsonDocument d;
         d["state"] = roundf(w * 10) / 10;
-        d["attributes"]["friendly_name"] = name;
+        d["attributes"]["friendly_name"] = name.c_str();
         d["attributes"]["unit_of_measurement"] = einheit;
         d["attributes"]["state_class"] = "measurement";
         if (klasse) d["attributes"]["device_class"] = klasse;
         if (icon) d["attributes"]["icon"] = icon;
         std::string body;
         serializeJson(d, body);
-        ha.zustand_setzen(entity, body, fehler);
+        ha.zustand_setzen(entity.c_str(), body, fehler);
     };
     // einmal nach jedem Start: Ereignis mit dem Grund – Home Assistant meldet Abstürze aufs Handy
     static bool start_gemeldet = false;
@@ -296,6 +320,7 @@ void waage_nach_ha() {
         e["absturz"] = g == ESP_RST_PANIC || g == ESP_RST_INT_WDT || g == ESP_RST_TASK_WDT || g == ESP_RST_WDT ||
                        g == ESP_RST_BROWNOUT;
         e["version"] = FW_VERSION;
+        e["name"] = waage_name().c_str();
         std::string body;
         serializeJson(e, body);
         start_gemeldet = ha.ereignis_senden("filamentwaage_neustart", body, fehler);
@@ -345,25 +370,26 @@ void waage_nach_ha() {
     {  // Gewicht auf der Waage (brutto, mit Spule) – Schichtlohn zeigt es im Lager an
         Messwert m = messwert();
         if (m.hx711_ok && m.kalibriert)
-            wert("sensor.filamentwaage_gewicht", "Waage Gewicht", m.gramm < 0 ? 0.0f : m.gramm, "g", "weight", "mdi:scale");
+            wert(ent("gewicht"), anzeige("Gewicht"), m.gramm < 0 ? 0.0f : m.gramm, "g", "weight", "mdi:scale");
     }
-    wert("sensor.filamentwaage_temperatur", "Waage Temperatur", temperatureRead(), "°C", "temperature", nullptr);
-    wert("sensor.filamentwaage_wlan", "Waage WLAN", WiFi.RSSI(), "dBm", "signal_strength", nullptr);
+    wert(ent("temperatur"), anzeige("Temperatur"), temperatureRead(), "°C", "temperature", nullptr);
+    wert(ent("wlan"), anzeige("WLAN"), WiFi.RSSI(), "dBm", "signal_strength", nullptr);
     uint32_t ig = heap_caps_get_total_size(MALLOC_CAP_INTERNAL), ifr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-    if (ig) wert("sensor.filamentwaage_arbeitsspeicher", "Waage Arbeitsspeicher belegt", 100.0f - ifr * 100.0f / ig, "%", nullptr, "mdi:memory");
+    if (ig) wert(ent("arbeitsspeicher"), anzeige("Arbeitsspeicher belegt"), 100.0f - ifr * 100.0f / ig, "%", nullptr, "mdi:memory");
     if (ESP.getPsramSize())
-        wert("sensor.filamentwaage_psram", "Waage PSRAM belegt", 100.0f - ESP.getFreePsram() * 100.0f / ESP.getPsramSize(), "%", nullptr, "mdi:memory");
+        wert(ent("psram"), anzeige("PSRAM belegt"), 100.0f - ESP.getFreePsram() * 100.0f / ESP.getPsramSize(), "%", nullptr, "mdi:memory");
     {
         JsonDocument d;
         d["state"] = (long)(millis() / 3600000UL);
-        d["attributes"]["friendly_name"] = "Waage läuft seit";
+        d["attributes"]["friendly_name"] = anzeige("läuft seit").c_str();
         d["attributes"]["unit_of_measurement"] = "h";
         d["attributes"]["icon"] = "mdi:timer-outline";
         d["attributes"]["version"] = FW_VERSION;
         d["attributes"]["ip"] = WiFi.localIP().toString();
+        d["attributes"]["waage"] = waage_name().c_str();  // daran erkennt SchichtLohn die Waagen
         std::string body;
         serializeJson(d, body);
-        ha.zustand_setzen("sensor.filamentwaage_laufzeit", body, fehler);
+        ha.zustand_setzen(ent("laufzeit").c_str(), body, fehler);
     }
 }
 
@@ -1141,7 +1167,7 @@ void routen() {
         {
             std::lock_guard<std::mutex> l(g_mx);
             static const char* const ERLAUBT[] = {"akzent", "helligkeit", "display_aus_min", "kompakt",
-                                                   "leerspule_g", "nfc_stufe", "drucker", "ams_suche"};
+                                                   "leerspule_g", "nfc_stufe", "drucker", "ams_suche", "nullpunkt_auto"};
             for (const char* k : ERLAUBT)
                 if (!o[k].isNull()) g_einst[k] = o[k];
             einst_standard(g_einst);
@@ -1202,6 +1228,14 @@ void routen() {
             }
             alles_zuruecksetzen();
             g_neustart_um = millis() + 800;
+        } else if (aktion == "name") {
+            String n = o["name"] | "";
+            if (waage_name_setzen(n)) {
+                meldung("Name gespeichert – Waage startet neu …");
+                g_neustart_um = millis() + 800;
+            } else {
+                meldung("Name ungültig: nur a–z, 0–9 und -, 2 bis 24 Zeichen", true);
+            }
         } else if (aktion == "update") {
             meldung("Neue Version: FilamentLager-Webflasher.html unter „Update einspielen“ wählen");
         }

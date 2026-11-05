@@ -1135,6 +1135,7 @@ function einst() {
         <div class="e-zeile"><span class="e-name">Gewicht, wenn die Sorte keinen eigenen Wert hat</span>
           <button class="knopf rahmen quadrat" data-leer="-5" aria-label="5 g weniger">−</button><span class="e-wert" style="width:64px;text-align:center">${gramm(e.leerspule_g)}</span>
           <button class="knopf rahmen quadrat" data-leer="5" aria-label="5 g mehr">+</button></div></div>
+      ${e.nullpunkt_auto !== undefined ? `<div class="e-block"><div class="e-zeile"><span class="e-name"><b>Nullpunkt automatisch nachführen</b><br><span class="sub14">Liegt nichts auf (unter 25 g, kein Tag), hält die Waage die Anzeige bei 0 – gegen langsames Wegdriften über Stunden.</span></span>${schalter(e.nullpunkt_auto, "nullpunkt_auto")}</div></div>` : ""}
       <div class="e-block"><span class="ueber">Empfindlichkeit der NFC-Leser</span>${seg("nfc_stufe", e.nfc_stufe, [[1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"]])}
         <span class="hinweis">Höher liest Tags aus größerem Abstand. Liest ein Leser den Tag des anderen, eine Stufe herunter.</span></div>`;
   } else {
@@ -1145,6 +1146,11 @@ function einst() {
         <div class="info-zeile"><span>Sensor</span><span>${z.sensor_ok ? "verbunden" : "antwortet nicht"}</span></div>
         <div class="info-zeile"><span>Sorten im Lager</span><span>${S.sorten.length}</span></div>
         <div class="info-zeile"><span>IP-Adresse</span><span>${esc(z.ip || "–")}</span></div></div>
+      ${e.name !== undefined ? `<div class="e-block"><span class="ueber">Name im Netzwerk</span>
+        <div class="e-zeile"><div class="feld wachsen" style="margin:0;min-width:0"><input id="e-name" data-tastatur="frei" autocomplete="off" autocapitalize="off"
+          style="width:100%;min-width:0" value="${esc(e.name)}" aria-label="Name der Waage"></div>
+          <button class="knopf primaer h50" id="e-name-ok" style="padding:0 18px;font-size:15px">Speichern</button></div>
+        <span class="hinweis">Für eine zweite Waage einen eigenen Namen, z. B. „waage2“: erreichbar unter ${esc(e.name)}.local, eigenes Setup-WLAN und eigene Sensoren in Home Assistant. Speichern startet die Waage neu.</span></div>` : ""}
       ${e.update ? `<button class="knopf primaer h50" data-system="einspielen">Update einspielen …</button>
         <input type="file" id="e-update" hidden>
         <span class="hinweis">Datei FilamentLager-Webflasher.html wählen – die Waage nimmt sich Firmware und Oberfläche daraus und startet neu. Kalibrierung, WLAN und Einstellungen bleiben.</span>
@@ -1207,6 +1213,7 @@ $("e-inhalt").onclick = async (e) => {
   }
   switch (b.id) {
     case "e-tara": return post("/api/tara");
+    case "e-name-ok": return post("/api/system", { aktion: "name", name: $("e-name").value.trim() });
     case "e-kal": kalWert(); $("kal-wert").value = S.kalG; return post("/api/kalibrieren", { g: S.kalG });
     case "e-scan": return wlanSuchen();
     case "e-wlan-ok": {

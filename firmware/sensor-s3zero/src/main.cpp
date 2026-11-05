@@ -366,11 +366,80 @@ void vorgang_weiter(long roh) {
     g_vorgang = Vorgang::KEINER;
 }
 
+// ---------------------------------------------------------------- Nullpunkt-Nachführung
+// Wägezellen driften über Stunden (Temperatur, Kriechen). Liegt nichts auf – ruhig, wenige Gramm, kein NFC-Tag –,
+// zieht die Waage den Nullpunkt langsam nach. Eine Spule wiegt weit mehr als NULL_BAND_G und wird nie „weggenullt“.
+volatile bool g_null_auto = true;  // Einstellung „Nullpunkt automatisch nachführen“ (oberflaeche.cpp)
+constexpr float NULL_BAND_G = 25.0f;        // nur so nah an 0 wird nachgeführt
+constexpr uint32_t NULL_WARTE_MS = 20000;   // so lange muss die Waage ruhig und leer sein
+constexpr float NULL_ANTEIL = 0.02f;        // je Messung (10/s) dieser Anteil der Abweichung
+uint32_t g_null_seit = 0;
+bool g_null_geaendert = false;
+uint32_t g_null_gespeichert = 0;
+
+void nullpunkt_nachfuehren() {
+    bool tag;
+    {
+        std::lock_guard<std::mutex> l(g_nfc_mx);
+        tag = g_tag[0].length() || g_tag[1].length();
+    }
+    if (!g_null_auto || g_faktor == 0 || g_vorgang != Vorgang::KEINER || !g_stabil || tag || fabsf(g_gramm) >= NULL_BAND_G) {
+        g_null_seit = 0;
+    } else if (!g_null_seit) {
+        g_null_seit = millis();
+    } else if (millis() - g_null_seit >= NULL_WARTE_MS && fabsf(g_gramm) > 0.05f) {
+        float roh_abw = g_gramm * g_faktor * NULL_ANTEIL;  // Abweichung in Rohwerten (Vorzeichen passt zum Faktor)
+        long schritt = lroundf(roh_abw);
+        if (schritt == 0) schritt = roh_abw > 0 ? 1 : -1;
+        g_offset += schritt;
+        float d = schritt / g_faktor;
+        g_gramm -= d;
+        for (int i = 0; i < g_verlauf_anzahl; i++) g_verlauf[i] -= d;
+        g_null_geaendert = true;
+    }
+    // nicht bei jedem Schritt in den Flash schreiben: höchstens alle 30 Minuten
+    if (g_null_geaendert && millis() - g_null_gespeichert >= 30UL * 60 * 1000) {
+        g_null_gespeichert = millis();
+        g_null_geaendert = false;
+        kal_speichern();
+    }
+}
+
+// ---------------------------------------------------------------- Name der Waage
+// Mehrere Waagen im selben Netz: jede bekommt einen eigenen Namen (name.local, Setup-WLAN, Sensoren in Home Assistant).
+String g_name = WLAN_HOSTNAME;
+const String& waage_name() { return g_name; }
+static bool name_gueltig(const String& n) {
+    if (n.length() < 2 || n.length() > 24 || n[0] == '-' || n[n.length() - 1] == '-') return false;
+    for (char c : n)
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) return false;
+    return true;
+}
+static void name_laden() {
+    Preferences p;
+    p.begin("geraet", true);
+    String n = p.getString("name", WLAN_HOSTNAME);
+    p.end();
+    g_name = name_gueltig(n) ? n : String(WLAN_HOSTNAME);
+}
+bool waage_name_setzen(String n) {
+    n.trim();
+    n.toLowerCase();
+    n.replace(' ', '-');
+    if (!name_gueltig(n)) return false;
+    Preferences p;
+    p.begin("geraet", false);
+    p.putString("name", n);
+    p.end();
+    return true;
+}
+
 // ---------------------------------------------------------------- WLAN
 #if WLAN_AKTIV
 void wlan_start() {
     WiFi.mode(WIFI_STA);
-    WiFi.setHostname(WLAN_HOSTNAME);
+    name_laden();
+    WiFi.setHostname(g_name.c_str());
     // Ohne Stromsparen antwortet das WLAN schneller – mit Bluetooth zusammen verlangt der ESP32 aber
     // den Modem-Schlaf, sonst bricht er beim WLAN-Start ab („Should enable WiFi modem sleep“).
     WiFi.setSleep(drucker_gesperrt() ? WIFI_PS_NONE : WIFI_PS_MIN_MODEM);
@@ -401,8 +470,10 @@ void wlan_weiter() {
     if (g_setup_wlan_ab && WiFi.status() != WL_CONNECTED && (int32_t)(millis() - g_setup_wlan_ab) >= 0 &&
         !g_wm.getConfigPortalActive()) {
         g_setup_wlan_ab = 0;
-        Serial.println("WLAN nicht erreichbar – Setup-WLAN „" WLAN_SETUP_NAME "“ geöffnet");
-        g_wm.startConfigPortal(WLAN_SETUP_NAME);
+        static String ap;
+        ap = g_name == WLAN_HOSTNAME ? String(WLAN_SETUP_NAME) : g_name + "-Setup";
+        Serial.println("WLAN nicht erreichbar – Setup-WLAN „" + ap + "“ geöffnet");
+        g_wm.startConfigPortal(ap.c_str());
     }
     if (WiFi.status() == WL_CONNECTED) g_setup_wlan_ab = 0;
     // Ein fehlgeschlagener Verbindungsversuch wird vom ESP32 nicht von selbst wiederholt (früher tat das der
@@ -431,7 +502,7 @@ void wlan_weiter() {
         WiFi.begin();
     }
     static bool mdns = false;
-    if (WiFi.status() == WL_CONNECTED && !mdns && MDNS.begin(WLAN_HOSTNAME)) {
+    if (WiFi.status() == WL_CONNECTED && !mdns && MDNS.begin(g_name.c_str())) {
         MDNS.addService("filamentwaage", "tcp", WLAN_PORT);
         MDNS.addService("http", "tcp", WEB_PORT);
         mdns = true;
@@ -597,6 +668,10 @@ void alles_zuruecksetzen() {
     g_faktor = 0;
     kal_speichern();
     g_wm.resetSettings();
+    Preferences p;
+    p.begin("geraet", false);
+    p.clear();
+    p.end();
 }
 #else
 void wlan_setzen(const char*, const char*) {}
@@ -708,6 +783,7 @@ void loop() {
         long roh = g_nau.lesen();
         messen(roh);
         vorgang_weiter(roh);
+        nullpunkt_nachfuehren();
     }
     kanal_lesen(g_usb);
     kanal_lesen(g_bus);
