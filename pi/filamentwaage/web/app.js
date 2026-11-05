@@ -205,7 +205,7 @@ function wiegen() {
   S.spuleWarDa = da;
   let sorte = findeNfc(tag);
   if (!sorte && S.auswahlUid) sorte = findeUid(S.auswahlUid);
-  const leer = sorte && sorte.leer_g > 0 ? sorte.leer_g : z.leer_standard_g;
+  const leer = leerFuer(sorte, bambu, z);
   const brutto = Math.round(z.brutto_g);
   const netto = Math.max(0, brutto - leer);
   const soll = sorte ? sorte.gewicht : (bambu && bambu.gewicht) || 1000;
@@ -221,6 +221,7 @@ function wiegen() {
       : bambu ? rolle(bambuHex(bambu), [], "rgross") : rolle("#3a4048", ["matt"], "rgross leer");
   }
   $("zahl").textContent = da ? netto : 0;
+  $("zahl").classList.toggle("vierstellig", da && netto >= 1000);
   $("proz").textContent = !z.sensor_ok ? "Sensor antwortet nicht"
     : !da ? "Spule auflegen" : `${proz} % von ${gramm(soll)}${z.stabil ? "" : " · misst …"}`;
   $("chip-brutto").textContent = `Brutto ${gramm(brutto)}`;
@@ -1132,9 +1133,11 @@ function einst() {
         <div class="e-zeile"><button class="knopf rahmen h54 wachsen" id="e-tara">Tara</button>
           <button class="knopf primaer h54 wachsen" id="e-kal">Kalibrieren</button></div></div>
       <div class="e-block"><span class="ueber">Leere Spule</span>
-        <div class="e-zeile"><span class="e-name">Gewicht, wenn die Sorte keinen eigenen Wert hat</span>
-          <button class="knopf rahmen quadrat" data-leer="-5" aria-label="5 g weniger">−</button><span class="e-wert" style="width:64px;text-align:center">${gramm(e.leerspule_g)}</span>
-          <button class="knopf rahmen quadrat" data-leer="5" aria-label="5 g mehr">+</button></div></div>
+        <span class="hinweis">Gilt, wenn die Sorte im Lager kein eigenes Spulengewicht hat.</span>
+        ${[["leerspule_g", "Allgemein"], ...(e.leer_bambu_g !== undefined ? [["leer_bambu_g", "Bambu Lab"], ["leer_bambu_ht_g", "Bambu Lab Hochtemperatur<br><span class=\"sub14\">PA, PAHT, PPA, PPS, PC, PET-CF – graue Spule</span>"]] : [])]
+          .map(([k, t]) => `<div class="e-zeile"><span class="e-name">${t}</span>
+          <button class="knopf rahmen quadrat" data-leer="-5" data-leerk="${k}" aria-label="5 g weniger">−</button><span class="e-wert" style="width:64px;text-align:center">${gramm(e[k])}</span>
+          <button class="knopf rahmen quadrat" data-leer="5" data-leerk="${k}" aria-label="5 g mehr">+</button></div>`).join("")}</div>
       ${e.nullpunkt_auto !== undefined ? `<div class="e-block"><div class="e-zeile"><span class="e-name"><b>Nullpunkt automatisch nachführen</b><br><span class="sub14">Liegt nichts auf (unter 25 g, kein Tag), hält die Waage die Anzeige bei 0 – gegen langsames Wegdriften über Stunden.</span></span>${schalter(e.nullpunkt_auto, "nullpunkt_auto")}</div></div>` : ""}
       <div class="e-block"><span class="ueber">Empfindlichkeit der NFC-Leser</span>${seg("nfc_stufe", e.nfc_stufe, [[1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"]])}
         <span class="hinweis">Höher liest Tags aus größerem Abstand. Liest ein Leser den Tag des anderen, eine Stufe herunter.</span></div>`;
@@ -1201,7 +1204,7 @@ $("e-inhalt").onclick = async (e) => {
   }
   if (d.drucker) { S.amsDrucker = d.drucker; return einst(); }
   if (d.kal) { kalWert(); S.kalG = Math.max(20, Math.min(5000, S.kalG + Number(d.kal))); $("kal-wert").value = S.kalG; return; }
-  if (d.leer) return einstSetzen({ leerspule_g: Math.max(0, Math.min(1000, S.e.leerspule_g + Number(d.leer))) });
+  if (d.leer) { const k = d.leerk || "leerspule_g"; return einstSetzen({ [k]: Math.max(0, Math.min(1000, (S.e[k] || 0) + Number(d.leer))) }); }
   if (d.ssid !== undefined && b.classList.contains("netz")) { S.wlanWahl = S.wlanWahl === d.ssid ? "" : d.ssid; einst(); $("e-wlan-pw")?.focus(); return; }
   if (d.system) {
     if (d.system === "werk" && !S.resetFrage) { S.resetFrage = true; return einst(); }
@@ -1292,6 +1295,19 @@ function kalWert() {
   const f = $("kal-wert");
   const g = f ? parseInt(String(f.value).replace(/[^0-9]/g, ""), 10) : NaN;
   if (g > 0) S.kalG = Math.max(20, Math.min(5000, g));
+}
+// Gewicht der leeren Spule: eigener Wert der Sorte, sonst bei Bambu-Lab-Spulen der Bambu-Wert
+// (Hochtemperatur-Materialien kommen auf der leichteren grauen Spule), sonst der allgemeine Standard.
+// Werte gewogen von Nutzern im Bambu-Forum: Mehrwegspule ca. 250 g, graue HT-Spule ca. 216 g.
+const BAMBU_HT = /^(PA\d*|PAHT|PPA|PPS|PC)(-|\s|$)|^PET-CF/i;
+function leerFuer(sorte, bambu, z) {
+  if (sorte && sorte.leer_g > 0) return sorte.leer_g;
+  const istBambu = !!bambu || !!(sorte && (sorte.bambu_id || /bambu/i.test(sorte.hersteller || "")));
+  if (istBambu && z.leer_bambu_g > 0) {
+    const mat = String((bambu && (bambu.detail || bambu.typ)) || (sorte && sorte.material) || "").trim();
+    return BAMBU_HT.test(mat) && z.leer_bambu_ht_g > 0 ? z.leer_bambu_ht_g : z.leer_bambu_g;
+  }
+  return z.leer_standard_g;
 }
 function bambuHex(b) { return "#" + String(b.farbe || "808080").slice(0, 6).toLowerCase(); }
 function vorschlagFuerSlot(sl) {

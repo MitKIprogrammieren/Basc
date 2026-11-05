@@ -80,6 +80,8 @@ button { font-family: inherit; color: inherit; }
 .nabe { width: 26px; height: 26px; border-radius: 50%; background: var(--panel); }
 .zahl-zeile { display: flex; align-items: baseline; gap: 8px; }
 .zahl { font-size: 92px; font-weight: 800; line-height: .95; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.zahl.vierstellig { font-size: 76px; }  /* volle Rolle (1000 g und mehr) passt sonst nicht neben die Karte */
+.app.eng .zahl.vierstellig { font-size: 64px; }
 .einheit { font-size: 30px; font-weight: 600; color: var(--sub); }
 .rechts270 { width: 270px; flex: 0 0 auto; }
 .rechts270 > .reihe > .knopf { flex: 1 1 0; height: 50px; }

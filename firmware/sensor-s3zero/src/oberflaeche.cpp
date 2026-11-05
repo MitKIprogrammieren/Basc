@@ -85,6 +85,8 @@ void einst_standard(JsonDocument& e) {
     if (!e["display_aus_min"].is<int>()) e["display_aus_min"] = 0;
     if (!e["kompakt"].is<bool>()) e["kompakt"] = false;
     if (!e["leerspule_g"].is<int>()) e["leerspule_g"] = 250;
+    if (!e["leer_bambu_g"].is<int>()) e["leer_bambu_g"] = 250;      // Bambu-Mehrwegspule
+    if (!e["leer_bambu_ht_g"].is<int>()) e["leer_bambu_ht_g"] = 216;  // graue Hochtemperatur-Spule
     if (!e["nfc_stufe"].is<int>()) e["nfc_stufe"] = 3;
     if (!e["drucker"].is<JsonArray>()) e["drucker"].to<JsonArray>();
     if (!e["ams_suche"].is<bool>()) e["ams_suche"] = false;
@@ -786,6 +788,8 @@ String zustand_text() {
         d["ha_ok"] = g_ha_ok;
         d["lager_version"] = g_lager_version;
         d["leer_standard_g"] = g_einst["leerspule_g"] | 250;
+        d["leer_bambu_g"] = g_einst["leer_bambu_g"] | 250;
+        d["leer_bambu_ht_g"] = g_einst["leer_bambu_ht_g"] | 216;
     }
     struct tm t;
     char uhr[6] = "";
@@ -1167,7 +1171,8 @@ void routen() {
         {
             std::lock_guard<std::mutex> l(g_mx);
             static const char* const ERLAUBT[] = {"akzent", "helligkeit", "display_aus_min", "kompakt",
-                                                   "leerspule_g", "nfc_stufe", "drucker", "ams_suche", "nullpunkt_auto"};
+                                                   "leerspule_g", "leer_bambu_g", "leer_bambu_ht_g", "nfc_stufe", "drucker",
+                                                   "ams_suche", "nullpunkt_auto"};
             for (const char* k : ERLAUBT)
                 if (!o[k].isNull()) g_einst[k] = o[k];
             einst_standard(g_einst);
