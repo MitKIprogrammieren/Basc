@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.24.2"
+#define FW_VERSION "2.24.3"
 
 // Wägezelle über NAU7802 (I²C, Adresse 0x2A)
 #define WAAGE_SDA 1
@@ -30,7 +30,8 @@
 #define LED_PIN3 38  // WS2812 auf dem Waveshare ESP32-S3-DEV-KIT-NxRx – alle drei werden angesteuert
 
 // Messung
-#define GLAETTUNG 0.25f      // Anteil des neuen Werts (EMA), kleiner = ruhiger
+#define GLAETTUNG 0.15f      // Anteil des neuen Werts (EMA), kleiner = ruhiger
+#define ANZEIGE_HYST_G 1.5f  // ruhige Waage: Anzeige ändert sich erst ab dieser Abweichung
 #define STABIL_BAND_G 1.5f   // Schwankung, unter der das Gewicht als ruhig gilt
 #define TAG_WEG_MS 1200      // so lange ohne Lesung gilt ein Tag als entfernt
 #define NFC_NEUSTART_MS 5000 // so oft wird ein fehlender oder hängender NFC-Leser neu gestartet

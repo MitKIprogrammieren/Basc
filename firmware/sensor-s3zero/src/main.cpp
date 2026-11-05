@@ -96,6 +96,7 @@ bool g_gramm_gueltig = false;
 float g_verlauf[STABIL_N];
 int g_verlauf_pos = 0, g_verlauf_anzahl = 0;
 bool g_stabil = false;
+float g_anzeige = 0;  // beruhigter Wert für Anzeige und Home Assistant
 
 long median() {
     long t[MEDIAN_N];
@@ -116,6 +117,7 @@ void messen(long roh) {
     g_roh_median = median();
     if (g_faktor == 0) {
         g_gramm = 0;
+        g_anzeige = 0;
         g_stabil = false;
         return;
     }
@@ -133,6 +135,9 @@ void messen(long roh) {
         mx = std::max(mx, g_verlauf[i]);
     }
     g_stabil = g_verlauf_anzahl == STABIL_N && (mx - mn) < STABIL_BAND_G;
+    // Anzeige beruhigen: Liegt die Waage ruhig, ändert sich der angezeigte Wert erst ab ANZEIGE_HYST_G –
+    // so springt die Zahl nicht dauernd um ein Gramm hin und her. Unruhig oder bei Sprüngen sofort mitgehen.
+    if (!g_stabil || fabsf(g_gramm - g_anzeige) >= ANZEIGE_HYST_G) g_anzeige = g_gramm;
 }
 
 // Tara und Kalibrieren sammeln Rohwerte, ohne die Schleife zu blockieren
@@ -263,7 +268,7 @@ void antwort(Stream* s, bool ok, const char* c, const char* msg = nullptr) {
 void status_senden(Stream* s) {
     JsonDocument d;
     d["t"] = "s";
-    d["g"] = roundf(g_gramm * 10) / 10;
+    d["g"] = roundf(g_anzeige * 10) / 10;
     d["st"] = g_stabil ? 1 : 0;
     d["cal"] = g_faktor != 0 ? 1 : 0;
     {
@@ -344,6 +349,7 @@ void vorgang_weiter(long roh) {
     if (g_vorgang == Vorgang::TARA) {
         g_offset = mittel;
         g_gramm = 0;
+        g_anzeige = 0;
         g_gramm_gueltig = false;
         g_verlauf_anzahl = 0;
         kal_speichern();
@@ -393,6 +399,7 @@ void nullpunkt_nachfuehren() {
         g_offset += schritt;
         float d = schritt / g_faktor;
         g_gramm -= d;
+        g_anzeige -= d;
         for (int i = 0; i < g_verlauf_anzahl; i++) g_verlauf[i] -= d;
         g_null_geaendert = true;
     }
@@ -623,7 +630,7 @@ void (*g_vorgang_fertig)(bool ok, const String& text) = nullptr;
 
 Messwert messwert() {
     Messwert m;
-    m.gramm = roundf(g_gramm * 10) / 10;
+    m.gramm = roundf(g_anzeige * 10) / 10;
     m.stabil = g_stabil;
     m.kalibriert = g_faktor != 0;
     m.hx711_ok = g_letzte_messung && millis() - g_letzte_messung < 1000;
