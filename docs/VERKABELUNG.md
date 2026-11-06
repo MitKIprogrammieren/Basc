@@ -5,7 +5,7 @@ Es gibt zwei Bauarten, die beide dieselbe Oberfläche und dasselbe Filamentlager
 | | **ESP32-Variante** | **Pi-Variante** |
 |---|---|---|
 | Display | Waveshare ESP32-S3-Touch-LCD-5 (800×480) oder WT32-SC01 Plus (480×320) | Raspberry Pi 4 + BTT PI TFT50 V2 |
-| Messung | Sensorplatine ESP32-S3-Zero, per RS485 | Sensorplatine per USB **oder** HX711/PN532 direkt am Pi |
+| Messung | Sensorplatine ESP32-S3-Zero, per RS485 – beim SC01 Plus auch direkt am Display | Sensorplatine per USB **oder** HX711/PN532 direkt am Pi |
 | Firmware | `firmware/display-5inch` + `firmware/sensor-s3zero` | `pi/` (+ optional `firmware/sensor-s3zero`) |
 
 > Alle Pins sind auch in den Quelltexten definiert (`include/config.h`, `pi/config.example.toml`).
@@ -89,6 +89,57 @@ Firmware selbst). An der Sensorplatine sitzt wie beim 5"-Display das MAX3485-Mod
 - **Ohne Kabel:** `SENSOR_HOST` in `secrets.h` setzen, dann spricht das SC01 Plus die Sensorplatine per WLAN an
   (TCP 4711 wie das Pad 7). Den MAX3485 braucht man dann nicht.
 - Pins des SC01 Plus: `firmware/display-5inch/include/config.h` (Abschnitt `BOARD_SC01PLUS`).
+
+## SC01 Plus ohne Sensorplatine
+
+NAU7802 und beide PN532 hängen direkt am SC01 Plus – keine Sensorplatine, kein RS485. Firmware: `env:sc01plus_direkt`
+(Webflasher **FilamentLager-Webflasher-SC01Plus-Direkt.html**). Belegt sieben der acht freien GPIOs (IO21 bleibt frei).
+
+Gebraucht werden zwei 7-adrige MX1.25-Kabel (1,25 mm), eins in der I/O-, eins in der DEBUG-Buchse. Pin 8 der I/O-Buchse
+(IO21) erreicht das 7er-Kabel nicht – er bleibt frei. Aderfarben wie bei den üblichen Kabeln, rot = Pin 1.
+
+| Buchse · Pin | Ader | Signal | Leitung an |
+|---|---|---|---|
+| I/O 1 | rot | +5V | PN532 rechts VCC |
+| I/O 2 | schwarz | GND | PN532 rechts GND |
+| I/O 3 | gelb | GPIO10 | PN532 rechts TXD |
+| I/O 4 | grün | GPIO11 | PN532 rechts RXD |
+| I/O 5 | blau | GPIO12 | PN532 rechts RSTPDN |
+| I/O 6 | weiß | GPIO13 | PN532 links TXD |
+| I/O 7 | braun | GPIO14 | PN532 links RXD |
+| I/O 8 | – | GPIO21 | frei |
+| DEBUG 1 | – | +5V | frei (keine Ader) |
+| DEBUG 2 | braun | 3V3 | NAU7802 VIN |
+| DEBUG 3 | gelb | GPIO43 (TXD0) | NAU7802 SDA |
+| DEBUG 4 | grün | GPIO44 (RXD0) | NAU7802 SCL |
+| DEBUG 5 | – | EN | frei (keine Ader) – nie auf GND (= Neustart) |
+| DEBUG 6 | – | BOOT (GPIO0) | frei (keine Ader) – nie auf GND (= Flash-Modus) |
+| DEBUG 7 | schwarz | GND | NAU7802 GND |
+| 485 + | grün | +5V | PN532 links VCC |
+| 485 − | gelb | GND | PN532 links GND |
+| 485 B | rot | RS485 B | **frei – isolieren** (rot ist hier *nicht* 5 V) |
+| 485 A | schwarz | RS485 A | frei – isolieren |
+
+Kurz: **DEBUG-Kabel = NAU7802**, **I/O-Kabel = beide PN532** (Daten), **485-Kabel = Strom für den linken PN532**.
+
+- **Vor dem Anschließen messen:** Die Aderfarben hängen vom Kabel ab. Mit dem Multimeter gegen I/O schwarz prüfen:
+  I/O rot = 5 V, 485 grün = 5 V, DEBUG braun = 3,3 V. Erst dann die Module anlöten.
+- **DEBUG-Stecker umgesteckt:** nur Pin 2 (braun, 3V3), 3 (gelb), 4 (grün) und 7 (schwarz, GND) haben eine Ader.
+  Am 4-adrigen 485-Kabel ist *grün* 5 V und *gelb* Masse, *rot* ist dort die RS485-Leitung B.
+- Die 4-polige **485-Buchse** liefert an + und − noch einmal 5 V und Masse – so braucht kein Draht zwei Leser zu versorgen.
+  A und B sind keine GPIOs (dahinter sitzt der RS485-Transceiver) und bleiben frei.
+- Der linke Leser hat keine Reset-Leitung (kein Pin mehr frei). Hängt er, richtet die Firmware ihn nur neu ein.
+- **NAU7802 an 3,3 V** (DEBUG schwarz), nicht an 5 V – das Adafruit-Board zieht SDA/SCL auf VIN hoch.
+  Der NAU7802 läuft auf einem eigenen I²C-Bus (`Wire1`), der Touch behält GPIO5/6. Vertauschte SDA/SCL erkennt die Firmware.
+- **PN532-Schalter** beide auf OFF (HSU). TXD des Lesers an den RX-Pin des SC01 Plus und umgekehrt.
+- **GPIO43** gibt beim Einschalten die Meldungen des Bootloaders aus. Am SDA des NAU7802 stört das nicht: Ohne Takt auf
+  SCL sieht der Wandler nur Start-/Stopp-Bedingungen ohne Adresse. Danach richtet die Firmware ihn ein.
+- Ohne Reset-Draht geht es auch: in `include/config.h` `NFC_R_RST`/`NFC_L_RST` auf `-1`.
+- Netzteil an die USB-C-Buchse des SC01 Plus, 5 V / mindestens 2 A.
+- Kalibrierung liegt im Display (Bereich `waage`) – nach dem Umstieg von der Sensorplatine einmal Tara und Kalibrieren.
+- Diagnose: im seriellen Monitor meldet die Firmware beim Start `[waage] NAU7802 gefunden` und `[nfc] links …, rechts …`.
+- Was in dieser Bauart fehlt: die Web-Oberfläche der Sensorplatine (`http://filamentwaage.local`) und das Auslesen von
+  Material/Farbe aus Bambu-Lab-Tags – erkannt wird die UID, Zuordnung zum Lager wie gewohnt.
 
 ## Pi-Variante
 

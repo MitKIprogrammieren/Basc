@@ -1,5 +1,5 @@
 # Baut die Display-Firmware (Waveshare 5" und WT32-SC01 Plus) und je einen Webflasher dafür.
-# main → Branch "webflasher-display": FilamentLager-Webflasher-SC01Plus.html und -Display5.html (laufen offline).
+# main → Branch "webflasher-display": FilamentLager-Webflasher-SC01Plus.html, -SC01Plus-Direkt.html und -Display5.html (laufen offline).
 # Eigener Branch, weil der Sensor-Workflow "webflasher-bin" bei jedem Lauf neu anlegt.
 name: Firmware Display
 
@@ -7,6 +7,8 @@ on:
   push:
     paths:
       - "firmware/display-5inch/**"
+      - "firmware/sensor-s3zero/src/nau7802.*"
+      - "firmware/sensor-s3zero/src/pn532_hsu.*"
       - "tools/webflasher/**"
       - ".github/workflows/display.yml"
   workflow_dispatch:
@@ -36,12 +38,12 @@ jobs:
         working-directory: firmware/display-5inch
         run: |
           set -o pipefail
-          pio run -e ws5 -e sc01plus 2>&1 | tee /tmp/build.log
+          pio run -e ws5 -e sc01plus -e sc01plus_direkt 2>&1 | tee /tmp/build.log
 
       - name: Teile sammeln
         working-directory: firmware/display-5inch
         run: |
-          for ENV in ws5 sc01plus; do
+          for ENV in ws5 sc01plus sc01plus_direkt; do
             B=.pio/build/$ENV; Z=/tmp/aus/$ENV
             mkdir -p $Z
             cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin $Z/
@@ -59,9 +61,10 @@ jobs:
       - name: Webflasher bauen
         run: |
           FW=$(grep -oP 'FW_VERSION "\K[^"]+' firmware/display-5inch/include/config.h)
-          for ENV in sc01plus ws5; do
+          for ENV in sc01plus sc01plus_direkt ws5; do
             T=/tmp/aus/$ENV
             if [ $ENV = sc01plus ]; then NAME="Display SC01 Plus"; AUS=FilamentLager-Webflasher-SC01Plus.html
+            elif [ $ENV = sc01plus_direkt ]; then NAME="SC01 Plus ohne Sensorplatine"; AUS=FilamentLager-Webflasher-SC01Plus-Direkt.html
             else NAME='Display 5"'; AUS=FilamentLager-Webflasher-Display5.html; fi
             python3 tools/webflasher/bauen.py --version "$FW" --esptool /tmp/aus/esptool-js.mjs --art anzeige --geraet "$NAME" \
               --teil 0x0=$T/bootloader.bin --teil 0x8000=$T/partitions.bin \

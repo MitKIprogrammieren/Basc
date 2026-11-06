@@ -37,6 +37,9 @@
 #include "lvgl.h"
 #include "model.h"
 #include "sensor_link.h"
+#if SENSOR_DIREKT
+#include "sensor_direkt.h"
+#endif
 #include "ui.h"
 
 // secrets.h ist freiwillig: ohne sie kommen WLAN und Home Assistant über den Webflasher
@@ -102,8 +105,12 @@ TaskHandle_t g_ha_task = nullptr;
 
 Lager g_lager;  // gehört der Oberfläche, wird nur in loop() geändert
 HaClient g_ha;
+#if SENSOR_DIREKT
+SensorDirekt g_sensor;  // NAU7802 und PN532 direkt am Display
+#else
 SensorLink g_sensor;
 HardwareSerial g_rs485(1);
+#endif
 bool g_ha_ok = false;
 uint32_t g_letztes_laden = 0;
 AmsStand g_ams;  // gehört der Oberfläche
@@ -183,6 +190,13 @@ void usb_befehl(const char* zeile) {
         a["ha_url"] = g_einst.ha_url;
         a["sensor"] = g_sensor.daten().verbunden;
         a["sensor_host"] = g_einst.sensor;
+#if SENSOR_DIREKT
+        a["sensor_art"] = "direkt";
+        a["waage_chip"] = g_sensor.waage_da() ? "NAU7802" : "keiner";
+        a["nfc_l"] = g_sensor.nfc_bereit(0);
+        a["nfc_r"] = g_sensor.nfc_bereit(1);
+        a["roh"] = g_sensor.roh();
+#endif
     } else if (c == "wlan") {
         String ssid = doc["ssid"] | "", pw = doc["pw"] | "";
         a["c"] = "wlan";
@@ -625,12 +639,16 @@ void setup() {
     ui_start(&g_aktionen, &g_lager);
 
     einst_laden();
+#if SENSOR_DIREKT
+    g_sensor.begin();  // Sensor-Adresse aus dem Webflasher wird hier nicht gebraucht
+#else
     if (g_einst.sensor.length()) {
         g_sensor.begin_wlan(g_einst.sensor.c_str(), SENSOR_PORT);
         Serial.printf("Sensorplatine per WLAN: %s\n", g_einst.sensor.c_str());
     } else {
         g_sensor.begin(g_rs485, RS485_RX, RS485_TX, RS485_BAUD, RS485_DE);
     }
+#endif
     g_sensor.starten();
 
     wlan_start();

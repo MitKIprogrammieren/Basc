@@ -7,7 +7,8 @@
 class Nau7802 {
 public:
     // true, wenn ein NAU7802 antwortet und eingerichtet werden konnte
-    bool begin(int sda, int scl);
+    // bus: anderer I²C-Bus, z. B. Wire1, wenn Wire schon belegt ist (Touch des SC01 Plus)
+    bool begin(int sda, int scl, TwoWire& bus = Wire);
     bool bereit();   // neuer Messwert liegt vor
     long lesen();    // 24-Bit-Rohwert mit Vorzeichen
     bool da() const { return da_; }
@@ -17,4 +18,5 @@ private:
     int lesen8(uint8_t reg);
     bool bit_setzen(uint8_t reg, uint8_t nr, bool an);
     bool da_ = false;
+    TwoWire* bus_ = &Wire;
 };

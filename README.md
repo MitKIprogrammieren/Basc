@@ -86,6 +86,8 @@ pio run -e sc01plus -t upload
   MAX3485-Modul (Verkabelung: [docs/VERKABELUNG.md](docs/VERKABELUNG.md#wt32-sc01-plus--sensorplatine)).
 - **Oder per WLAN, ganz ohne Kabel:** im Webflasher „Sensorplatine: per WLAN“ und die IP der Sensorplatine.
   Die Sensorplatine bedient nur eine WLAN-Gegenstelle – Pad 7 oder Pi dann nicht gleichzeitig per WLAN verbinden.
+- **Oder ganz ohne Sensorplatine:** NAU7802 und beide PN532 direkt ans SC01 Plus, Firmware `pio run -e sc01plus_direkt -t upload`
+  bzw. `FilamentLager-Webflasher-SC01Plus-Direkt.html` (Verkabelung: [docs/VERKABELUNG.md](docs/VERKABELUNG.md#sc01-plus-ohne-sensorplatine)).
 - Bild gedreht oder Touch daneben: `LCD_DREHUNG`, `TOUCH_SPIEGEL_X/Y` und `LCD_IPS` in `include/config.h`;
   der serielle Monitor zeigt die Touch-Rohwerte.
 

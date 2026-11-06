@@ -8,18 +8,18 @@ constexpr uint8_t RR = 0, PUD = 1, PUA = 2, PUR = 3, CS = 4, CR = 5, AVDDS = 7;
 }  // namespace
 
 bool Nau7802::schreiben(uint8_t reg, uint8_t wert) {
-    Wire.beginTransmission(ADR);
-    Wire.write(reg);
-    Wire.write(wert);
-    return Wire.endTransmission() == 0;
+    bus_->beginTransmission(ADR);
+    bus_->write(reg);
+    bus_->write(wert);
+    return bus_->endTransmission() == 0;
 }
 
 int Nau7802::lesen8(uint8_t reg) {
-    Wire.beginTransmission(ADR);
-    Wire.write(reg);
-    if (Wire.endTransmission(false) != 0) return -1;
-    if (Wire.requestFrom(ADR, (uint8_t)1) != 1) return -1;
-    return Wire.read();
+    bus_->beginTransmission(ADR);
+    bus_->write(reg);
+    if (bus_->endTransmission(false) != 0) return -1;
+    if (bus_->requestFrom(ADR, (uint8_t)1) != 1) return -1;
+    return bus_->read();
 }
 
 bool Nau7802::bit_setzen(uint8_t reg, uint8_t nr, bool an) {
@@ -29,11 +29,12 @@ bool Nau7802::bit_setzen(uint8_t reg, uint8_t nr, bool an) {
     return schreiben(reg, (uint8_t)v);
 }
 
-bool Nau7802::begin(int sda, int scl) {
-    Wire.begin(sda, scl, 100000);
-    Wire.beginTransmission(ADR);
-    if (Wire.endTransmission() != 0) {
-        Wire.end();
+bool Nau7802::begin(int sda, int scl, TwoWire& bus) {
+    bus_ = &bus;
+    bus_->begin(sda, scl, 100000);
+    bus_->beginTransmission(ADR);
+    if (bus_->endTransmission() != 0) {
+        bus_->end();
         return false;  // kein NAU7802 an diesen Pins
     }
     // Ablauf nach Datenblatt 9.1: Reset, Digital-Teil an, warten bis bereit
@@ -75,11 +76,11 @@ bool Nau7802::bereit() {
 }
 
 long Nau7802::lesen() {
-    Wire.beginTransmission(ADR);
-    Wire.write(ADCO_B2);
-    if (Wire.endTransmission(false) != 0) return 0;
-    if (Wire.requestFrom(ADR, (uint8_t)3) != 3) return 0;
-    uint32_t w = ((uint32_t)Wire.read() << 16) | ((uint32_t)Wire.read() << 8) | Wire.read();
+    bus_->beginTransmission(ADR);
+    bus_->write(ADCO_B2);
+    if (bus_->endTransmission(false) != 0) return 0;
+    if (bus_->requestFrom(ADR, (uint8_t)3) != 3) return 0;
+    uint32_t w = ((uint32_t)bus_->read() << 16) | ((uint32_t)bus_->read() << 8) | bus_->read();
     if (w & 0x800000) w |= 0xFF000000;  // Vorzeichen erweitern
     return (int32_t)w;
 }

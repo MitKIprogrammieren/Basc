@@ -3,7 +3,7 @@
 //  - WT32-SC01 Plus (3,5", 480×320), env:sc01plus → BOARD_SC01PLUS
 #pragma once
 
-#define FW_VERSION "1.4.3"
+#define FW_VERSION "1.5.0"
 
 #if defined(BOARD_SC01PLUS)
 // ================================================================ WT32-SC01 Plus
@@ -46,6 +46,31 @@
 #define RS485_TX 42
 #define RS485_DE 2
 #define RS485_BAUD 115200
+
+// ---- Ohne Sensorplatine: NAU7802 und zwei PN532 direkt am SC01 Plus (env:sc01plus_direkt) ----
+// NAU7802 komplett an der DEBUG-Buchse (3V3, GND, IO43, IO44), beide PN532 an der I/O-Buchse (IO10–IO14).
+// Pin 8 der I/O-Buchse (IO21) bleibt frei – die üblichen 7-adrigen MX1.25-Kabel erreichen ihn nicht.
+// Verkabelung: docs/VERKABELUNG.md, Abschnitt „SC01 Plus ohne Sensorplatine“.
+#if SENSOR_DIREKT
+// I²C auf eigenem Bus (Wire1), Wire gehört dem Touch. Vertauschte SDA/SCL erkennt die Firmware selbst.
+// IO43 ist TXD0: Beim Start schreibt der Bootloader dort Meldungen raus. Ohne Takt auf SCL sind das für den
+// NAU7802 nur Start-/Stopp-Bedingungen ohne Adresse – er ignoriert sie, danach richtet die Firmware ihn ein.
+#define WAAGE_SDA 43  // DEBUG 3 gelb
+#define WAAGE_SCL 44  // DEBUG 4 grün
+#define NFC_R_RX 10   // I/O 3 gelb – an PN532 rechts TXD
+#define NFC_R_TX 11   // I/O 4 grün – an PN532 rechts RXD
+#define NFC_R_RST 12  // I/O 5 blau – an PN532 rechts RSTPDN
+#define NFC_L_RX 13   // I/O 6 weiß – an PN532 links TXD
+#define NFC_L_TX 14   // I/O 7 braun – an PN532 links RXD
+#define NFC_L_RST -1  // kein Pin mehr frei: hängt der Leser, wird er nur neu eingerichtet
+// Messung wie auf der Sensorplatine (firmware/sensor-s3zero/include/config.h)
+#define GLAETTUNG 0.15f
+#define ANZEIGE_HYST_G 1.5f
+#define STABIL_BAND_G 1.5f
+#define TAG_WEG_MS 1200
+#define NFC_NEUSTART_MS 5000
+#define NFC_MAX_FEHLER 5
+#endif
 
 #define GERAETENAME "filamentlager-waage-35"
 
