@@ -3,7 +3,7 @@
 //  - WT32-SC01 Plus (3,5", 480×320), env:sc01plus → BOARD_SC01PLUS
 #pragma once
 
-#define FW_VERSION "1.5.0"
+#define FW_VERSION "1.6.0"
 
 #if defined(BOARD_SC01PLUS)
 // ================================================================ WT32-SC01 Plus
@@ -70,6 +70,12 @@
 #define TAG_WEG_MS 1200
 #define NFC_NEUSTART_MS 5000
 #define NFC_MAX_FEHLER 5
+// Web-Oberfläche (firmware/sensor-s3zero/src/oberflaeche.cpp)
+#define WEB_PORT 80
+#define WLAN_HOSTNAME "filamentwaage"  // Name der Sensorplatine – hier Standard „filamentwaage-2“
+#define LAGER_NEU_LADEN_S 60
+#define ETIKETT_KOPF_PX 384
+#define TROCKNEN_NACH_TAGEN 30
 #endif
 
 #define GERAETENAME "filamentlager-waage-35"

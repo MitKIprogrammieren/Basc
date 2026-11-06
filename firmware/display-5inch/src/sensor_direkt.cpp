@@ -12,6 +12,7 @@
 
 #include "../../sensor-s3zero/src/nau7802.h"
 #include "../../sensor-s3zero/src/pn532_hsu.h"
+#include "../../sensor-s3zero/src/sensor.h"  // Schnittstelle zur Web-Oberfläche
 
 namespace {
 
@@ -113,7 +114,7 @@ void nullpunkt_nachfuehren() {
         std::lock_guard<std::mutex> l(g_mx);
         tag = !g_tag[0].empty() || !g_tag[1].empty();
     }
-    if (g_faktor == 0 || g_vorgang != Vorgang::KEINER || !g_stabil || tag || fabsf(g_gramm) >= NULL_BAND_G) {
+    if (!g_null_auto || g_faktor == 0 || g_vorgang != Vorgang::KEINER || !g_stabil || tag || fabsf(g_gramm) >= NULL_BAND_G) {
         g_null_seit = 0;
     } else if (!g_null_seit) {
         g_null_seit = millis();
@@ -185,8 +186,11 @@ void SensorDirekt::nfc_task(void* selbst) {
 }
 
 void SensorDirekt::melden(bool ok, const std::string& text) {
-    std::lock_guard<std::mutex> l(g_mx);
-    if (g_meldungen.size() < 8) g_meldungen.push_back({ok, text});
+    {
+        std::lock_guard<std::mutex> l(g_mx);
+        if (g_meldungen.size() < 8) g_meldungen.push_back({ok, text});
+    }
+    if (g_vorgang_fertig) g_vorgang_fertig(ok, String(text.c_str()));  // Web-Oberfläche
 }
 
 void SensorDirekt::mess_schritt() {
@@ -323,10 +327,27 @@ bool SensorDirekt::meldung_holen(bool& ok, std::string& text) {
 }
 
 bool SensorDirekt::waage_da() { return g_nau.da(); }
+bool SensorDirekt::beschaeftigt() {
+    std::lock_guard<std::mutex> l(g_mx);
+    return g_vorgang != Vorgang::KEINER || g_vorgang_neu != Vorgang::KEINER;
+}
+bool SensorDirekt::waage_liefert() { return g_nau.da() && g_letzte_messung && millis() - g_letzte_messung < 1000; }
+void SensorDirekt::kalibrierung_loeschen() {
+    {
+        std::lock_guard<std::mutex> l(g_mx);
+        g_offset = 0;
+        g_faktor = 0;
+    }
+    kal_speichern();
+}
 bool SensorDirekt::nfc_bereit(int seite) { return (seite ? g_nfc_r : g_nfc_l).bereit(); }
 long SensorDirekt::roh() {
     std::lock_guard<std::mutex> l(g_mx);
     return g_roh_median;
 }
+
+// ---------------------------------------------------------------- für die Web-Oberfläche (sensor.h)
+volatile bool g_null_auto = true;
+void (*g_vorgang_fertig)(bool ok, const String& text) = nullptr;
 
 #endif  // SENSOR_DIREKT

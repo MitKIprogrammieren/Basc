@@ -32,13 +32,13 @@ jobs:
           key: pio-display-${{ hashFiles('firmware/display-5inch/platformio.ini') }}
 
       - name: PlatformIO installieren
-        run: pip install platformio
+        run: pip install platformio fonttools
 
       - name: Firmware bauen (ohne secrets.h – Zugangsdaten kommen über den Webflasher)
         working-directory: firmware/display-5inch
         run: |
           set -o pipefail
-          pio run -e ws5 -e sc01plus -e sc01plus_direkt 2>&1 | tee /tmp/build.log
+          { pio run -e ws5 -e sc01plus -e sc01plus_direkt && pio run -e sc01plus_direkt -t buildfs; } 2>&1 | tee /tmp/build.log
 
       - name: Teile sammeln
         working-directory: firmware/display-5inch
@@ -49,6 +49,14 @@ jobs:
             cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin $Z/
             cp "$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -1)" $Z/
           done
+          # Web-Oberfläche der Variante ohne Sensorplatine: leere Blöcke am Ende abschneiden
+          python3 - .pio/build/sc01plus_direkt/littlefs.bin /tmp/aus/sc01plus_direkt/littlefs.bin <<'PY'
+          import sys
+          d = open(sys.argv[1], "rb").read()
+          n = (len(d.rstrip(b"\xff")) + 4095) // 4096 * 4096
+          open(sys.argv[2], "wb").write(d[:n])
+          print(f"littlefs.bin: {n // 1024} von {len(d) // 1024} KB")
+          PY
           ls -lR /tmp/aus
 
       - name: esptool-js holen
@@ -69,6 +77,7 @@ jobs:
             python3 tools/webflasher/bauen.py --version "$FW" --esptool /tmp/aus/esptool-js.mjs --art anzeige --geraet "$NAME" \
               --teil 0x0=$T/bootloader.bin --teil 0x8000=$T/partitions.bin \
               --teil 0xe000=$T/boot_app0.bin --teil 0x10000=$T/firmware.bin \
+              $( [ -f $T/littlefs.bin ] && echo "--teil 0xc90000=$T/littlefs.bin" ) \
               --aus /tmp/aus/$AUS 2>&1 | tee -a /tmp/build.log
           done
           printf '{"fw":"%s","commit":"%s"}\n' "$FW" "${GITHUB_SHA::7}" > /tmp/aus/version.json
@@ -90,3 +99,17 @@ jobs:
         with:
           name: build-protokoll
           path: /tmp/build.log
+
+      - name: Protokoll ablegen
+        if: always()
+        run: |
+          BR="display-${GITHUB_REF_NAME//\//-}"
+          mkdir -p /tmp/log && cd /tmp/log
+          git init -q -b ci-protokoll
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git fetch -q --depth 1 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-protokoll 2>/dev/null && git checkout -q FETCH_HEAD -- . 2>/dev/null || true
+          { echo "commit ${GITHUB_SHA::7} · ergebnis ${{ job.status }}"; grep -E "error|Error|warning: unused" /tmp/build.log | head -80; echo ----; tail -c 40000 /tmp/build.log 2>/dev/null; } > "$BR.log"
+          git add -A
+          git commit -qm "Protokoll $BR ${GITHUB_SHA::7} (${{ job.status }})"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-protokoll

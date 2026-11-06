@@ -38,7 +38,12 @@
 #include "model.h"
 #include "sensor_link.h"
 #if SENSOR_DIREKT
+#include <ESPmDNS.h>
+
 #include "sensor_direkt.h"
+#include "../../sensor-s3zero/src/drucker.h"
+#include "../../sensor-s3zero/src/oberflaeche.h"
+#include "../../sensor-s3zero/src/sensor.h"
 #endif
 #include "ui.h"
 
@@ -587,7 +592,11 @@ static int g_wlan_versuche = 0;
 void wlan_start() {
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
+#if SENSOR_DIREKT
+    WiFi.setHostname(waage_name().c_str());
+#else
     WiFi.setHostname(GERAETENAME);
+#endif
     WiFi.setSleep(false);
     WiFi.setAutoReconnect(true);
     WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) { g_wlan_grund = info.wifi_sta_disconnected.reason; },
@@ -623,6 +632,131 @@ void wlan_pruefen() {
     WiFi.begin(g_einst.ssid.c_str(), g_einst.pw.c_str());
 }
 
+#if SENSOR_DIREKT
+// ---------------------------------------------------------------- Web-Oberfläche wie auf der Sensorplatine
+// oberflaeche.cpp aus firmware/sensor-s3zero läuft hier mit (http://<name>.local). Dafür die Schnittstelle aus sensor.h.
+esp_reset_reason_t g_start_grund = ESP_RST_UNKNOWN;
+volatile uint32_t g_loops = 0;
+String g_name;
+constexpr const char* NAME_STANDARD = "filamentwaage-2";  // die Sensorplatine heißt „filamentwaage“
+
+bool name_gueltig(const String& n) {
+    if (n.length() < 2 || n.length() > 24 || n[0] == '-' || n[n.length() - 1] == '-') return false;
+    for (char ch : n)
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-')) return false;
+    return true;
+}
+
+const String& waage_name() {
+    if (g_name.isEmpty()) {
+        Preferences p;
+        p.begin("geraet", true);
+        g_name = p.getString("name", NAME_STANDARD);
+        p.end();
+        if (!name_gueltig(g_name)) g_name = NAME_STANDARD;
+    }
+    return g_name;
+}
+
+bool waage_name_setzen(String n) {
+    n.trim();
+    n.toLowerCase();
+    if (!name_gueltig(n)) return false;
+    Preferences p;
+    p.begin("geraet", false);
+    p.putString("name", n);
+    p.end();
+    g_name = n;  // Hostname und mDNS gelten nach dem Neustart
+    return true;
+}
+
+Messwert messwert() {
+    SensorDaten d = g_sensor.daten();
+    Messwert m;
+    m.gramm = d.gramm;
+    m.stabil = d.stabil;
+    m.kalibriert = d.kalibriert;
+    m.hx711_ok = g_sensor.waage_liefert();
+    m.tag_l = d.tag_l.c_str();
+    m.tag_r = d.tag_r.c_str();
+    m.nfc_l_ok = g_sensor.nfc_bereit(0);
+    m.nfc_r_ok = g_sensor.nfc_bereit(1);
+    return m;
+}
+
+bool nfc_leser_bereit(int seite) { return g_sensor.nfc_bereit(seite); }
+
+const char* vorgang_starten(bool kal, int gramm, Stream*) {
+    if (g_sensor.beschaeftigt()) return "beschäftigt";
+    if (kal) {
+        if (gramm < 20) return "Kalibriergewicht fehlt (mindestens 20 g)";
+        g_sensor.kalibrieren(gramm);
+    } else {
+        g_sensor.tara();
+    }
+    return nullptr;
+}
+
+void wlan_setzen(const char* ssid, const char* pw) {
+    g_einst.ssid = ssid;
+    g_einst.pw = pw;
+    einst_speichern("ssid", g_einst.ssid);
+    einst_speichern("pw", g_einst.pw);
+    WiFi.disconnect(false);
+    WiFi.begin(ssid, pw);
+}
+
+bool pad_verbunden() { return false; }
+
+void alles_zuruecksetzen() {
+    g_sensor.kalibrierung_loeschen();
+    Preferences p;
+    p.begin("geraet", false);
+    p.clear();
+    p.end();
+    einst_speichern("ssid", "");
+    einst_speichern("pw", "");
+}
+
+String start_bericht() {
+    switch (g_start_grund) {
+        case ESP_RST_POWERON: return "grund=eingeschaltet";
+        case ESP_RST_SW: return "grund=neu gestartet";
+        case ESP_RST_PANIC: return "grund=Absturz";
+        case ESP_RST_INT_WDT:
+        case ESP_RST_TASK_WDT:
+        case ESP_RST_WDT: return "grund=Watchdog";
+        case ESP_RST_BROWNOUT: return "grund=Unterspannung";
+        default: return "grund=anderer Grund";
+    }
+}
+
+// Startet die Web-Oberfläche, sobald das WLAN zum ersten Mal steht. Home Assistant übernimmt sie beim ersten Mal
+// aus den Display-Einstellungen (Webflasher), danach hat sie ihre eigenen (Einstellungen auf der Webseite).
+void web_weiter() {
+    static bool laeuft = false;
+    g_loops++;
+    if (!laeuft) {
+        if (WiFi.status() != WL_CONNECTED) return;
+        laeuft = true;
+        Preferences p;
+        p.begin("ui", false);
+        if (p.getString("ha_token", "").isEmpty() && g_einst.ha_token.length()) {
+            p.putString("ha_url", g_einst.ha_url);
+            p.putString("ha_token", g_einst.ha_token);
+            p.putString("ha_todo", g_einst.ha_todo);
+        }
+        p.end();
+        if (MDNS.begin(waage_name().c_str())) MDNS.addService("http", "tcp", WEB_PORT);
+        oberflaeche_start();
+        Serial.printf("Web-Oberfläche: http://%s.local  (http://%s)\n", waage_name().c_str(),
+                      WiFi.localIP().toString().c_str());
+        return;
+    }
+    oberflaeche_weiter();
+}
+#endif
+
 void setup() {
     // Standard sind 256 Bytes – die Einstellungen vom Webflasher (mit HA-Token) sind länger
     Serial.setRxBufferSize(4096);
@@ -631,6 +765,10 @@ void setup() {
     Serial.setTxTimeoutMs(0);
     delay(200);
     Serial.println("FilamentLager-Waage " FW_VERSION);
+#if SENSOR_DIREKT
+    g_start_grund = esp_reset_reason();
+    drucker_frueh(true);  // Bluetooth (Etikettendrucker) vor allem anderen – braucht internen Speicher
+#endif
 
     lv_init();
     if (!board_start()) {
@@ -670,6 +808,9 @@ void loop() {
         while (g_sensor.meldung_holen(ok, t)) ui_meldung(t, !ok);
     }
     usb_lesen();
+#if SENSOR_DIREKT
+    web_weiter();
+#endif
 
     // Ergebnisse der HA-Task übernehmen
     std::deque<Ergebnis> fertig;

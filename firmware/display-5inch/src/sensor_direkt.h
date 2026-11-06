@@ -26,6 +26,9 @@ public:
     bool waage_da();
     bool nfc_bereit(int seite);  // 0 = links, 1 = rechts
     long roh();
+    bool beschaeftigt();       // Tara oder Kalibrieren läuft
+    bool waage_liefert();      // Messwert jünger als 1 s
+    void kalibrierung_loeschen();
 
 private:
     static void mess_task(void* selbst);

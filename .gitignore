@@ -9,3 +9,6 @@ __pycache__/
 filamentwaage-pad7.zip
 filamentwaage-sonicpad.zip
 __pycache__/
+
+# Web-Oberfläche (wird beim Bauen aus pi/filamentwaage/web erzeugt)
+firmware/display-5inch/data/
