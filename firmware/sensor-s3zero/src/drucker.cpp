@@ -18,6 +18,11 @@
 
 #include "config.h"
 
+// Kern für die Hintergrundarbeiten (Sensorplatine: 1; Display: 0, dort gehört Kern 1 der Bildschirm-Schleife)
+#ifndef WEB_KERN
+#define WEB_KERN 1
+#endif
+
 void (*g_drucker_meldung)(const String& text, bool fehler) = nullptr;
 
 // Überlebt einen Absturz (nicht aber das Abschalten): Lief beim Absturz gerade Bluetooth,
@@ -560,7 +565,7 @@ String drucker_bericht() {
 void drucker_start() {
     laden();
     g_druecke = xQueueCreate(4, sizeof(Druck*));
-    xTaskCreatePinnedToCore(arbeiter, "druck", 8192, nullptr, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(arbeiter, "druck", 8192, nullptr, 1, nullptr, WEB_KERN);
 }
 
 void drucker_einstellungen(JsonDocument& d) {

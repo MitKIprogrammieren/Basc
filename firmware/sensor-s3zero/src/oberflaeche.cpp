@@ -35,6 +35,11 @@
 #include <mutex>
 
 #include "config.h"
+
+// Kern für die Hintergrundarbeiten (Sensorplatine: 1; Display: 0, dort gehört Kern 1 der Bildschirm-Schleife)
+#ifndef WEB_KERN
+#define WEB_KERN 1
+#endif
 #include "drucker.h"
 #include "ams.h"
 #include "ha_client.h"
@@ -1359,9 +1364,9 @@ void oberflaeche_start() {
     g_drucker_meldung = [](const String& text, bool fehler) { meldung(text, fehler); };
     drucker_start();
     g_bild_auftraege = xQueueCreate(32, sizeof(String*));
-    xTaskCreatePinnedToCore(bild_task, "bilder", 8192, nullptr, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(bild_task, "bilder", 8192, nullptr, 1, nullptr, WEB_KERN);
     g_auftraege = xQueueCreate(16, sizeof(Auftrag*));
-    xTaskCreatePinnedToCore(arbeiter, "ha", 16384, nullptr, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(arbeiter, "ha", 16384, nullptr, 1, nullptr, WEB_KERN);
     routen();
     g_server.begin();
 }

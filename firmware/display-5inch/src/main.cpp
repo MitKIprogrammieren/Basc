@@ -796,6 +796,25 @@ String start_bericht() {
 
 // Startet die Web-Oberfläche, sobald das WLAN zum ersten Mal steht. Home Assistant übernimmt sie beim ersten Mal
 // aus den Display-Einstellungen (Webflasher), danach hat sie ihre eigenen (Einstellungen auf der Webseite).
+// Wächter auf Kern 0: meldet, wenn die Bildschirm-Schleife (Kern 1) hängt, und an welcher Stelle
+volatile const char* g_schritt = "Start";
+void waechter(void*) {
+    uint32_t alt = 0, gleich_seit = millis();
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        uint32_t n = g_loops;
+        if (n != alt) {
+            alt = n;
+            gleich_seit = millis();
+        } else if (millis() - gleich_seit >= 5000) {
+            Serial.printf("[system] Bildschirm-Schleife hängt seit %lu s bei „%s“ (Speicher intern frei %u)\n",
+                          (unsigned long)((millis() - gleich_seit) / 1000), (const char*)g_schritt,
+                          (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+            gleich_seit = millis();
+        }
+    }
+}
+
 void web_weiter() {
     static bool laeuft = false;
     g_loops++;
@@ -811,11 +830,13 @@ void web_weiter() {
         }
         p.end();
         if (MDNS.begin(waage_name().c_str())) MDNS.addService("http", "tcp", WEB_PORT);
+        g_schritt = "Web-Oberfläche starten";
         oberflaeche_start();
         Serial.printf("Web-Oberfläche: http://%s.local  (http://%s)\n", waage_name().c_str(),
                       WiFi.localIP().toString().c_str());
         return;
     }
+    g_schritt = "Web-Oberfläche";
     oberflaeche_weiter();
 }
 #endif
@@ -863,19 +884,32 @@ void setup() {
     xTaskCreatePinnedToCore(netz_task, "netz", 12288, nullptr, 1, &g_netz_task, 0);
     if (g_einst.ssid.isEmpty()) ui_meldung("Kein WLAN eingerichtet – Webflasher benutzen", true);
     else if (g_einst.ha_url.isEmpty() || g_einst.ha_token.isEmpty()) ui_meldung("Home Assistant fehlt – Webflasher benutzen", true);
+#if SENSOR_DIREKT
+    xTaskCreatePinnedToCore(waechter, "waechter", 3072, nullptr, 1, nullptr, 0);
+#endif
 }
 
 void loop() {
+#if SENSOR_DIREKT
+    g_schritt = "Bildschirm zeichnen";
+#endif
     lv_timer_handler();
+#if SENSOR_DIREKT
+    g_schritt = "WLAN";
+#endif
     wlan_pruefen();
     {
         bool ok;
         std::string t;
         while (g_sensor.meldung_holen(ok, t)) ui_meldung(t, !ok);
     }
+#if SENSOR_DIREKT
+    g_schritt = "USB";
+#endif
     usb_lesen();
 #if SENSOR_DIREKT
     web_weiter();
+    g_schritt = "Ergebnisse übernehmen";
 #endif
 
     // Ergebnisse der HA-Task übernehmen
@@ -945,6 +979,9 @@ void loop() {
     if (jetzt - letzte_anzeige >= 100) {
         letzte_anzeige = jetzt;
         SensorDaten d = g_sensor.daten();
+#if SENSOR_DIREKT
+        g_schritt = "Anzeige aktualisieren";
+#endif
         licht_pruefen(d);
         static uint32_t letzter_bericht = 0;
         if (jetzt - letzter_bericht >= 30000) {
