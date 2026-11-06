@@ -5,6 +5,7 @@
 
 #include "sensor_direkt.h"
 
+#include <ArduinoJson.h>
 #include <Preferences.h>
 #include <Wire.h>
 
@@ -61,6 +62,9 @@ int g_proben = 0;
 
 // ---------------------------------------------------------------- NFC (nur NFC-Task, Ergebnis unter g_mx)
 std::string g_tag[2];  // 0 = links, 1 = rechts
+String g_bambu[2];      // Inhalt eines Bambu-Lab-Tags als JSON (leer = keiner oder noch nicht gelesen)
+String g_bambu_uid[2];  // zu welcher UID g_bambu gehört
+uint8_t g_bambu_versuche[2] = {0, 0};
 uint32_t g_tag_zeit[2] = {0, 0};
 uint32_t g_nfc_versuch[2] = {0, 0};
 
@@ -274,13 +278,52 @@ void SensorDirekt::nfc_schritt() {
             continue;
         }
         String uid = leser[i]->lese_uid();
+        // Neuer Tag: bis zu dreimal versuchen, ihn als Bambu-Lab-Tag auszulesen (wie auf der Sensorplatine)
+        String bambu;
+        bool bambu_neu = false;
+        if (uid.length() && uid != g_bambu_uid[i]) {
+            g_bambu_uid[i] = uid;
+            g_bambu_versuche[i] = 0;
+            bambu_neu = true;
+        }
+        bool leer;
+        {
+            std::lock_guard<std::mutex> l(g_mx);
+            leer = g_bambu[i].isEmpty();
+        }
+        if (uid.length() && g_bambu_versuche[i] < 3 && (bambu_neu || leer)) {
+            g_bambu_versuche[i]++;
+            BambuTag t;
+            if (leser[i]->lese_bambu(t)) {
+                JsonDocument b;
+                b["uid"] = uid;
+                b["material_id"] = t.material_id;
+                b["variante"] = t.variante;
+                b["typ"] = t.typ;
+                b["detail"] = t.detail;
+                b["farbe"] = t.farbe;
+                b["gewicht"] = t.gewicht;
+                b["durchmesser"] = roundf(t.durchmesser * 100) / 100;
+                if (t.trocknen_c >= 30 && t.trocknen_c <= 120) b["trocknen_c"] = t.trocknen_c;
+                if (t.trocknen_h >= 1 && t.trocknen_h <= 48) b["trocknen_h"] = t.trocknen_h;
+                if (t.bett >= 20 && t.bett <= 130) b["bett"] = t.bett;
+                if (t.duese_max >= 150 && t.duese_max <= 400) b["duese_max"] = t.duese_max;
+                if (t.duese_min >= 150 && t.duese_min <= 400) b["duese_min"] = t.duese_min;
+                serializeJson(b, bambu);
+                g_bambu_versuche[i] = 3;  // fertig
+            }
+            bambu_neu = true;
+        }
         uint32_t jetzt = millis();
         std::lock_guard<std::mutex> l(g_mx);
+        if (bambu_neu) g_bambu[i] = bambu;
         if (uid.length()) {
             g_tag[i] = uid.c_str();
             g_tag_zeit[i] = jetzt;
         } else if (!g_tag[i].empty() && jetzt - g_tag_zeit[i] > TAG_WEG_MS) {
             g_tag[i].clear();
+            g_bambu[i] = "";
+            g_bambu_uid[i] = "";
         }
     }
 }
@@ -327,6 +370,10 @@ bool SensorDirekt::meldung_holen(bool& ok, std::string& text) {
 }
 
 bool SensorDirekt::waage_da() { return g_nau.da(); }
+String SensorDirekt::bambu(int seite) {
+    std::lock_guard<std::mutex> l(g_mx);
+    return g_bambu[seite ? 1 : 0];
+}
 bool SensorDirekt::beschaeftigt() {
     std::lock_guard<std::mutex> l(g_mx);
     return g_vorgang != Vorgang::KEINER || g_vorgang_neu != Vorgang::KEINER;

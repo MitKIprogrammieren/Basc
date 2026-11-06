@@ -140,7 +140,7 @@ Kurz: **DEBUG-Kabel = NAU7802**, **I/O-Kabel = beide PN532** (Daten), **485-Kabe
 - Diagnose: im seriellen Monitor meldet die Firmware beim Start `[waage] NAU7802 gefunden` und `[nfc] links …, rechts …`.
 - **Web-Oberfläche (ab 1.6.0):** dieselbe wie auf der Sensorplatine, unter `http://filamentwaage-2.local` (Name in den
   Einstellungen änderbar). Home Assistant übernimmt sie beim ersten Start aus den Display-Einstellungen.
-- Was in dieser Bauart fehlt: das Auslesen von Material/Farbe aus Bambu-Lab-Tags – erkannt wird die UID.
+- **Bambu-Lab-Tags (ab 1.7.0):** Material, Farbe und Gewicht werden wie auf der Sensorplatine ausgelesen.
 
 ## Pi-Variante
 

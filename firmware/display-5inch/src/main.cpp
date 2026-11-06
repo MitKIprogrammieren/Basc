@@ -679,6 +679,8 @@ Messwert messwert() {
     m.hx711_ok = g_sensor.waage_liefert();
     m.tag_l = d.tag_l.c_str();
     m.tag_r = d.tag_r.c_str();
+    m.bambu_l = g_sensor.bambu(0);
+    m.bambu_r = g_sensor.bambu(1);
     m.nfc_l_ok = g_sensor.nfc_bereit(0);
     m.nfc_r_ok = g_sensor.nfc_bereit(1);
     return m;
