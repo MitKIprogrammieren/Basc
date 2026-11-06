@@ -114,8 +114,12 @@ void ble_an() {
     g_ble_an = true;
 }
 
+#if SENSOR_DIREKT  // SC01 Plus ohne Sensorplatine: Bluetooth ist dort immer aus (Speicher)
+const char* const GESPERRT = "Bluetooth ist auf dieser Waage aus – Etiketten am Display über Home Assistant drucken.";
+#else
 const char* const GESPERRT = "Die Waage ist bei der letzten Bluetooth-Aktion abgestürzt – Bluetooth bleibt bis zum "
                              "nächsten Aus- und Einschalten aus. Bitte /api/diagnose an den Entwickler schicken.";
+#endif
 
 // ---------------------------------------------------------------- Druckbefehle
 std::vector<uint8_t> auf_kopfbreite(int breite, int hoehe, const std::vector<uint8_t>& d, int kopf, int& neu_breite) {

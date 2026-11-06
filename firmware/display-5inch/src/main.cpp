@@ -856,7 +856,9 @@ void setup() {
 #if SENSOR_DIREKT
     g_start_grund = esp_reset_reason();
 #if DIREKT_WEB
-    drucker_frueh(true);  // Bluetooth (Etikettendrucker) vor allem anderen – braucht internen Speicher
+    // Bluetooth (direkter Etikettendruck der Web-Oberfläche) bleibt aus: zusammen mit Display, WLAN und Webserver
+    // reicht der interne Speicher des SC01 Plus nicht (AsyncTCP startet sonst nicht). Gedruckt wird über Home Assistant.
+    drucker_frueh(false);
 #endif
 #endif
 

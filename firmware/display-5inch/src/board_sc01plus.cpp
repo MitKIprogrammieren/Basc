@@ -106,8 +106,9 @@ bool board_start() {
     if (ft_lesen(0xA8, &id, 1)) Serial.printf("[board] Touch-Controller FT, Hersteller-ID 0x%02X\n", id);
     else Serial.println("[board] Touch-Controller antwortet nicht");
 
-    // Zwei Puffer à 40 Zeilen im internen RAM (2 MB PSRAM bleiben für LVGL und WLAN)
-    const size_t n = LCD_W * 40;
+    // Zwei Puffer à 20 Zeilen im internen RAM (2 MB PSRAM bleiben für LVGL und WLAN). 20 statt 40 Zeilen:
+    // spart 38 KB internen Speicher, den WLAN und Webserver brauchen.
+    const size_t n = LCD_W * 20;
     lv_color_t* b1 = (lv_color_t*)heap_caps_malloc(n * sizeof(lv_color_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     lv_color_t* b2 = (lv_color_t*)heap_caps_malloc(n * sizeof(lv_color_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     if (!b1) {
