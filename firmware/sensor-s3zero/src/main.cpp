@@ -375,9 +375,10 @@ void vorgang_weiter(long roh) {
 // ---------------------------------------------------------------- Nullpunkt-Nachführung
 // Wägezellen driften über Stunden (Temperatur, Kriechen). Liegt nichts auf – ruhig, wenige Gramm, kein NFC-Tag –,
 // zieht die Waage den Nullpunkt langsam nach. Eine Spule wiegt weit mehr als NULL_BAND_G und wird nie „weggenullt“.
-constexpr float NULL_BAND_G = 25.0f;        // nur so nah an 0 wird nachgeführt
-constexpr uint32_t NULL_WARTE_MS = 20000;   // so lange muss die Waage ruhig und leer sein
-constexpr float NULL_ANTEIL = 0.02f;        // je Messung (10/s) dieser Anteil der Abweichung
+constexpr float NULL_BAND_G = 10.0f;        // nur so nah an 0 wird nachgeführt
+constexpr uint32_t NULL_WARTE_MS = 30000;   // so lange muss die Waage ruhig und leer sein
+constexpr float NULL_MAX_G = 0.005f;        // je Messung (10/s) höchstens so viel – 3 g pro Minute: holt Drift ein,
+                                            // lässt aber ein kleines aufgelegtes Teil nicht „verschwinden“
 uint32_t g_null_seit = 0;
 bool g_null_geaendert = false;
 uint32_t g_null_gespeichert = 0;
@@ -393,7 +394,8 @@ void nullpunkt_nachfuehren() {
     } else if (!g_null_seit) {
         g_null_seit = millis();
     } else if (millis() - g_null_seit >= NULL_WARTE_MS && fabsf(g_gramm) > 0.05f) {
-        float roh_abw = g_gramm * g_faktor * NULL_ANTEIL;  // Abweichung in Rohwerten (Vorzeichen passt zum Faktor)
+        float korr = g_gramm > NULL_MAX_G ? NULL_MAX_G : g_gramm < -NULL_MAX_G ? -NULL_MAX_G : g_gramm;
+        float roh_abw = korr * g_faktor;  // Abweichung in Rohwerten (Vorzeichen passt zum Faktor)
         long schritt = lroundf(roh_abw);
         if (schritt == 0) schritt = roh_abw > 0 ? 1 : -1;
         g_offset += schritt;

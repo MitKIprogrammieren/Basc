@@ -1146,7 +1146,7 @@ function einst() {
           .map(([k, t]) => `<div class="e-zeile"><span class="e-name">${t}</span>
           <button class="knopf rahmen quadrat" data-leer="-5" data-leerk="${k}" aria-label="5 g weniger">−</button><span class="e-wert" style="width:64px;text-align:center">${gramm(e[k])}</span>
           <button class="knopf rahmen quadrat" data-leer="5" data-leerk="${k}" aria-label="5 g mehr">+</button></div>`).join("")}</div>
-      ${e.nullpunkt_auto !== undefined ? `<div class="e-block"><div class="e-zeile"><span class="e-name"><b>Nullpunkt automatisch nachführen</b><br><span class="sub14">Liegt nichts auf (unter 25 g, kein Tag), hält die Waage die Anzeige bei 0 – gegen langsames Wegdriften über Stunden.</span></span>${schalter(e.nullpunkt_auto, "nullpunkt_auto")}</div></div>` : ""}
+      ${e.nullpunkt_auto !== undefined ? `<div class="e-block"><div class="e-zeile"><span class="e-name"><b>Nullpunkt automatisch nachführen</b><br><span class="sub14">Liegt nichts auf (unter 10 g, kein Tag), zieht die Waage die Anzeige langsam auf 0 – gegen Wegdriften über Stunden.</span></span>${schalter(e.nullpunkt_auto, "nullpunkt_auto")}</div></div>` : ""}
       <div class="e-block"><span class="ueber">Empfindlichkeit der NFC-Leser</span>${seg("nfc_stufe", e.nfc_stufe, [[1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"]])}
         <span class="hinweis">Höher liest Tags aus größerem Abstand. Liest ein Leser den Tag des anderen, eine Stufe herunter.</span></div>`;
   } else {
