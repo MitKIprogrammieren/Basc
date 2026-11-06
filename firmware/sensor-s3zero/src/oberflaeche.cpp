@@ -543,15 +543,17 @@ void arbeiter(void*) {
     for (;;) {
         Auftrag* a = nullptr;
         uint32_t jetzt = millis();
-        // höchstens 2 s warten: dazwischen schauen, ob sich das Gewicht geändert hat
+        // höchstens 0,4 s warten: dazwischen schauen, ob sich das Gewicht geändert hat
         uint32_t bis = naechstes_laden > jetzt ? naechstes_laden - jetzt : 0;
-        TickType_t warte = pdMS_TO_TICKS(bis < 2000 ? bis : 2000);
+        TickType_t warte = pdMS_TO_TICKS(bis < 400 ? bis : 400);
         if (xQueueReceive(g_auftraege, &a, warte) != pdTRUE) {
             if ((int32_t)(millis() - naechstes_laden) < 0) {
                 Messwert m = messwert();
                 float g = m.gramm < 0 ? 0.0f : m.gramm;
-                if (m.stabil && fabsf(g - g_gewicht_gemeldet) >= 3.0f && millis() - g_gewicht_gemeldet_um >= 3000)
-                    gewicht_nach_ha(m);
+                // ruhig und ≥ 2 g anders: melden (höchstens alle 0,8 s) – große Sprünge (Spule auf/ab) gleich, auch unruhig
+                float d = fabsf(g - g_gewicht_gemeldet);
+                uint32_t seit = millis() - g_gewicht_gemeldet_um;
+                if ((m.stabil && d >= 2.0f && seit >= 800) || (d >= 50.0f && seit >= 800)) gewicht_nach_ha(m);
                 continue;
             }
             a = new Auftrag{Art::LADEN, "", "", 1, {}};  // zahl = 1: regelmäßiges Laden
