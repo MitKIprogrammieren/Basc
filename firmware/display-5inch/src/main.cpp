@@ -523,7 +523,7 @@ uint32_t g_aktiv_um = 0;  // letzte Bedienung oder Bewegung auf der Waage
 
 int auto_aus_laden() {
     Preferences p;
-    p.begin("anzeige", true);
+    p.begin("anzeige", false);
     int m = p.getInt("licht_aus", 0);
     p.end();
     return m;
@@ -634,6 +634,16 @@ static volatile uint8_t g_wlan_grund = 0;
 static uint32_t g_wlan_weg_seit = 0, g_wlan_versuch = 0;
 static int g_wlan_versuche = 0;
 
+// Stromsparen im WLAN aus – außer Bluetooth läuft mit (Etikettendruck in der Variante ohne Sensorplatine):
+// dann verlangt der ESP32 Modem-Sleep, sonst bricht er mit „Should enable WiFi modem sleep“ ab.
+void wlan_schlaf_setzen() {
+#if SENSOR_DIREKT
+    WiFi.setSleep(drucker_gesperrt() ? WIFI_PS_NONE : WIFI_PS_MIN_MODEM);
+#else
+    WiFi.setSleep(false);
+#endif
+}
+
 void wlan_start() {
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
@@ -642,7 +652,7 @@ void wlan_start() {
 #else
     WiFi.setHostname(GERAETENAME);
 #endif
-    WiFi.setSleep(false);
+    wlan_schlaf_setzen();
     WiFi.setAutoReconnect(true);
     WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) { g_wlan_grund = info.wifi_sta_disconnected.reason; },
                  ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
@@ -656,7 +666,7 @@ void wlan_pruefen() {
         if (g_wlan_weg_seit) {
             Serial.printf("WLAN wieder da nach %lu s (%d Versuch(e)), RSSI %d dBm\n",
                           (unsigned long)((jetzt - g_wlan_weg_seit) / 1000), g_wlan_versuche, WiFi.RSSI());
-            WiFi.setSleep(false);
+            wlan_schlaf_setzen();
         }
         g_wlan_weg_seit = 0;
         g_wlan_versuche = 0;
@@ -695,7 +705,7 @@ bool name_gueltig(const String& n) {
 const String& waage_name() {
     if (g_name.isEmpty()) {
         Preferences p;
-        p.begin("geraet", true);
+        p.begin("geraet", false);
         g_name = p.getString("name", NAME_STANDARD);
         p.end();
         if (!name_gueltig(g_name)) g_name = NAME_STANDARD;
