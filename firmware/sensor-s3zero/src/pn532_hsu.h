@@ -14,6 +14,8 @@ struct BambuTag {
     String farbe;        // „RRGGBBAA“ wie im AMS
     uint16_t gewicht = 0;     // Filament in g
     float durchmesser = 0;    // mm
+    // Block 6: Trocknen, Bett und Düse (0 = nicht angegeben)
+    uint16_t trocknen_c = 0, trocknen_h = 0, bett = 0, duese_max = 0, duese_min = 0;
 };
 
 class Pn532Hsu {

@@ -227,9 +227,11 @@ bool Pn532Hsu::lese_bambu(BambuTag& t) {
     if (!bereit_ || uid_len_ != 4 || (sak_ & 0x18) != 0x08) return false;
     uint8_t keys[96];
     hkdf_sha256(uid_, 4, keys, sizeof keys);
-    uint8_t b1[16], b2[16], b4[16], b5[16];
+    uint8_t b1[16], b2[16], b4[16], b5[16], b6[16];
     bool ok = mifare_auth(1, keys) && mifare_lesen(1, b1) && mifare_lesen(2, b2) &&
               mifare_auth(4, keys + 6) && mifare_lesen(4, b4) && mifare_lesen(5, b5);
+    // Block 6 (gleicher Sektor) ist Zusatz – fehlt er, bleiben die Temperaturen leer
+    bool b6ok = ok && mifare_lesen(6, b6);
     feld_neu();
     if (!ok) return false;
     t.variante = text_aus(b1, 8);
@@ -241,6 +243,14 @@ bool Pn532Hsu::lese_bambu(BambuTag& t) {
     t.farbe = h;
     t.gewicht = (uint16_t)(b5[4] | (b5[5] << 8));
     memcpy(&t.durchmesser, b5 + 8, 4);
+    if (b6ok) {
+        auto u16 = [&](int i) { return (uint16_t)(b6[i] | (b6[i + 1] << 8)); };
+        t.trocknen_c = u16(0);
+        t.trocknen_h = u16(2);
+        t.bett = u16(6);
+        t.duese_max = u16(8);
+        t.duese_min = u16(10);
+    }
     // Ohne Materialangabe ist es kein (gültiger) Bambu-Tag
     return t.material_id.length() > 0 || t.typ.length() > 0;
 }

@@ -195,6 +195,12 @@ void nfc_task(void*) {
                     b["farbe"] = t.farbe;
                     b["gewicht"] = t.gewicht;
                     b["durchmesser"] = roundf(t.durchmesser * 100) / 100;
+                    // Plausible Werte vom Tag (Block 6) – Unsinn bleibt weg
+                    if (t.trocknen_c >= 30 && t.trocknen_c <= 120) b["trocknen_c"] = t.trocknen_c;
+                    if (t.trocknen_h >= 1 && t.trocknen_h <= 48) b["trocknen_h"] = t.trocknen_h;
+                    if (t.bett >= 20 && t.bett <= 130) b["bett"] = t.bett;
+                    if (t.duese_max >= 150 && t.duese_max <= 400) b["duese_max"] = t.duese_max;
+                    if (t.duese_min >= 150 && t.duese_min <= 400) b["duese_min"] = t.duese_min;
                     serializeJson(b, bambu);
                     g_bambu_versuche[i] = 3;  // fertig
                 }

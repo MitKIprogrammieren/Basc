@@ -210,7 +210,7 @@ function wiegen() {
   const netto = Math.max(0, brutto - leer);
   const soll = sorte ? sorte.gewicht : (bambu && bambu.gewicht) || 1000;
   const proz = da ? Math.min(100, Math.floor((netto * 100) / Math.max(1, soll))) : 0;
-  S.aktiv = { sorte, tag, netto, da };
+  S.aktiv = { sorte, tag, netto, da, bambu };
 
   const farbe = proz < 15 && da ? "var(--rot)" : "var(--gruen)";
   $("ring").style.background = `conic-gradient(${farbe} 0 ${proz}%, var(--rand2) ${proz}% 100%)`;
@@ -291,7 +291,7 @@ function wiegen() {
     $("btn-wahl").textContent = "Sorte wählen";
   }
   haupt.disabled = S.haupt === "nichts";
-  $("btn-etikett").disabled = !sorte;
+  $("btn-etikett").disabled = !sorte && !bambu;  // Bambu-Tag: Etikett auch ohne Lager-Eintrag
 }
 
 function auswahlStarten() {
@@ -316,8 +316,26 @@ $("btn-tara").onclick = () => post("/api/tara");
 $("btn-wahl").onclick = auswahlStarten;
 $("btn-etikett").onclick = () => {
   const a = S.aktiv;
-  if (a.sorte) etikettOeffnen(a.sorte, a.da && S.z && S.z.stabil ? a.netto : 0);
+  const rest = a.da && S.z && S.z.stabil ? a.netto : 0;
+  if (a.sorte) etikettOeffnen(a.sorte, rest);
+  else if (a.bambu) etikettOeffnen(tagSorte(a.bambu), rest);
 };
+// Etikett direkt vom Bambu-Tag, ohne Lager-Eintrag: Werte vom Tag, Farbname vom Vorschlag (sonst nur Hex), kein QR-Code
+function tagSorte(b) {
+  const v = vorschlagFuerSlot({ filament_id: b.material_id, hex: bambuHex(b) });
+  const typ = b.typ || "";
+  const detail = String(b.detail || "").trim();
+  const zusatz = typ && detail.toUpperCase().startsWith(typ.toUpperCase()) ? detail.slice(typ.length).trim() : (typ ? "" : detail);
+  const s = {
+    ausTag: true, hersteller: "Bambu Lab", material: typ || detail || "Filament", besonderheiten: zusatz ? [zusatz] : [],
+    farbe: v ? v.farbe || "" : "", fcode: "", hex: bambuHex(b).toUpperCase(),
+    duese_min: b.duese_min || -1, duese_max: b.duese_max || -1, bett_min: b.bett || -1, bett_max: b.bett || -1,
+    trocknen_c: b.trocknen_c || -1, trocknen_h: b.trocknen_h || -1, gewicht: b.gewicht || 0, durchmesser: b.durchmesser || 1.75,
+    flow: -1, mvs: -1, td: -1,
+  };
+  s.kurzname = [detail || typ, s.farbe].filter(Boolean).join(" ") || "Bambu-Tag";
+  return s;
+}
 
 // ------------------------------------------------------------ Lager
 // Herstellerlogo aus Home Assistant (config/www/hersteller → /local/hersteller), über die Waage geholt.
@@ -1505,7 +1523,7 @@ async function etikettZeichnen(nurVorschau) {
   if (!nurVorschau) {
     $("et-titel").textContent = d.sorte === Etikett.TEST ? "Testdruck" : kurzname(d.sorte);
     const hoch = d.opt.hochkant && f.b > f.h;
-    $("et-info").textContent = [`${f.b} × ${f.h} mm${hoch ? " · hochkant" : ""}`, d.rest ? `Rest ${gramm(d.rest)}` : "",
+    $("et-info").textContent = [`${f.b} × ${f.h} mm${hoch ? " · hochkant" : ""}`, d.sorte.ausTag ? "vom Bambu-Tag · ohne QR" : "", d.rest ? `Rest ${gramm(d.rest)}` : "",
       !S.et ? "" : S.et.bruecke ? drName(drWahl()) || "über Home Assistant" : S.et.verbindung === "datei" ? "Testmodus ohne Drucker" : S.et.adresse ? S.et.name || S.et.adresse : "kein Drucker eingestellt"].filter(Boolean).join(" · ");
     const liste = [...Object.keys(Etikett.FORMATE), ...d.opt.formate].map((k) => [k, Etikett.formatVon(k)]);
     if (d.opt.sortierung !== "standard") {
@@ -1550,6 +1568,7 @@ async function etikettZeichnen(nurVorschau) {
 // QR-Code: mit eingetragener SchichtLohn-Adresse ein Link auf genau diese Rolle (SL-Nummer, sonst Strichcode) –
 // sonst wie bisher die Lager-Liste in Home Assistant
 function etQr(sorte) {
+  if (sorte && sorte.ausTag) return "";  // nicht im Lager – der QR-Code hätte kein Ziel
   const basis = String((S.et && S.et.qr) || "").trim();
   const code = sorte && (sorte.sl_id || (sorte.codes || [])[0]);
   if (!basis || !code) return S.et ? S.et.lager_url || "" : "";
@@ -1562,9 +1581,16 @@ function etZeichenOpt(d) {
   return {
     format: d.format, rest: d.rest, qr: etQr(d.sorte),
     bildVersion: S.et && S.et.bilder ? S.et.bilder[d.sorte.hersteller] || 0 : 0,
-    slots: d.opt.slots, rgb: d.opt.rgb, eigene: d.opt.eigene, hochkant: d.opt.hochkant,
+    slots: d.sorte.ausTag ? tagSlots(d) : d.opt.slots, rgb: d.opt.rgb, eigene: d.opt.eigene, hochkant: d.opt.hochkant,
     leerStandard: S.z ? S.z.leer_standard_g : 0,
   };
+}
+// Tag-Etikett: gewählte Zeilen, die der Tag nicht kennt (z. B. Flow), durch Werte vom Tag ersetzen
+function tagSlots(d) {
+  const wo = { rest: d.rest, eigene: d.opt.eigene };
+  const sl = d.opt.slots.filter((k) => k !== "keine" && (k === "eigene" || Etikett.hatWert(d.sorte, k, wo)));
+  for (const k of ["duese", "bett", "trocknen", "netto"]) if (sl.length < 4 && !sl.includes(k) && Etikett.hatWert(d.sorte, k, wo)) sl.push(k);
+  return sl;
 }
 $("et-formate").onclick = (e) => {
   const d = S.etDialog;
