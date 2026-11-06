@@ -84,6 +84,7 @@ void touch_lesen(lv_indev_drv_t*, lv_indev_data_t* data) {
         }
         gt911_schreiben_reg(0x814E, 0);
     }
+    if (!board_beruehrung(data->state == LV_INDEV_STATE_PR)) data->state = LV_INDEV_STATE_REL;
     data->point.x = constrain(letztes_x, 0, LCD_W - 1);
     data->point.y = constrain(letztes_y, 0, LCD_H - 1);
 }
@@ -98,7 +99,10 @@ void flush(lv_disp_drv_t* drv, const lv_area_t* a, lv_color_t* px) {
 
 }  // namespace
 
-void board_licht(bool an) { exio_setzen(EXIO_DISP, an); }
+void board_licht(bool an) {
+    exio_setzen(EXIO_DISP, an);
+    board_licht_merken(an);
+}
 
 bool board_start() {
     Wire.begin(I2C_SDA, I2C_SCL, 400000);

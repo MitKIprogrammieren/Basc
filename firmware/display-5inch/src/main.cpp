@@ -517,8 +517,53 @@ void netz_task(void*) {
 }
 
 // ---------------------------------------------------------------- Aktionen der Oberfläche
+// ---------------------------------------------------------------- Bildschirm aus
+int g_auto_aus_min = 0;  // 0 = nie
+uint32_t g_aktiv_um = 0;  // letzte Bedienung oder Bewegung auf der Waage
+
+int auto_aus_laden() {
+    Preferences p;
+    p.begin("anzeige", true);
+    int m = p.getInt("licht_aus", 0);
+    p.end();
+    return m;
+}
+
+// Weckt bei Bewegung auf der Waage (Gewicht ändert sich um 5 g oder ein Tag kommt/geht) und schaltet nach der
+// eingestellten Zeit ohne Bedienung ab. Berührungen behandelt board_gemeinsam.cpp.
+void licht_pruefen(const SensorDaten& d) {
+    static float gramm = 0;
+    static std::string tag_l, tag_r;
+    static bool erstes = true;
+    uint32_t jetzt = millis();
+    bool bewegt = erstes || fabsf(d.gramm - gramm) >= 5 || d.tag_l != tag_l || d.tag_r != tag_r;
+    erstes = false;
+    if (bewegt) {
+        gramm = d.gramm;
+        tag_l = d.tag_l;
+        tag_r = d.tag_r;
+        g_aktiv_um = jetzt;
+        if (!board_licht_an()) board_licht(true);
+    }
+    uint32_t t = board_beruehrt_um();
+    if (t && (int32_t)(t - g_aktiv_um) > 0) g_aktiv_um = t;
+    if (g_auto_aus_min > 0 && board_licht_an() && jetzt - g_aktiv_um > (uint32_t)g_auto_aus_min * 60000UL)
+        board_licht(false);
+}
+
 struct Aktionen : UiAktionen {
     void tara() override { g_sensor.tara(); }
+    void bildschirm_aus() override { board_licht(false); }
+    void auto_aus_setzen(int minuten) override {
+        g_auto_aus_min = minuten;
+        g_aktiv_um = millis();
+        Preferences p;
+        p.begin("anzeige", false);
+        p.putInt("licht_aus", minuten);
+        p.end();
+        ui_meldung(minuten ? "Bildschirm geht nach " + std::to_string(minuten) + " min ohne Bedienung aus"
+                           : "Bildschirm bleibt an");
+    }
     void kalibrieren(int g) override {
         SensorDaten d = g_sensor.daten();
         if (d.gramm < 0 && !d.kalibriert) {
@@ -777,6 +822,9 @@ void setup() {
         Serial.println("Display-Fehler – Pins und Timing in config.h prüfen");
     }
     ui_start(&g_aktionen, &g_lager);
+    g_auto_aus_min = auto_aus_laden();
+    ui_auto_aus(g_auto_aus_min);
+    g_aktiv_um = millis();
 
     einst_laden();
 #if SENSOR_DIREKT
@@ -881,6 +929,7 @@ void loop() {
     if (jetzt - letzte_anzeige >= 100) {
         letzte_anzeige = jetzt;
         SensorDaten d = g_sensor.daten();
+        licht_pruefen(d);
         WaagenStatus s;
         s.brutto_g = d.gramm;
         s.stabil = d.stabil;

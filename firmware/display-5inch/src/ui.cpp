@@ -114,7 +114,10 @@ int g_detail = -1;
 // Einstellungen
 lv_obj_t *e_kal_wert, *e_info;
 int g_kal_g = 1000;
-lv_obj_t *e_tab[2], *e_waage, *e_drucker;
+lv_obj_t *e_tab[3], *e_waage, *e_drucker, *e_bild;
+lv_obj_t* e_aus_knopf[5];
+int g_auto_aus_min = 0;  // Bildschirm automatisch aus nach … Minuten, 0 = nie
+constexpr int AUTO_AUS[5] = {0, 1, 5, 15, 30};
 int g_einst_tab = 0;  // 0 = Waage, 1 = Drucker
 
 // AMS, Etiketten, Logos
@@ -1729,6 +1732,55 @@ void einst_tab_cb(lv_event_t* e) {
     }
 }
 
+// ---------------------------------------------------------------- Einstellungen → Bildschirm
+void auto_aus_markieren() {
+    for (int i = 0; i < 5; i++) {
+        bool an = AUTO_AUS[i] == g_auto_aus_min;
+        lv_obj_set_style_bg_color(e_aus_knopf[i], farbe(an ? C_NAV_AKT : C_PANEL), 0);
+        lv_obj_set_style_border_color(e_aus_knopf[i], farbe(an ? C_GRUEN : C_RAND2), 0);
+        lv_obj_set_style_text_color(lv_obj_get_child(e_aus_knopf[i], 0), farbe(an ? C_GRUEN_T : C_TEXT), 0);
+    }
+}
+
+void auto_aus_cb(lv_event_t* e) {
+    g_auto_aus_min = AUTO_AUS[(int)(intptr_t)lv_event_get_user_data(e)];
+    auto_aus_markieren();
+    if (g_akt) g_akt->auto_aus_setzen(g_auto_aus_min);
+}
+
+void jetzt_aus_cb(lv_event_t*) {
+    if (g_akt) g_akt->bildschirm_aus();
+}
+
+void bild_bauen(lv_obj_t* seite_) {
+    e_bild = box(seite_);
+    lv_obj_set_width(e_bild, lv_pct(100));
+    lv_obj_set_flex_grow(e_bild, 1);
+    lv_obj_t* a = box(e_bild);
+    panel_stil(a, C_GRUEN);
+    lv_obj_set_size(a, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_pad_all(a, K(18, 10), 0);
+    lv_obj_set_flex_flow(a, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(a, K(14, 8), 0);
+    ueberschrift(text(a, F_K, C_SUB, "BILDSCHIRM"));
+    lv_obj_t* aus = knopf(a, LV_SYMBOL_POWER "  Bildschirm jetzt aus", Art::PRIMAER, jetzt_aus_cb);
+    lv_obj_set_size(aus, lv_pct(100), K(54, 36));
+    text(a, F_K, C_SUB, "Automatisch aus, wenn sich nichts tut:");
+    lv_obj_t* z = box(a);
+    lv_obj_set_size(z, lv_pct(100), K(48, 32));
+    lv_obj_set_flex_flow(z, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(z, S(8), 0);
+    const char* namen[5] = {"Nie", "1 min", "5 min", "15 min", "30 min"};
+    for (int i = 0; i < 5; i++) {
+        e_aus_knopf[i] = knopf(z, namen[i], Art::RAHMEN, auto_aus_cb, (void*)(intptr_t)i);
+        lv_obj_set_height(e_aus_knopf[i], lv_pct(100));
+        lv_obj_set_flex_grow(e_aus_knopf[i], 1);
+        lv_obj_set_style_text_font(lv_obj_get_child(e_aus_knopf[i], 0), F_K, 0);
+    }
+    auto_aus_markieren();
+    text(a, F_K, C_SUB, "Wieder an: Bildschirm antippen, Spule auflegen\noder einen Tag an einen Leser halten.");
+}
+
 void baue_einst(lv_obj_t* seite_) {
     lv_obj_set_flex_flow(seite_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(seite_, S(10), 0);
@@ -1737,8 +1789,8 @@ void baue_einst(lv_obj_t* seite_) {
     lv_obj_set_size(tabs, lv_pct(100), K(40, 28));
     lv_obj_set_flex_flow(tabs, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(tabs, S(8), 0);
-    const char* namen[2] = {"Waage", "Drucker & AMS"};
-    for (int i = 0; i < 2; i++) {
+    const char* namen[3] = {"Waage", "Drucker & AMS", "Bildschirm"};
+    for (int i = 0; i < 3; i++) {
         e_tab[i] = knopf(tabs, namen[i], Art::FLACH, einst_tab_cb, (void*)(intptr_t)i);
         lv_obj_set_size(e_tab[i], K(200, 130), lv_pct(100));
         lv_obj_set_style_text_font(lv_obj_get_child(e_tab[i], 0), F_K, 0);
@@ -1798,6 +1850,7 @@ void baue_einst(lv_obj_t* seite_) {
     lv_obj_set_style_text_line_space(e_info, S(6), 0);
     lv_obj_t* lade = knopf(b, LV_SYMBOL_REFRESH "  Lager neu laden", Art::RAHMEN, laden_cb);
     lv_obj_set_size(lade, lv_pct(100), S(50));
+    bild_bauen(seite_);
 }
 
 void einst_aktualisieren() {
@@ -1812,17 +1865,15 @@ void einst_aktualisieren() {
 
 // ---------------------------------------------------------------- Drucker & AMS
 void einst_tab_markieren() {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
         bool an = i == g_einst_tab;
         lv_obj_set_style_bg_color(e_tab[i], farbe(an ? C_NAV_AKT : C_PANEL), 0);
         lv_obj_set_style_text_color(lv_obj_get_child(e_tab[i], 0), farbe(an ? C_GRUEN_T : C_NAV), 0);
     }
-    if (g_einst_tab == 0) {
-        lv_obj_clear_flag(e_waage, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(e_drucker, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(e_waage, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(e_drucker, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_t* teile[3] = {e_waage, e_drucker, e_bild};
+    for (int i = 0; i < 3; i++) {
+        if (i == g_einst_tab) lv_obj_clear_flag(teile[i], LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_add_flag(teile[i], LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -2232,6 +2283,7 @@ void ui_zeige(const std::string& name) {
     else if (name == "auswahl") { g_auswahl_modus = true; zeige_seite(LAGER); }
     else if (name == "einst") { g_einst_tab = 0; zeige_seite(EINST); }
     else if (name == "drucker") { g_einst_tab = 1; zeige_seite(EINST); }
+    else if (name == "bildschirm") { g_einst_tab = 2; zeige_seite(EINST); }
     else if (name == "lager_offen" || name == "lager_filter") {
         g_lo.auf.clear();
         if (name == "lager_offen") g_lo.auf.push_back("Bambu Lab");
@@ -2242,4 +2294,9 @@ void ui_zeige(const std::string& name) {
     else if (name.rfind("etikett:", 0) == 0) et_oeffnen(atoi(name.c_str() + 8), 562);
     else if (name.rfind("detail:", 0) == 0) { g_detail = atoi(name.c_str() + 7); zeige_seite(DETAIL); }
     else zeige_seite(WIEGEN);
+}
+
+void ui_auto_aus(int minuten) {
+    g_auto_aus_min = minuten;
+    if (e_aus_knopf[0]) auto_aus_markieren();
 }

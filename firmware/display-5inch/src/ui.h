@@ -55,6 +55,9 @@ public:
     virtual void etikett_drucken(const std::string& /*titel*/, const EtikettBild& /*bild*/, const std::string& /*drucker*/) {}
     // AMS-Belegung und Etikettendrucker neu abfragen
     virtual void drucker_laden() {}
+    // Hintergrundlicht: sofort aus bzw. automatisch nach … Minuten ohne Bedienung (0 = nie)
+    virtual void bildschirm_aus() {}
+    virtual void auto_aus_setzen(int /*minuten*/) {}
 };
 
 // Einmal nach lv_init() und dem Display-Treiber aufrufen.
@@ -69,8 +72,10 @@ void ui_ams(const AmsStand* ams);
 void ui_etikett(const EtikettEinst& e);
 // Ein Logo ist fertig geladen
 void ui_logos_neu();
+// Eingestellte Zeit für „Bildschirm automatisch aus“ anzeigen (0 = nie)
+void ui_auto_aus(int minuten);
 // Kurze Meldung unten einblenden.
 void ui_meldung(const std::string& text, bool fehler = false);
 
-// Für Tests: Bildschirm direkt öffnen ("wiegen", "lager", "detail:<index>", "einst", "drucker", "etikett:<index>")
+// Für Tests: Bildschirm direkt öffnen ("wiegen", "lager", "detail:<index>", "einst", "drucker", "bildschirm", "etikett:<index>")
 void ui_zeige(const std::string& name);

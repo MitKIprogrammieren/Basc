@@ -198,6 +198,11 @@ int main(int argc, char** argv) {
     ui_status(st);
     laufen(100);
     speichern(aus + "/9_drucker.ppm");
+    ui_auto_aus(5);
+    ui_zeige("bildschirm");
+    ui_status(st);
+    laufen(100);
+    speichern(aus + "/9b_bildschirm.ppm");
 
     // 10: Druckdialog (Ash Gray, mit Düsenwerten) mit gewogenem Rest
     ui_zeige("wiegen");

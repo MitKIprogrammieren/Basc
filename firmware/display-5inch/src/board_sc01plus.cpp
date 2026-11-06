@@ -55,6 +55,7 @@ void touch_lesen(lv_indev_drv_t*, lv_indev_data_t* data) {
             Serial.printf("[touch] roh %d/%d → %d/%d\n", rx, ry, letztes_x, letztes_y);
         }
     }
+    if (!board_beruehrung(data->state == LV_INDEV_STATE_PR)) data->state = LV_INDEV_STATE_REL;
     data->point.x = letztes_x;
     data->point.y = letztes_y;
 }
@@ -69,7 +70,10 @@ void flush(lv_disp_drv_t* drv, const lv_area_t* a, lv_color_t* px) {
 
 }  // namespace
 
-void board_licht(bool an) { ledcWrite(BL_KANAL, an ? 255 : 0); }
+void board_licht(bool an) {
+    ledcWrite(BL_KANAL, an ? 255 : 0);
+    board_licht_merken(an);
+}
 
 bool board_start() {
     // Licht aus, bis das erste Bild steht
