@@ -29,6 +29,8 @@
 #include <mutex>
 
 #include "ams.h"
+#include <esp_heap_caps.h>
+
 #include "board.h"
 #include "config.h"
 #include "etikett.h"
@@ -338,6 +340,10 @@ void ha_task(void*) {
                 e.meldung = fehler;
                 e.fehler = true;
             }
+            if (!e.ha_ok)
+                Serial.printf("[ha] Lager laden fehlgeschlagen: %s (Speicher intern frei %u, größter Block %u)\n",
+                              fehler.c_str(), (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
             ergebnis(std::move(e));
         }
     }
@@ -940,6 +946,15 @@ void loop() {
         letzte_anzeige = jetzt;
         SensorDaten d = g_sensor.daten();
         licht_pruefen(d);
+        static uint32_t letzter_bericht = 0;
+        if (jetzt - letzter_bericht >= 30000) {
+            letzter_bericht = jetzt;
+            Serial.printf("[system] Speicher intern frei %u (größter Block %u), PSRAM frei %u, WLAN %s, Licht %s\n",
+                          (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                          (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM), wlan ? "verbunden" : "getrennt",
+                          board_licht_an() ? "an" : "aus");
+        }
         WaagenStatus s;
         s.brutto_g = d.gramm;
         s.stabil = d.stabil;

@@ -9,7 +9,10 @@ bool g_schlucken = false;  // Finger, der gerade geweckt hat – erst nach dem L
 uint32_t g_beruehrt = 0;
 }  // namespace
 
-void board_licht_merken(bool an) { g_an = an; }
+void board_licht_merken(bool an) {
+    if (an != g_an) Serial.printf("[licht] %s\n", an ? "an" : "aus");
+    g_an = an;
+}
 bool board_licht_an() { return g_an; }
 uint32_t board_beruehrt_um() { return g_beruehrt; }
 
@@ -20,6 +23,7 @@ bool board_beruehrung(bool gedrueckt) {
     }
     g_beruehrt = millis();
     if (!g_an) {
+        Serial.println("[licht] Berührung weckt");
         board_licht(true);
         g_schlucken = true;
     }
