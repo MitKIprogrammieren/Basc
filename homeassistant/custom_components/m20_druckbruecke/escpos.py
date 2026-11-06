@@ -41,6 +41,31 @@ def escpos_auftrag(breite, hoehe, daten, dichte=10, kopien=1, kopf_px=384) -> by
     return bytes(einer) * max(1, min(10, int(kopien)))
 
 
+def escpos_teile(auftrag: bytes) -> list[bytes]:
+    """Auftrag in die einzelnen Befehle zerlegen (Kopf, Raster, Abschluss) – zum Senden mit Pausen dazwischen.
+
+    So wie die Phomemo-App und die bewährten BLE-Umsetzungen (pyphomemo, phomymo): jeder Befehl einzeln,
+    vor dem Abschluss eine kurze Pause. Am Stück gesendet hängt sich der M110 sonst gern auf.
+    """
+    teile, i, n = [], 0, len(auftrag)
+    while i < n:
+        b = auftrag[i:i + 2]
+        if b in (b"\x1b\x4e",):          # ESC N x y – Tempo/Schwärzung
+            teile.append(auftrag[i:i + 4]); i += 4
+        elif b == b"\x1f\x11":           # Papierart
+            teile.append(auftrag[i:i + 3]); i += 3
+        elif b == b"\x1d\x76":           # GS v 0 m xL xH yL yH + Raster
+            bpr = auftrag[i + 4] | (auftrag[i + 5] << 8)
+            h = auftrag[i + 6] | (auftrag[i + 7] << 8)
+            teile.append(auftrag[i:i + 8])
+            teile.append(auftrag[i + 8:i + 8 + bpr * h]); i += 8 + bpr * h
+        elif b == b"\x1f\xf0":           # Abschluss (bis zur Lücke)
+            teile.append(auftrag[i:i + 4]); i += 4
+        else:                              # Unbekanntes: Rest am Stück
+            teile.append(auftrag[i:]); break
+    return teile
+
+
 def escpos_test(kopf_px=384) -> bytes:
     """Testetikett 40 × 30 mm: zwei schwarze Balken wie beim M20 Pro."""
     b, h = 320, 240

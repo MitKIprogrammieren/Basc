@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
+from .escpos import escpos_teile
 from .const import DOMAIN, INFO_FRAGEN, MODELLE, SIGNAL_UPDATE, STANDARD_MODELL, UUID_ANTWORT, UUID_SCHREIBEN
 
 _LOGGER = logging.getLogger(__name__)
@@ -128,16 +129,19 @@ class M20Drucker:
                     if not bestaetigt and (i // stueck) % 10 == 9:
                         await asyncio.sleep(0.05)
 
-            if self.sprache == "escpos" and daten:
-                # Aufwecken: Ein schlafender M110 nimmt sonst die Daten an, druckt aber nicht.
-                # ESC @ setzt ihn zurück, kurz warten, dann erst das Etikett.
-                await senden(b"\x1b\x40")
-                await asyncio.sleep(0.6)
-            await senden(daten)
             if self.sprache == "escpos":
-                # Kein Rückkanal „fertig“: Zeit zum Drucken lassen, bevor getrennt wird
-                await asyncio.sleep(3 if auf_druck_warten else 0.5)
+                # Befehle einzeln mit kurzen Pausen wie die Phomemo-App – am Stück (und mit ESC @ davor)
+                # nahm der M110 die Daten an, druckte aber nicht und hing bis zum Neustart.
+                for teil in escpos_teile(daten):
+                    if teil[:2] == b"\x1f\xf0" and teil[2:3] == b"\x05":
+                        await asyncio.sleep(0.3)  # vor dem Abschluss
+                    await senden(teil)
+                    await asyncio.sleep(0.03)
+                # Kein Rückkanal „fertig“: Zeit zum Drucken lassen, bevor getrennt wird –
+                # zu frühes Trennen mitten im Druck bringt den M110 durcheinander
+                await asyncio.sleep(5 if auf_druck_warten else 0.5)
                 return bytes(puffer).hex(" ")[:200]
+            await senden(daten)
             if auf_druck_warten:
                 ende = time.monotonic() + 40
                 gefragt = time.monotonic()
@@ -198,7 +202,7 @@ class M20Drucker:
             self._wartend -= 1
         self.verlauf.append({"zeit": time.strftime("%Y-%m-%d %H:%M:%S"), "titel": titel, "ok": ok,
                              "text": ("gedruckt" if self.sprache == "tspl" else "gesendet") if ok else text,
-                             "info": info, "bytes": len(auftrag)})
+                             "info": info, "bytes": len(auftrag), "antwort": (antworten or "")[:120]})
         if ok:
             self.gesamt += 1
         self.letzter, self.ok, self.antworten, self.zeit = text, ok, antworten, time.strftime("%H:%M:%S")
