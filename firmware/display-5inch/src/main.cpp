@@ -43,8 +43,10 @@
 #include <ESPmDNS.h>
 
 #include "sensor_direkt.h"
+#if DIREKT_WEB
 #include "../../sensor-s3zero/src/drucker.h"
 #include "../../sensor-s3zero/src/oberflaeche.h"
+#endif
 #include "../../sensor-s3zero/src/sensor.h"
 #endif
 #include "ui.h"
@@ -643,7 +645,7 @@ static int g_wlan_versuche = 0;
 // Stromsparen im WLAN aus – außer Bluetooth läuft mit (Etikettendruck in der Variante ohne Sensorplatine):
 // dann verlangt der ESP32 Modem-Sleep, sonst bricht er mit „Should enable WiFi modem sleep“ ab.
 void wlan_schlaf_setzen() {
-#if SENSOR_DIREKT
+#if SENSOR_DIREKT && DIREKT_WEB
     WiFi.setSleep(drucker_gesperrt() ? WIFI_PS_NONE : WIFI_PS_MIN_MODEM);
 #else
     WiFi.setSleep(false);
@@ -816,8 +818,9 @@ void waechter(void*) {
 }
 
 void web_weiter() {
-    static bool laeuft = false;
     g_loops++;
+#if DIREKT_WEB
+    static bool laeuft = false;
     if (!laeuft) {
         if (WiFi.status() != WL_CONNECTED) return;
         laeuft = true;
@@ -838,6 +841,7 @@ void web_weiter() {
     }
     g_schritt = "Web-Oberfläche";
     oberflaeche_weiter();
+#endif
 }
 #endif
 
@@ -851,7 +855,9 @@ void setup() {
     Serial.println("FilamentLager-Waage " FW_VERSION);
 #if SENSOR_DIREKT
     g_start_grund = esp_reset_reason();
+#if DIREKT_WEB
     drucker_frueh(true);  // Bluetooth (Etikettendrucker) vor allem anderen – braucht internen Speicher
+#endif
 #endif
 
     lv_init();

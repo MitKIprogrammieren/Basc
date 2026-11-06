@@ -38,12 +38,12 @@ jobs:
         working-directory: firmware/display-5inch
         run: |
           set -o pipefail
-          { pio run -e ws5 -e sc01plus -e sc01plus_direkt && pio run -e sc01plus_direkt -t buildfs; } 2>&1 | tee /tmp/build.log
+          { pio run -e ws5 -e sc01plus -e sc01plus_direkt -e sc01plus_direkt_basis && pio run -e sc01plus_direkt -t buildfs; } 2>&1 | tee /tmp/build.log
 
       - name: Teile sammeln
         working-directory: firmware/display-5inch
         run: |
-          for ENV in ws5 sc01plus sc01plus_direkt; do
+          for ENV in ws5 sc01plus sc01plus_direkt sc01plus_direkt_basis; do
             B=.pio/build/$ENV; Z=/tmp/aus/$ENV
             mkdir -p $Z
             cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin $Z/
@@ -69,10 +69,11 @@ jobs:
       - name: Webflasher bauen
         run: |
           FW=$(grep -oP 'FW_VERSION "\K[^"]+' firmware/display-5inch/include/config.h)
-          for ENV in sc01plus sc01plus_direkt ws5; do
+          for ENV in sc01plus sc01plus_direkt sc01plus_direkt_basis ws5; do
             T=/tmp/aus/$ENV
             if [ $ENV = sc01plus ]; then NAME="Display SC01 Plus"; AUS=FilamentLager-Webflasher-SC01Plus.html
             elif [ $ENV = sc01plus_direkt ]; then NAME="SC01 Plus ohne Sensorplatine"; AUS=FilamentLager-Webflasher-SC01Plus-Direkt.html
+            elif [ $ENV = sc01plus_direkt_basis ]; then NAME="SC01 Plus ohne Sensorplatine (Basis)"; AUS=FilamentLager-Webflasher-SC01Plus-Direkt-Basis.html
             else NAME='Display 5"'; AUS=FilamentLager-Webflasher-Display5.html; fi
             python3 tools/webflasher/bauen.py --version "$FW" --esptool /tmp/aus/esptool-js.mjs --art anzeige --geraet "$NAME" \
               --teil 0x0=$T/bootloader.bin --teil 0x8000=$T/partitions.bin \
