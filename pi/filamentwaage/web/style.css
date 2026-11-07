@@ -380,3 +380,13 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .g-name { font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; }
 .g-anz { color: var(--sub); font-size: 13px; margin-left: auto; }
 .g-kg { font-size: 15px; min-width: 64px; text-align: right; }
+
+/* Scrollbalken in abgerundeten Feldern (Lager-Liste usw.) oben und unten einrücken,
+   sonst läuft er in Safari über die runde Begrenzung hinaus */
+.liste, #reste, .e-inhalt, .menue { scrollbar-width: auto; scrollbar-color: auto; }
+.liste::-webkit-scrollbar, #reste::-webkit-scrollbar, .e-inhalt::-webkit-scrollbar, .menue::-webkit-scrollbar { width: 6px; }
+.liste::-webkit-scrollbar-track, #reste::-webkit-scrollbar-track, .e-inhalt::-webkit-scrollbar-track, .menue::-webkit-scrollbar-track { background: transparent; margin: 20px 0; }
+.liste::-webkit-scrollbar-thumb, #reste::-webkit-scrollbar-thumb, .e-inhalt::-webkit-scrollbar-thumb, .menue::-webkit-scrollbar-thumb { background: var(--rand); border-radius: 3px; }
+@supports not selector(::-webkit-scrollbar) {
+  .liste, #reste, .e-inhalt, .menue { scrollbar-width: thin; scrollbar-color: var(--rand) transparent; }
+}
