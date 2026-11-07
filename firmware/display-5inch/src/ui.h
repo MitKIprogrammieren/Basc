@@ -30,7 +30,8 @@ struct WaagenStatus {
     bool wlan_ok = false;
     int drucker = -1;        // Etikettendrucker: -1 keiner bekannt, 0 grau, 1 bereit, 2 Fehler
     bool ha_ok = false;
-    bool schichtlohn = false;  // Adresse ist ein SchichtLohn-Server (Port 8093) statt Home Assistant
+    bool schichtlohn = false;
+    std::string update_text;  // Stand von „Nach Update suchen“ (leer = nichts läuft)  // Adresse ist ein SchichtLohn-Server (Port 8093) statt Home Assistant
     std::string uhrzeit;     // "21:27"
     std::string ip;
     std::string version;
@@ -70,6 +71,8 @@ public:
     // Hintergrundlicht: sofort aus bzw. automatisch nach … Minuten ohne Bedienung (0 = nie)
     virtual void bildschirm_aus() {}
     virtual void auto_aus_setzen(int /*minuten*/) {}
+    // neue Firmware über SchichtLohn von GitHub holen und einspielen
+    virtual void update_suchen() {}
 };
 
 // Einmal nach lv_init() und dem Display-Treiber aufrufen.

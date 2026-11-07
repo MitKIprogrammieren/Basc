@@ -36,6 +36,7 @@
 #include "etikett.h"
 #include "logo.h"
 #include "ha_client.h"
+#include "online_update.h"
 #include "lvgl.h"
 #include "model.h"
 #include "sensor_link.h"
@@ -577,7 +578,42 @@ void licht_pruefen(const SensorDaten& d) {
         board_licht(false);
 }
 
+// ---------------------------------------------------------------- Update über SchichtLohn
+#if SENSOR_DIREKT
+#define UPDATE_ORDNER "sc01plus_direkt/"
+#elif defined(BOARD_SC01PLUS)
+#define UPDATE_ORDNER "sc01plus/"
+#else
+#define UPDATE_ORDNER "ws5/"
+#endif
+online_update::Stand g_upd;
+
+static void update_task(void*) {
+    String fehler;
+    snprintf(g_upd.text, sizeof g_upd.text, "Suche Update …");
+    String v = online_update::verfuegbar(g_einst.ha_url, g_einst.ha_token, "webflasher-display", fehler);
+    if (!v.length()) {
+        snprintf(g_upd.text, sizeof g_upd.text, "Update: %s", fehler.c_str());
+        g_upd.fehler = true;
+    } else if (!online_update::neuer(v, FW_VERSION)) {
+        snprintf(g_upd.text, sizeof g_upd.text, "Version %s ist aktuell", FW_VERSION);
+    } else {
+        Serial.printf("[update] %s -> %s\n", FW_VERSION, v.c_str());
+        online_update::einspielen(g_einst.ha_url, g_einst.ha_token, "webflasher-display", UPDATE_ORDNER, false, g_upd);
+        Serial.printf("[update] fehlgeschlagen: %s\n", g_upd.text);
+    }
+    g_upd.laeuft = false;
+    vTaskDelete(nullptr);
+}
+
 struct Aktionen : UiAktionen {
+    void update_suchen() override {
+        if (g_upd.laeuft) return;
+        g_upd.laeuft = true;
+        g_upd.fehler = false;
+        snprintf(g_upd.text, sizeof g_upd.text, "Suche Update …");
+        xTaskCreatePinnedToCore(update_task, "update", 8192, nullptr, 1, nullptr, 0);
+    }
     void tara() override { g_sensor.tara(); }
     void bildschirm_aus() override { board_licht(false); }
     void auto_aus_setzen(int minuten) override {
@@ -1187,6 +1223,7 @@ void loop() {
 #endif
         s.wlan_ok = wlan;
         s.ha_ok = g_ha_ok;
+        s.update_text = g_upd.text;
         s.schichtlohn = g_einst.ha_url.indexOf(":8093") >= 0 || g_einst.ha_url.indexOf("schichtlohn") >= 0;
         s.uhrzeit = uhrzeit();
         s.ip = wlan ? WiFi.localIP().toString().c_str() : "";

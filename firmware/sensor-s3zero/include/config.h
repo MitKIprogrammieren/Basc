@@ -3,7 +3,12 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.24.9"
+#define FW_VERSION "2.25.0"
+
+// Ordner der Firmware im Zweig webflasher-bin (für „Nach Update suchen“)
+#ifndef UPDATE_ORDNER
+#define UPDATE_ORDNER ""
+#endif
 
 // Wägezelle über NAU7802 (I²C, Adresse 0x2A)
 #define WAAGE_SDA 1

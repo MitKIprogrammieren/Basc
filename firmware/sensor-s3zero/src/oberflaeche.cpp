@@ -43,6 +43,7 @@
 #include "drucker.h"
 #include "ams.h"
 #include "ha_client.h"
+#include "online_update.h"
 #include "model.h"
 #include "sensor.h"
 
@@ -1303,6 +1304,42 @@ void routen() {
         d["fs_groesse"] = fs ? fs->size : 0;
         d["app_max"] = frei ? frei->size : 0;
         d["ota"] = frei != nullptr && frei != esp_ota_get_running_partition();
+        senden(r, 200, d);
+    });
+    // „Nach Update suchen“: Firmware und Oberfläche über den SchichtLohn-Server von GitHub holen (ohne Datei)
+    static online_update::Stand s_online;
+    g_server.on("/api/update/online", HTTP_POST, [](AsyncWebServerRequest* r) {
+        if (!s_online.laeuft) {
+            s_online.laeuft = true;
+            s_online.fehler = false;
+            snprintf(s_online.text, sizeof s_online.text, "Suche Update …");
+            xTaskCreatePinnedToCore([](void*) {
+                String fehler;
+                String v = online_update::verfuegbar(g_ha.url, g_ha.token, "webflasher-bin", fehler);
+                if (!v.length()) {
+                    snprintf(s_online.text, sizeof s_online.text, "%s", fehler.c_str());
+                    s_online.fehler = true;
+                } else if (!online_update::neuer(v, FW_VERSION)) {
+                    snprintf(s_online.text, sizeof s_online.text, "Version %s ist aktuell", FW_VERSION);
+                } else {
+                    online_update::einspielen(g_ha.url, g_ha.token, "webflasher-bin", UPDATE_ORDNER, true, s_online,
+                                              [] { LittleFS.end(); g_fs_ok = false; });
+                    g_fs_ok = LittleFS.begin(false);
+                }
+                s_online.laeuft = false;
+                vTaskDelete(nullptr);
+            }, "update", 8192, nullptr, 1, nullptr, WEB_KERN);
+        }
+        JsonDocument d;
+        d["ok"] = true;
+        senden(r, 200, d);
+    });
+    g_server.on("/api/update/online", HTTP_GET, [](AsyncWebServerRequest* r) {
+        JsonDocument d;
+        d["text"] = s_online.text;
+        d["laeuft"] = (bool)s_online.laeuft;
+        d["fehler"] = (bool)s_online.fehler;
+        d["version"] = FW_VERSION;
         senden(r, 200, d);
     });
     static bool s_update_ok = false;

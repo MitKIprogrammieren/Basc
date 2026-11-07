@@ -1183,7 +1183,9 @@ function einst() {
           style="width:100%;min-width:0" value="${esc(e.name)}" aria-label="Name der Waage"></div>
           <button class="knopf primaer h50" id="e-name-ok" style="padding:0 18px;font-size:15px">Speichern</button></div>
         <span class="hinweis">Für eine zweite Waage einen eigenen Namen, z. B. „waage2“: erreichbar unter ${esc(e.name)}.local, eigenes Setup-WLAN und eigene Sensoren in Home Assistant. Speichern startet die Waage neu.</span></div>` : ""}
-      ${e.update ? `<button class="knopf primaer h50" data-system="einspielen">Update einspielen …</button>
+      ${e.update ? `<button class="knopf primaer h50" data-system="online">Nach Update suchen</button>
+        <span class="hinweis">Holt die neueste Version über den SchichtLohn-Server von GitHub – ohne Datei und ohne USB.</span>
+        <button class="knopf rahmen h50" data-system="einspielen">Update aus Datei …</button>
         <input type="file" id="e-update" hidden>
         <span class="hinweis">Datei FilamentLager-Webflasher.html wählen – die Waage nimmt sich Firmware und Oberfläche daraus und startet neu. Kalibrierung, WLAN und Einstellungen bleiben.</span>
         ${S.update ? `<div class="balken"><div style="width:${S.update.p}%;background:var(--gruen)"></div></div><span class="sub14">${esc(S.update.text)}</span>` : ""}` : ""}
@@ -1240,6 +1242,7 @@ $("e-inhalt").onclick = async (e) => {
     S.resetFrage = false;
     if (d.system === "neu_laden") return post("/api/neu_laden");
     if (d.system === "einspielen") return $("e-update").click();
+    if (d.system === "online") return updateOnline();
     post("/api/system", { aktion: d.system });
     return einst();
   }
@@ -1776,6 +1779,26 @@ function hochladen(ziel, teil, von, bis) {
     x.send(fd);
   });
 }
+// „Nach Update suchen“: die Waage holt sich die neue Version selbst (über SchichtLohn von GitHub)
+async function updateOnline() {
+  if (S.update && S.update.laeuft) return;
+  try {
+    await fetch("/api/update/online", { method: "POST" });
+    for (;;) {
+      await new Promise((ok) => setTimeout(ok, 1000));
+      let j;
+      try { j = await (await fetch("/api/update/online")).json(); } catch (e) {
+        updateStand(100, "Waage startet neu – die Seite lädt gleich neu"); setTimeout(() => location.reload(), 12000); return;
+      }
+      const p = Number((j.text.match(/(\d+) %/) || [])[1] || 0), fw = /Firmware/.test(j.text);
+      S.update = { p: /Oberfläche/.test(j.text) ? Math.round(p * 0.3) : fw ? 30 + Math.round(p * 0.7) : /neu/.test(j.text) ? 100 : 0, text: j.text, laeuft: j.laeuft };
+      if (S.seite === "einst" && S.eSeite === "system") einst();
+      if (/starte neu/.test(j.text)) { setTimeout(() => location.reload(), 15000); return; }
+      if (!j.laeuft) { meldung(j.text, j.fehler); S.update = j.fehler ? S.update : null; if (S.seite === "einst") einst(); return; }
+    }
+  } catch (e) { meldung("Update: " + e.message, true); }
+}
+
 async function updateEinspielen(datei) {
   $("e-update").value = "";
   try {

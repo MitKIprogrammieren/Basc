@@ -1765,6 +1765,10 @@ void laden_cb(lv_event_t*) {
     if (g_akt) g_akt->neu_laden();
 }
 
+void update_cb(lv_event_t*) {
+    if (g_akt) g_akt->update_suchen();
+}
+
 void drucker_bauen();
 void einst_tab_markieren();
 
@@ -1893,8 +1897,16 @@ void baue_einst(lv_obj_t* seite_) {
     ueberschrift(t2);
     e_info = text(b, KT(F_N, F_K), C_TEXT, "");
     lv_obj_set_style_text_line_space(e_info, S(6), 0);
-    lv_obj_t* lade = knopf(b, LV_SYMBOL_REFRESH "  Lager neu laden", Art::RAHMEN, laden_cb);
-    lv_obj_set_size(lade, lv_pct(100), S(50));
+    lv_obj_t* zeile = box(b);
+    lv_obj_set_size(zeile, lv_pct(100), S(50));
+    lv_obj_set_flex_flow(zeile, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(zeile, S(8), 0);
+    lv_obj_t* lade = knopf(zeile, LV_SYMBOL_REFRESH "  Lager", Art::RAHMEN, laden_cb);
+    lv_obj_set_height(lade, lv_pct(100));
+    lv_obj_set_flex_grow(lade, 1);
+    lv_obj_t* upd = knopf(zeile, LV_SYMBOL_DOWNLOAD "  Update", Art::RAHMEN, update_cb);
+    lv_obj_set_height(upd, lv_pct(100));
+    lv_obj_set_flex_grow(upd, 1);
     bild_bauen(seite_);
 }
 
@@ -1904,7 +1916,7 @@ void einst_aktualisieren() {
     s += std::string("Sensor: ") + (g_st.sensor_ok ? "verbunden" : "antwortet nicht") + "\n";
     s += "Sorten im Lager: " + std::to_string(g_lager ? g_lager->sorten.size() : 0) + "\n";
     s += "Leerspule Standard: " + gramm(g_st.leer_standard_g) + "\n";
-    s += "Version: " + g_st.version;
+    s += g_st.update_text.empty() ? "Version: " + g_st.version : g_st.update_text;
     setze(e_info, s);
 }
 
