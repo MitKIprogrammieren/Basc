@@ -140,6 +140,12 @@ int main(int argc, char** argv) {
     laufen(100);
     speichern(aus + "/1_wiegen.ppm");
 
+    // 1b: fast leer → oranger Hinweis
+    st.brutto_g = 268;
+    ui_status(st);
+    laufen(100);
+    speichern(aus + "/1b_fast_leer.ppm");
+
     // 2: unbekannter Tag
     st.tag_r = "04DEADBEEF0001";
     st.brutto_g = 655;

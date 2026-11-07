@@ -45,6 +45,7 @@ namespace {
 constexpr uint32_t C_BG = 0x0d0f12, C_PANEL = 0x15181c, C_KACHEL = 0x1d2126, C_LINIE = 0x23272d;
 constexpr uint32_t C_RAND = 0x3a4048, C_RAND2 = 0x2a2f36, C_TEXT = 0xf1f3f5, C_SUB = 0xa3aab3;
 constexpr uint32_t C_NAV = 0xc9ced4, C_GRUEN = 0x4caf50, C_GRUEN_T = 0x9fe3a2, C_NAV_AKT = 0x1c2a1e;
+constexpr int FAST_LEER_G = 30;  // darunter Hinweis: Leerspulen weichen bis ~10 g ab
 constexpr uint32_t C_ORANGE = 0xffa726, C_ORANGE_T = 0xffb74d, C_ROT = 0xef5350, C_CHIP = 0x23272d;
 constexpr uint32_t C_CHIP_G = 0x1e3024, C_CHIP_B = 0x1a2a3d, C_BLAU_T = 0x90caf9;
 
@@ -737,7 +738,10 @@ void wiegen_aktualisieren() {
     setze(w_zahl, std::to_string(da ? netto : 0));
     if (!st.sensor_ok) setze(w_proz, "Sensor antwortet nicht");
     else if (!da) setze(w_proz, "Spule auflegen");
+    else if (netto <= FAST_LEER_G) setze(w_proz, "Achtung: ±10 g möglich");
     else setze(w_proz, std::to_string(proz) + " % von " + gramm(soll) + (st.stabil ? "" : " · misst …"));
+    // fast leer: orange, weil die Leerspule je nach Papphülse ein paar Gramm schwerer/leichter ist
+    lv_obj_set_style_text_color(w_proz, farbe(st.sensor_ok && da && netto <= FAST_LEER_G ? C_ORANGE : C_SUB), 0);
     setze(lv_obj_get_child(w_brutto, 0), "Brutto " + gramm(brutto));
     setze(lv_obj_get_child(w_leer, 0), "Leerspule " + gramm(leer));
 
