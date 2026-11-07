@@ -14,6 +14,9 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#if SENSOR_DIREKT
+#include "../../sensor-s3zero/src/nfc_schreiben.h"
+#endif
 #include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -959,6 +962,9 @@ void melden_task(void*) {
             if (ha.zustand_setzen(melde_entity("nfc").c_str(), body, fehler)) nfc_alt = nfc_neu;
             nfc_um = jetzt;
         }
+
+        // NFC-Aufkleber beschreiben: Aufträge von SchichtLohn abholen, solange ein NTAG aufliegt
+        if (nfc_schreiben::etwas_zu_tun()) nfc_schreiben::abfragen(ha, waage_name());
 
         // Laufzeit mit Version, IP und Name – daran erkennt SchichtLohn die Waage; dazu WLAN-Signal
         if (!laufzeit_um || jetzt - laufzeit_um >= 60000) {

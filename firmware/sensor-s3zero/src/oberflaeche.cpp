@@ -43,6 +43,7 @@
 #include "drucker.h"
 #include "ams.h"
 #include "ha_client.h"
+#include "nfc_schreiben.h"
 #include "online_update.h"
 #include "model.h"
 #include "sensor.h"
@@ -560,6 +561,12 @@ void arbeiter(void*) {
                 float d = fabsf(g - g_gewicht_gemeldet);
                 uint32_t seit = millis() - g_gewicht_gemeldet_um;
                 if ((m.stabil && d >= 2.0f && seit >= 800) || (d >= 50.0f && seit >= 800)) gewicht_nach_ha(m);
+                // NFC-Aufkleber beschreiben: Aufträge von SchichtLohn abholen, solange ein NTAG aufliegt
+                if (nfc_schreiben::etwas_zu_tun() && WiFi.status() == WL_CONNECTED) {
+                    HaClient ha;
+                    std::string f;
+                    if (client_fuer(ha_cfg(), ha, f)) nfc_schreiben::abfragen(ha, waage_name());
+                }
                 continue;
             }
             a = new Auftrag{Art::LADEN, "", "", 1, {}};  // zahl = 1: regelmäßiges Laden

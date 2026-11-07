@@ -29,6 +29,11 @@ public:
     String lese_uid();
     // Nach lese_uid(): Liest einen Bambu-Lab-Tag aus. false, wenn es keiner ist oder das Lesen scheitert.
     bool lese_bambu(BambuTag& t);
+    // Nach lese_uid(): ist der Tag ein NTAG/Ultralight (7-Byte-UID, SAK 0x00) – die liest auch das iPhone
+    bool ist_ntag() const { return uid_len_ == 7 && (sak_ & 0x7F) == 0x00; }
+    // Nach lese_uid(): schreibt eine Internetadresse als NDEF-Link auf einen NTAG213/215/216 und liest zur Probe
+    // zurück. Danach öffnet das iPhone die Adresse, wenn man es an den Aufkleber hält. fehler: Grund auf Deutsch.
+    bool schreibe_url(const String& url, String& fehler);
     bool bereit() const { return bereit_; }
     uint32_t neustarts() const { return neustarts_; }
 
@@ -41,6 +46,8 @@ private:
     bool mifare_auth(uint8_t block, const uint8_t* key);
     bool mifare_lesen(uint8_t block, uint8_t* daten16);
     void feld_neu();
+    bool ntag_lesen(uint8_t seite, uint8_t* daten16);
+    bool ntag_schreiben(uint8_t seite, const uint8_t* daten4);
     HardwareSerial* port_ = nullptr;
     int rst_ = -1;
     bool bereit_ = false;

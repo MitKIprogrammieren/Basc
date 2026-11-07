@@ -57,6 +57,7 @@ static void led_farbe(uint8_t r, uint8_t g, uint8_t b) {
 #include <utility>
 
 #include "pn532_hsu.h"
+#include "nfc_schreiben.h"
 #include "sensor.h"
 #include "drucker.h"
 
@@ -205,6 +206,16 @@ void nfc_task(void*) {
                     g_bambu_versuche[i] = 3;  // fertig
                 }
                 bambu_neu = true;
+            }
+            // NFC-Aufkleber beschreiben, wenn SchichtLohn das für genau diesen Tag möchte
+            nfc_schreiben::tag_stand(i, uid, uid.length() && leser[i]->ist_ntag());
+            if (uid.length()) {
+                String ziel;
+                if (nfc_schreiben::auftrag_fuer(i, uid, ziel)) {
+                    String grund;
+                    bool ok = leser[i]->schreibe_url(ziel, grund);
+                    nfc_schreiben::ergebnis(uid, ok, grund);
+                }
             }
             uint32_t jetzt = millis();
             std::lock_guard<std::mutex> l(g_nfc_mx);

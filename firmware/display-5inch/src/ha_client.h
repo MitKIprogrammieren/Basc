@@ -29,6 +29,11 @@ public:
     // POST /api/template: rendert ein Template in Home Assistant (z. B. AMS_VORLAGE), Antwort als Text
     bool vorlage(const std::string& tpl, std::string& antwort, std::string& fehler);
 
+    // Beliebiger POST an die eingetragene Adresse (z. B. SchichtLohn-Server), Antwort als Text
+    bool anfrage(const std::string& pfad, const std::string& body, std::string& antwort, std::string& fehler) {
+        return post(pfad, body, antwort, fehler);
+    }
+
 private:
     bool post(const std::string& pfad, const std::string& body, std::string& antwort, std::string& fehler);
     std::string url_, token_, todo_;

@@ -13,6 +13,7 @@
 
 #include "../../sensor-s3zero/src/nau7802.h"
 #include "../../sensor-s3zero/src/pn532_hsu.h"
+#include "../../sensor-s3zero/src/nfc_schreiben.h"
 #include "../../sensor-s3zero/src/sensor.h"  // Schnittstelle zur Web-Oberfläche
 
 namespace {
@@ -313,6 +314,16 @@ void SensorDirekt::nfc_schritt() {
                 g_bambu_versuche[i] = 3;  // fertig
             }
             bambu_neu = true;
+        }
+        // NFC-Aufkleber beschreiben, wenn SchichtLohn das für genau diesen Tag möchte
+        nfc_schreiben::tag_stand(i, uid, uid.length() && leser[i]->ist_ntag());
+        if (uid.length()) {
+            String ziel;
+            if (nfc_schreiben::auftrag_fuer(i, uid, ziel)) {
+                String grund;
+                bool ok = leser[i]->schreibe_url(ziel, grund);
+                nfc_schreiben::ergebnis(uid, ok, grund);
+            }
         }
         uint32_t jetzt = millis();
         std::lock_guard<std::mutex> l(g_mx);

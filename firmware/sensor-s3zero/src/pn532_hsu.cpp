@@ -254,3 +254,124 @@ bool Pn532Hsu::lese_bambu(BambuTag& t) {
     // Ohne Materialangabe ist es kein (gültiger) Bambu-Tag
     return t.material_id.length() > 0 || t.typ.length() > 0;
 }
+
+// ---------------------------------------------------------------- NFC-Aufkleber (NTAG213/215/216) beschreiben
+bool Pn532Hsu::ntag_lesen(uint8_t seite, uint8_t* daten16) {
+    return mifare_lesen(seite, daten16);  // READ (0x30) liefert bei NTAG 4 Seiten = 16 Bytes
+}
+
+bool Pn532Hsu::ntag_schreiben(uint8_t seite, const uint8_t* daten4) {
+    uint8_t cmd[8] = {0x40, 0x01, 0xA2, seite};  // InDataExchange, WRITE (eine Seite = 4 Bytes)
+    memcpy(cmd + 4, daten4, 4);
+    uint8_t a[4];
+    uint8_t n = sizeof a;
+    return befehl(cmd, sizeof cmd, a, n, 150) && n >= 1 && a[0] == 0x00;
+}
+
+bool Pn532Hsu::schreibe_url(const String& url, String& fehler) {
+    fehler = "";
+    if (!bereit_) {
+        fehler = "NFC-Leser nicht bereit";
+        return false;
+    }
+    if (!ist_ntag()) {
+        fehler = "Kein NTAG-Aufkleber (Bambu-Chips und andere Tags lassen sich nicht beschreiben)";
+        return false;
+    }
+    // Seite 3 = Capability Container: E1 10 <Größe/8> 00, bei NTAG ab Werk gesetzt
+    uint8_t cc[16];
+    if (!ntag_lesen(3, cc)) {
+        feld_neu();
+        fehler = "Aufkleber nicht lesbar – liegt er ruhig auf dem Leser?";
+        return false;
+    }
+    if (cc[0] != 0xE1) {
+        feld_neu();
+        fehler = "Aufkleber ist nicht für NDEF eingerichtet (kein NTAG213/215/216?)";
+        return false;
+    }
+    if (cc[3] & 0xF0) {
+        feld_neu();
+        fehler = "Aufkleber ist schreibgeschützt";
+        return false;
+    }
+    size_t platz = (size_t)cc[2] * 8;
+    // Nur leere Aufkleber oder Link-Aufkleber überschreiben – TigerTag- und OpenSpool-Daten bleiben unangetastet
+    {
+        uint8_t alt[16];
+        if (!ntag_lesen(4, alt)) {
+            feld_neu();
+            fehler = "Aufkleber nicht lesbar – liegt er ruhig auf dem Leser?";
+            return false;
+        }
+        bool leer = alt[0] == 0x00 || (alt[0] == 0x03 && alt[1] == 0x00);
+        // Ein Link (NDEF-URI) darf überschrieben werden – auch ein halb geschriebener eigener
+        bool link = alt[0] == 0x03 && alt[2] == 0xD1 && alt[3] == 0x01 && alt[5] == 'U';
+        if (!leer && !link) {
+            feld_neu();
+            fehler = "Auf dem Aufkleber steht schon etwas anderes (z. B. TigerTag) – bitte einen leeren nehmen";
+            return false;
+        }
+    }
+
+    // NDEF-Link: kurze Vorsilbe als Code (RFC NFC Forum URI RTD)
+    uint8_t vorsilbe = 0x00;
+    String rest = url;
+    static const struct { const char* text; uint8_t code; } VORSILBEN[] = {
+        {"https://www.", 0x02}, {"http://www.", 0x01}, {"https://", 0x04}, {"http://", 0x03}};
+    for (const auto& v : VORSILBEN) {
+        if (url.startsWith(v.text)) {
+            vorsilbe = v.code;
+            rest = url.substring(strlen(v.text));
+            break;
+        }
+    }
+    size_t nutz = 1 + rest.length();  // Vorsilbe + Rest
+    if (nutz > 250) {
+        fehler = "Adresse zu lang";
+        return false;
+    }
+    // TLV 03 <Länge> [D1 01 <Nutzlänge> 55 <Vorsilbe> <Rest>] FE
+    uint8_t puf[264] = {};
+    size_t n = 0;
+    size_t satz = 4 + nutz;
+    puf[n++] = 0x03;
+    puf[n++] = (uint8_t)satz;
+    puf[n++] = 0xD1;  // MB, ME, SR, TNF = well-known
+    puf[n++] = 0x01;  // Typlänge
+    puf[n++] = (uint8_t)nutz;
+    puf[n++] = 'U';
+    puf[n++] = vorsilbe;
+    memcpy(puf + n, rest.c_str(), rest.length());
+    n += rest.length();
+    puf[n++] = 0xFE;
+    if (n > platz) {
+        fehler = "Adresse passt nicht auf den Aufkleber (" + String((unsigned)platz) + " Bytes frei)";
+        return false;
+    }
+    size_t seiten = (n + 3) / 4;
+    for (size_t s = 0; s < seiten; s++) {
+        if (!ntag_schreiben(4 + s, puf + s * 4)) {
+            feld_neu();
+            fehler = "Schreiben abgebrochen – Rolle nicht bewegen und noch einmal versuchen";
+            return false;
+        }
+    }
+    // Probe: zurücklesen und vergleichen
+    for (size_t s = 0; s < seiten; s += 4) {
+        uint8_t d[16];
+        if (!ntag_lesen(4 + s, d)) {
+            feld_neu();
+            fehler = "Zurücklesen gescheitert";
+            return false;
+        }
+        size_t vergleich = (seiten - s) >= 4 ? 16 : (seiten - s) * 4;
+        if (memcmp(d, puf + s * 4, vergleich) != 0) {
+            feld_neu();
+            fehler = "Aufkleber hat den Link nicht übernommen";
+            return false;
+        }
+    }
+    feld_neu();
+    return true;
+}
