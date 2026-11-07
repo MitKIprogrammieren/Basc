@@ -38,25 +38,17 @@ jobs:
         working-directory: firmware/display-5inch
         run: |
           set -o pipefail
-          { pio run -e ws5 -e sc01plus -e sc01plus_direkt -e sc01plus_direkt_basis && pio run -e sc01plus_direkt -t buildfs; } 2>&1 | tee /tmp/build.log
+          pio run -e ws5 -e sc01plus -e sc01plus_direkt 2>&1 | tee /tmp/build.log
 
       - name: Teile sammeln
         working-directory: firmware/display-5inch
         run: |
-          for ENV in ws5 sc01plus sc01plus_direkt sc01plus_direkt_basis; do
+          for ENV in ws5 sc01plus sc01plus_direkt; do
             B=.pio/build/$ENV; Z=/tmp/aus/$ENV
             mkdir -p $Z
             cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin $Z/
             cp "$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -1)" $Z/
           done
-          # Web-Oberfläche der Variante ohne Sensorplatine: leere Blöcke am Ende abschneiden
-          python3 - .pio/build/sc01plus_direkt/littlefs.bin /tmp/aus/sc01plus_direkt/littlefs.bin <<'PY'
-          import sys
-          d = open(sys.argv[1], "rb").read()
-          n = (len(d.rstrip(b"\xff")) + 4095) // 4096 * 4096
-          open(sys.argv[2], "wb").write(d[:n])
-          print(f"littlefs.bin: {n // 1024} von {len(d) // 1024} KB")
-          PY
           ls -lR /tmp/aus
 
       - name: esptool-js holen
@@ -69,16 +61,15 @@ jobs:
       - name: Webflasher bauen
         run: |
           FW=$(grep -oP 'FW_VERSION "\K[^"]+' firmware/display-5inch/include/config.h)
-          for ENV in sc01plus sc01plus_direkt sc01plus_direkt_basis ws5; do
+          for ENV in sc01plus sc01plus_direkt ws5; do
             T=/tmp/aus/$ENV
             if [ $ENV = sc01plus ]; then NAME="Display SC01 Plus"; AUS=FilamentLager-Webflasher-SC01Plus.html
             elif [ $ENV = sc01plus_direkt ]; then NAME="SC01 Plus ohne Sensorplatine"; AUS=FilamentLager-Webflasher-SC01Plus-Direkt.html
-            elif [ $ENV = sc01plus_direkt_basis ]; then NAME="SC01 Plus ohne Sensorplatine (Basis)"; AUS=FilamentLager-Webflasher-SC01Plus-Direkt-Basis.html
             else NAME='Display 5"'; AUS=FilamentLager-Webflasher-Display5.html; fi
-            python3 tools/webflasher/bauen.py --version "$FW" --esptool /tmp/aus/esptool-js.mjs --art anzeige --geraet "$NAME" \
+            ART=anzeige; case $ENV in sc01plus_direkt*) ART=direkt;; esac
+            python3 tools/webflasher/bauen.py --version "$FW" --esptool /tmp/aus/esptool-js.mjs --art $ART --geraet "$NAME" \
               --teil 0x0=$T/bootloader.bin --teil 0x8000=$T/partitions.bin \
               --teil 0xe000=$T/boot_app0.bin --teil 0x10000=$T/firmware.bin \
-              $( [ -f $T/littlefs.bin ] && echo "--teil 0xc90000=$T/littlefs.bin" ) \
               --aus /tmp/aus/$AUS 2>&1 | tee -a /tmp/build.log
           done
           printf '{"fw":"%s","commit":"%s"}\n' "$FW" "${GITHUB_SHA::7}" > /tmp/aus/version.json

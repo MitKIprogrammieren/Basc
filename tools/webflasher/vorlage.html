@@ -60,15 +60,16 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
   <div class="klein" id="wlanText">Leer lassen, wenn die Waage schon im WLAN war – sie behält es beim Flashen. Nur 2,4 GHz – der ESP32 sieht kein 5-GHz-WLAN. Die Daten gehen nur per USB an die Waage, nirgendwo sonst hin.</div>
  </div>
  <div class="panel" id="pHa" hidden>
-  <div class="ueber">2 · Home Assistant und Sensorplatine</div>
-  <label for="haUrl">Home-Assistant-Adresse<input id="haUrl" autocomplete="off" spellcheck="false" placeholder="http://homeassistant.local:8123"></label>
-  <label for="haToken">Langlebiges Zugriffstoken
+  <div class="ueber" id="haTitel">2 · SchichtLohn-Server und Sensorplatine</div>
+  <label for="haUrl">SchichtLohn-Server<input id="haUrl" autocomplete="off" spellcheck="false" placeholder="http://192.168.1.66:8093"></label>
+  <div class="klein">Adresse des SchichtLohn-Servers mit Port <b>8093</b>. Ohne SchichtLohn geht auch Home Assistant direkt (Port 8123).</div>
+  <label for="haToken">Schlüssel
    <span class="zeile"><input id="haToken" type="password" autocomplete="off" spellcheck="false"><button class="rahmen klein-k" id="tokenZeigen" type="button">Zeigen</button></span></label>
   <label for="haTodo">Lager-Liste<input id="haTodo" autocomplete="off" spellcheck="false" placeholder="todo.filament"></label>
-  <label for="sensorArt">Sensorplatine
+  <label for="sensorArt" id="sensorArtLabel">Sensorplatine
    <select id="sensorArt"><option value="">unverändert lassen</option><option value="rs485">per RS485-Kabel</option><option value="wlan">per WLAN</option></select></label>
   <label for="sensorIp" id="sensorIpLabel" hidden>IP der Sensorplatine<input id="sensorIp" autocomplete="off" spellcheck="false" placeholder="192.168.1.96"></label>
-  <div class="klein">Leere Felder lassen, was das Display schon kennt. Token: Home Assistant → Profil → Sicherheit → Langlebige Zugriffstokens. Die Daten gehen nur per USB an das Display.</div>
+  <div class="klein" id="haText">Leere Felder lassen, was das Display schon kennt. Schlüssel: beim SchichtLohn-Server irgendetwas (oder den Server-Schlüssel, falls gesetzt), bei Home Assistant ein langlebiges Zugriffstoken (Profil → Sicherheit). Die Daten gehen nur per USB an das Display.</div>
  </div>
  <div class="panel" id="pFlash">
   <div class="ueber" id="flashTitel">2 · Waage per USB anstecken</div>
@@ -97,8 +98,9 @@ pre{font-family:var(--mono);font-size:12px;background:var(--feld);border:1px sol
 </script>
 <script type="module">
 const TEILE = "__TEILE__";  // [{adresse, name, b64}] – Bootloader, Partitionen, Firmware, Oberfläche
-const ART = "__ART__";       // "sensor" = Sensorplatine, "anzeige" = Display (5" oder SC01 Plus)
-const ANZEIGE = ART === 'anzeige';
+const ART = "__ART__";       // "sensor" = Sensorplatine, "anzeige" = Display (5" oder SC01 Plus), "direkt" = Display ohne Sensorplatine
+const ANZEIGE = ART === 'anzeige' || ART === 'direkt';
+const DIREKT = ART === 'direkt';  // Wägezelle und NFC hängen am Display selbst – keine Sensorplatine einzustellen
 const { ESPLoader, Transport } = window.__esptool;
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -138,6 +140,10 @@ if (ANZEIGE) {
   $('s2').textContent = 'Firmware schreiben';
   $('s4').textContent = 'Einstellungen übertragen';
   $('s5').firstChild.textContent = 'Display im Netz: ';
+  if (DIREKT) {
+    $('haTitel').textContent = '2 · SchichtLohn-Server';
+    $('sensorArtLabel').hidden = true;
+  }
   $('sensorArt').onchange = () => { $('sensorIpLabel').hidden = $('sensorArt').value !== 'wlan'; };
   $('tokenZeigen').onclick = () => { const p=$('haToken'); p.type = p.type==='password' ? 'text' : 'password'; $('tokenZeigen').textContent = p.type==='password' ? 'Zeigen' : 'Verbergen'; };
   try {
@@ -158,7 +164,7 @@ function haDaten(){
   const d = {};
   const url = $('haUrl').value.trim(), token = $('haToken').value.trim(), todo = $('haTodo').value.trim();
   if (url) {
-    if (!/^https?:\/\/[^\s/]+/.test(url)) { meldung('Die Home-Assistant-Adresse muss mit http:// oder https:// anfangen.', 'fehler'); $('haUrl').focus(); return null; }
+    if (!/^https?:\/\/[^\s/]+/.test(url)) { meldung('Die Server-Adresse muss mit http:// anfangen, z. B. http://192.168.1.66:8093', 'fehler'); $('haUrl').focus(); return null; }
     d.ha_url = url.replace(/\/+$/, '');
   }
   if (token) d.ha_token = token;
@@ -166,7 +172,7 @@ function haDaten(){
     if (!/^todo\.[a-z0-9_]+$/.test(todo)) { meldung('Die Lager-Liste heißt so: todo.filament', 'fehler'); $('haTodo').focus(); return null; }
     d.ha_todo = todo;
   }
-  const art = $('sensorArt').value, ip = $('sensorIp').value.trim();
+  const art = DIREKT ? '' : $('sensorArt').value, ip = $('sensorIp').value.trim();
   if (art === 'rs485') d.sensor = '';
   if (art === 'wlan') {
     if (!ip) { meldung('Trag die IP der Sensorplatine ein (steht in der FritzBox).', 'fehler'); $('sensorIp').focus(); return null; }
@@ -178,7 +184,7 @@ function haDaten(){
 // Schickt die Einstellungen; das Display startet danach neu. Gibt die neue Leitung zurück.
 async function einstUebertragen(l, ha){
   if (!Object.keys(ha).length) return l;
-  schritt(4, 'laeuft'); meldung('Übertrage Home-Assistant-Einstellungen…');
+  schritt(4, 'laeuft'); meldung('Übertrage Einstellungen…');
   const zeigen = JSON.stringify({ c:'einst', ...ha, ...(ha.ha_token ? { ha_token:'••••' } : {}) });
   let antw = null;
   for (let v=0; v<5 && !antw; v++) {
@@ -322,8 +328,8 @@ function fertig(info){
   const url = 'http://' + info.ip;
   if (ANZEIGE) {
     $('ipText').innerHTML = '<span class="ip">' + info.ip + '</span>';
-    meldung(info.ha_url ? 'Fertig. Das Display ist im WLAN und holt jetzt das Lager aus Home Assistant.'
-                        : 'Fertig – aber Home Assistant fehlt noch: Adresse und Token eintragen, „Nur Einstellungen übertragen“.', info.ha_url ? 'ok' : 'fehler');
+    meldung(info.ha_url ? 'Fertig. Das Display ist im WLAN und holt jetzt das Lager von ' + info.ha_url + '.'
+                        : 'Fertig – aber der SchichtLohn-Server fehlt noch: Adresse eintragen, „Nur Einstellungen übertragen“.', info.ha_url ? 'ok' : 'fehler');
     $('pAblauf').classList.add('aktiv');
     return;
   }

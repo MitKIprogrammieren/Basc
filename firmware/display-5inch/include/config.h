@@ -3,7 +3,7 @@
 //  - WT32-SC01 Plus (3,5", 480×320), env:sc01plus → BOARD_SC01PLUS
 #pragma once
 
-#define FW_VERSION "1.8.5"
+#define FW_VERSION "1.9.0"
 
 #if defined(BOARD_SC01PLUS)
 // ================================================================ WT32-SC01 Plus
@@ -52,9 +52,10 @@
 // Pin 8 der I/O-Buchse (IO21) bleibt frei – die üblichen 7-adrigen MX1.25-Kabel erreichen ihn nicht.
 // Verkabelung: docs/VERKABELUNG.md, Abschnitt „SC01 Plus ohne Sensorplatine“.
 #if SENSOR_DIREKT
-// Web-Oberfläche und Bluetooth-Etikettendruck mitbauen (env:sc01plus_direkt). 0 = Basis ohne beides.
+// Web-Oberfläche der Sensorplatine mitbauen: aus – auf dem SC01 Plus reicht der interne Speicher dafür nicht
+// zuverlässig (Display, WLAN und Webserver zusammen). Der Code bleibt drin, falls es später ein größeres Board wird.
 #ifndef DIREKT_WEB
-#define DIREKT_WEB 1
+#define DIREKT_WEB 0
 #endif
 // I²C auf eigenem Bus (Wire1), Wire gehört dem Touch. Vertauschte SDA/SCL erkennt die Firmware selbst.
 // IO43 ist TXD0: Beim Start schreibt der Bootloader dort Meldungen raus. Ohne Takt auf SCL sind das für den

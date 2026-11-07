@@ -138,8 +138,8 @@ Kurz: **DEBUG-Kabel = NAU7802**, **I/O-Kabel = beide PN532** (Daten), **485-Kabe
 - Netzteil an die USB-C-Buchse des SC01 Plus, 5 V / mindestens 2 A.
 - Kalibrierung liegt im Display (Bereich `waage`) – nach dem Umstieg von der Sensorplatine einmal Tara und Kalibrieren.
 - Diagnose: im seriellen Monitor meldet die Firmware beim Start `[waage] NAU7802 gefunden` und `[nfc] links …, rechts …`.
-- **Web-Oberfläche (ab 1.6.0):** dieselbe wie auf der Sensorplatine, unter `http://filamentwaage-2.local` (Name in den
-  Einstellungen änderbar). Home Assistant übernimmt sie beim ersten Start aus den Display-Einstellungen.
+- **Keine Web-Oberfläche:** Auf dem SC01 Plus reicht der Speicher dafür nicht zuverlässig. Eingestellt wird über den
+  Webflasher (WLAN, SchichtLohn-Server `http://<Server>:8093`, Schlüssel beliebig).
 - **Bambu-Lab-Tags (ab 1.7.0):** Material, Farbe und Gewicht werden wie auf der Sensorplatine ausgelesen.
 
 ## Pi-Variante

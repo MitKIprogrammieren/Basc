@@ -49,8 +49,9 @@ def main() -> None:
     p.add_argument("--teil", action="append", required=True, metavar="ADRESSE=DATEI",
                    help="z. B. 0x10000=firmware.bin; mehrfach angeben")
     p.add_argument("--aus", required=True, help="Ausgabedatei (.html)")
-    p.add_argument("--art", choices=["sensor", "anzeige"], default="sensor",
-                   help="sensor = Sensorplatine (nur WLAN), anzeige = Display (WLAN, Home Assistant, Sensor-IP)")
+    p.add_argument("--art", choices=["sensor", "anzeige", "direkt"], default="sensor",
+                   help="sensor = Sensorplatine (nur WLAN), anzeige = Display (WLAN, SchichtLohn-Server, Sensor-IP), "
+                        "direkt = Display ohne Sensorplatine (WLAN, SchichtLohn-Server)")
     p.add_argument("--geraet", default="Sensorplatine", help="Name in der Kopfzeile, z. B. „Display SC01 Plus“")
     a = p.parse_args()
     teile = []
