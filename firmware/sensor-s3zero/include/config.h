@@ -3,7 +3,7 @@
 // Vor dem Löten mit dem Pinout auf docs.waveshare.com/ESP32-S3-Zero vergleichen.
 #pragma once
 
-#define FW_VERSION "2.26.3"
+#define FW_VERSION "2.26.4"
 
 // Ordner der Firmware im Zweig webflasher-bin (für „Nach Update suchen“)
 #ifndef UPDATE_ORDNER
