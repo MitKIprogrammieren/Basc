@@ -711,21 +711,26 @@ void wiegen_aktualisieren() {
     if (sorte < 0 && !g_auswahl_uid.empty() && g_lager) sorte = g_lager->finde_uid(g_auswahl_uid);
     g_aktive_sorte = sorte;
     g_aktiver_tag = tag;
+    // Bambu-Lab-Tag, der zum aufliegenden Tag gehört (nur solange keine Sorte im Lager zugeordnet ist)
+    const BambuInfo& bi = !st.tag_r.empty() ? st.bambu_r : st.bambu_l;
+    const BambuInfo* bambu = sorte < 0 && !tag.empty() && bi.da() && bi.uid == tag ? &bi : nullptr;
 
     int leer = leergewicht(sorte);
     int brutto = (int)(st.brutto_g + 0.5f);
     int netto = std::max(0, brutto - leer);
     g_netto = netto;
-    int soll = sorte >= 0 ? g_lager->sorten[sorte].gewicht : 1000;
+    int soll = sorte >= 0 ? g_lager->sorten[sorte].gewicht : bambu && bambu->gewicht > 0 ? bambu->gewicht : 1000;
     int proz = da ? std::min(100, netto * 100 / std::max(1, soll)) : 0;
 
     lv_arc_set_value(w_arc, proz);
     lv_obj_set_style_arc_color(w_arc, farbe(proz < 15 && da ? C_ROT : C_GRUEN), LV_PART_INDICATOR);
     // Rolle im Ring in der Farbe der Sorte, sonst grau und blass (.rgross.leer)
-    std::string sk = sorte >= 0 ? g_lager->sorten[sorte].uid + "|" + std::to_string(g_lager->sorten[sorte].rgb) : "";
+    std::string sk = sorte >= 0 ? g_lager->sorten[sorte].uid + "|" + std::to_string(g_lager->sorten[sorte].rgb)
+                     : bambu ? "bambu|" + std::to_string(bambu->rgb) : "";
     if (sk != g_spule_schluessel) {
         g_spule_schluessel = sk;
         if (sorte >= 0) rolle_tauschen(w_spule, SPULE, g_lager->sorten[sorte].rgb, g_lager->sorten[sorte].besonderheiten);
+        else if (bambu) rolle_tauschen(w_spule, SPULE, bambu->rgb, {});
         else rolle_tauschen(w_spule, SPULE, C_RAND, {"matt"}, true);
     }
     setze(w_zahl, std::to_string(da ? netto : 0));
@@ -737,6 +742,7 @@ void wiegen_aktualisieren() {
 
     std::string schluessel = std::to_string(sorte) + "|" + tag + "|" + (da ? "1" : "0") + "|" + std::to_string(g_ams_stand);
     if (sorte >= 0) schluessel += "|" + g_lager->sorten[sorte].description;
+    if (bambu) schluessel += "|bambu|" + bambu->material_id + "|" + std::to_string(bambu->rgb) + "|" + std::to_string(bambu->gewicht);
     if (sorte >= 0) lv_obj_clear_state(w_etikett, LV_STATE_DISABLED);
     else lv_obj_add_state(w_etikett, LV_STATE_DISABLED);
     lv_obj_set_style_opa(w_etikett, sorte >= 0 ? LV_OPA_COVER : LV_OPA_40, 0);
@@ -760,7 +766,39 @@ void wiegen_aktualisieren() {
         g_haupt = da ? Haupt::SPEICHERN : Haupt::NICHTS;
         setze(w_haupt_lbl, LV_SYMBOL_OK "  Rest speichern");
         setze(w_wahl_lbl, "Andere Sorte");
-    } else if (!tag.empty()) {
+    } else if (bambu) {
+        // Bambu-Lab-Spule, im Lager noch keiner Sorte zugeordnet: Daten vom Tag zeigen, passende Sorte vorschlagen
+        setze(w_k_titel, gross_text(std::string(KT("Bambu Lab · NFC ", "Bambu · NFC ")) + leser));
+        Filament rolle;  // nur für das Spulenbild in der Karte
+        rolle.rgb = bambu->rgb;
+        karte_swatch(&rolle, 0);
+        setze(w_k_name, !bambu->detail.empty() ? bambu->detail : !bambu->typ.empty() ? bambu->typ : "Bambu Lab");
+        // „Bambu“ steht schon im Titel – hier nur die Codes vom Tag (passen zu „Bambu-ID“ im Lager)
+        std::string sub = bambu->material_id;
+        if (!bambu->variante.empty()) sub += (sub.empty() ? "" : " · ") + bambu->variante;
+        if (sub.empty()) sub = "Bambu Lab";
+        setze(w_k_sub, sub);
+        AmsSlot s;
+        s.leer = false;
+        s.filament_id = bambu->material_id;
+        s.rgb = bambu->rgb;
+        char hex[8];
+        snprintf(hex, sizeof hex, "#%06X", (unsigned)(bambu->rgb & 0xFFFFFF));
+        s.hex = hex;
+        g_vorschlag = g_lager ? ams_vorschlag(*g_lager, s) : -1;
+        std::vector<std::pair<std::string, int>> c = {{hex, 0}};
+        if (bambu->gewicht > 0) c.push_back({gramm(bambu->gewicht), 0});
+        c.push_back({g_vorschlag >= 0 ? "Im Lager: " + g_lager->sorten[g_vorschlag].kurzname() : "Nicht im Lager", g_vorschlag >= 0 ? 1 : 2});
+        karte_chips(c);
+        if (g_vorschlag >= 0) {
+            g_haupt = Haupt::VORSCHLAG;
+            setze(w_haupt_lbl, "Als " + g_lager->sorten[g_vorschlag].kurzname() + " speichern");
+        } else {
+            g_haupt = Haupt::ZUORDNEN;
+            setze(w_haupt_lbl, "Sorte zuordnen");
+        }
+        setze(w_wahl_lbl, "Sorte wählen");
+} else if (!tag.empty()) {
         setze(w_k_titel, gross_text(std::string(KT("Neuer Tag · NFC ", "Neu · NFC ")) + leser));
         karte_swatch(nullptr, C_RAND);
         setze(w_k_name, "Neue Spule");

@@ -34,13 +34,6 @@ void touch_lesen(lv_indev_drv_t*, lv_indev_data_t* data) {
     data->state = LV_INDEV_STATE_REL;
     uint8_t p[5];
     bool gelesen = ft_lesen(0x02, p, 5);
-    // Diagnose: Liefert der Touch-Controller bei ausgeschaltetem Licht nichts mehr? Höchstens alle 2 s melden.
-    static uint32_t gemeldet = 0;
-    if (!board_licht_an() && millis() - gemeldet > 2000) {
-        gemeldet = millis();
-        Serial.printf("[touch] Licht aus: Controller %s, Punkte %d\n", gelesen ? "antwortet" : "antwortet NICHT",
-                      gelesen ? (p[0] & 0x0F) : -1);
-    }
     if (gelesen && (p[0] & 0x0F) > 0 && (p[0] & 0x0F) < 3) {
         int16_t rx = ((p[1] & 0x0F) << 8) | p[2];  // 0..319 (kurze Seite)
         int16_t ry = ((p[3] & 0x0F) << 8) | p[4];  // 0..479 (lange Seite)

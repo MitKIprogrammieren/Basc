@@ -146,6 +146,28 @@ int main(int argc, char** argv) {
     laufen(100);
     speichern(aus + "/2_neuer_tag.ppm");
 
+    // 2b: Bambu-Lab-Tag, im Lager noch nicht zugeordnet – passende Sorte (GFA00, Bambu Grün) wird vorgeschlagen
+    st.tag_r = "04BA3B0000AA01";
+    st.bambu_r.uid = st.tag_r;
+    st.bambu_r.material_id = "GFA00";
+    st.bambu_r.variante = "A00-G1";
+    st.bambu_r.typ = "PLA";
+    st.bambu_r.detail = "PLA Basic";
+    st.bambu_r.rgb = 0x00AE42;
+    st.bambu_r.gewicht = 1000;
+    st.brutto_g = 1180;
+    ui_status(st);
+    laufen(100);
+    speichern(aus + "/2b_bambu.ppm");
+    // 2c: Bambu-Tag ohne passende Sorte im Lager
+    st.bambu_r.material_id = "GFA05";
+    st.bambu_r.detail = "PLA Silk";
+    st.bambu_r.rgb = 0xC0A060;
+    ui_status(st);
+    laufen(100);
+    speichern(aus + "/2c_bambu_unbekannt.ppm");
+    st.bambu_r = BambuInfo{};
+
     // 3: leerer Teller
     st.tag_r.clear();
     st.brutto_g = 0.4f;

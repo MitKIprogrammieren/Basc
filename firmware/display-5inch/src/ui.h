@@ -10,12 +10,23 @@
 #include "logo.h"
 #include "model.h"
 
+// Inhalt eines Bambu-Lab-Tags (nur Waage ohne Sensorplatine; leer = kein Bambu-Tag oder nicht gelesen)
+struct BambuInfo {
+    std::string uid;          // zu welchem Tag die Daten gehören
+    std::string material_id;  // z. B. GFA00 – passt zu bambu_id im Lager
+    std::string variante, typ, detail;  // z. B. A00-K0, PLA, PLA Basic
+    uint32_t rgb = 0x808080;
+    int gewicht = 0;          // Nettogewicht laut Tag in g
+    bool da() const { return !uid.empty(); }
+};
+
 struct WaagenStatus {
     float brutto_g = 0;      // Gewicht auf dem Teller inkl. Spule
     bool stabil = false;     // Gewicht ruhig
     bool kalibriert = false; // Waage ist kalibriert (Kopfzeile „Waage“: grün)
     bool sensor_ok = false;  // Sensorplatine antwortet
     std::string tag_l, tag_r;  // NFC-UIDs der beiden Leser, leer = kein Tag
+    BambuInfo bambu_l, bambu_r;  // ausgelesene Bambu-Lab-Tags
     bool wlan_ok = false;
     int drucker = -1;        // Etikettendrucker: -1 keiner bekannt, 0 grau, 1 bereit, 2 Fehler
     bool ha_ok = false;

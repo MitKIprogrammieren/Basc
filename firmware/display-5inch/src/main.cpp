@@ -798,6 +798,29 @@ String start_bericht() {
 
 // Startet die Web-Oberfläche, sobald das WLAN zum ersten Mal steht. Home Assistant übernimmt sie beim ersten Mal
 // aus den Display-Einstellungen (Webflasher), danach hat sie ihre eigenen (Einstellungen auf der Webseite).
+// Bambu-Lab-Tag als BambuInfo für die Oberfläche – JSON vom Leser nur neu lesen, wenn es sich geändert hat
+BambuInfo bambu_info(int seite) {
+    static String alt[2];
+    static BambuInfo info[2];
+    String j = g_sensor.bambu(seite);
+    if (j == alt[seite]) return info[seite];
+    alt[seite] = j;
+    BambuInfo b;
+    JsonDocument d;
+    if (j.length() && !deserializeJson(d, j)) {
+        b.uid = d["uid"] | "";
+        b.material_id = d["material_id"] | "";
+        b.variante = d["variante"] | "";
+        b.typ = d["typ"] | "";
+        b.detail = d["detail"] | "";
+        b.gewicht = d["gewicht"] | 0;
+        String f = d["farbe"] | "808080";  // RRGGBBAA
+        b.rgb = strtoul(f.substring(0, 6).c_str(), nullptr, 16);
+    }
+    info[seite] = b;
+    return b;
+}
+
 // Wächter auf Kern 0: meldet, wenn die Bildschirm-Schleife (Kern 1) hängt, und an welcher Stelle
 volatile const char* g_schritt = "Start";
 void waechter(void*) {
@@ -853,6 +876,12 @@ void setup() {
     Serial.setTxTimeoutMs(0);
     delay(200);
     Serial.println("FilamentLager-Waage " FW_VERSION);
+#if BOARD_HAS_PSRAM
+    // Schon Speicherstücke ab 256 Byte aus dem PSRAM nehmen (Standard: erst ab 4 KB). Das Lager vom Server sind
+    // Hunderte kleine Texte – im internen Speicher (gut 75 KB frei) blieb beim Neuladen nichts mehr übrig
+    // (Protokoll: „intern frei 508“), dann hängen WLAN und Display. Intern bleibt für WLAN, Puffer und Stacks.
+    heap_caps_malloc_extmem_enable(256);
+#endif
 #if SENSOR_DIREKT
     g_start_grund = esp_reset_reason();
 #if DIREKT_WEB
@@ -1008,6 +1037,10 @@ void loop() {
         s.sensor_ok = d.verbunden;
         s.tag_l = d.tag_l;
         s.tag_r = d.tag_r;
+#if SENSOR_DIREKT
+        s.bambu_l = bambu_info(0);
+        s.bambu_r = bambu_info(1);
+#endif
         s.wlan_ok = wlan;
         s.ha_ok = g_ha_ok;
         s.uhrzeit = uhrzeit();
