@@ -48,7 +48,23 @@ function textGroesse() {
 }
 function textFaktor() { return (TEXTGROESSEN.find((t) => t[0] === textGroesse()) || TEXTGROESSEN[1])[2]; }
 const ZOOM = typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "2");
+// Handy (nicht im Kiosk): echte Bildschirmbreite statt fester 800 px – im Hochformat ordnet sich alles untereinander an,
+// im Querformat bleibt die gewohnte Ansicht wie am Waagen-Display
+const HANDY = !KIOSK && typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches &&
+  Math.min(screen.width, screen.height) < 600;
+if (HANDY) {
+  const m = document.querySelector('meta[name="viewport"]');
+  if (m) m.content = "width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover";
+}
 function skalieren() {
+  const hoch = HANDY && innerHeight > innerWidth;
+  document.documentElement.classList.toggle("hochformat", hoch);
+  if (hoch) {
+    const app = $("app");
+    app.classList.remove("eng");
+    for (const k of ["width", "height", "zoom", "transform", "left"]) app.style[k] = "";
+    return;
+  }
   const t = textFaktor(), W = Math.round(800 / t), H = Math.round(480 / t);
   const f = Math.min(innerWidth / W, innerHeight / H);
   const app = $("app");

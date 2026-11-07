@@ -390,3 +390,34 @@ label.knopf input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 @supports not selector(::-webkit-scrollbar) {
   .liste, #reste, .e-inhalt, .menue { scrollbar-width: thin; scrollbar-color: var(--rand) transparent; }
 }
+
+/* ------------------------------------------------------------ Handy im Hochformat (app.js setzt html.hochformat)
+   Statt der festen 800 × 480 stehen die Teile untereinander, die Seite scrollt, Kopf und Leiste unten bleiben stehen. */
+html.hochformat, html.hochformat body { height: auto; min-height: 100%; overflow: auto; }
+.hochformat .app { position: relative; width: auto; height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
+.hochformat .kopf { height: auto; flex-wrap: wrap; row-gap: 6px; padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  position: sticky; top: 0; z-index: 20; background: var(--bg); }
+.hochformat .kopf-rechts { flex-wrap: wrap; gap: 4px 12px; width: 100%; font-size: 12px; }
+.hochformat .kopf-rechts .uhr { display: none; }
+.hochformat .seite.reihe { flex-direction: column; flex: 1 0 auto; padding: 12px; gap: 12px; min-height: auto; }
+.hochformat .wiegen-karte { flex: 0 0 auto; padding: 14px; gap: 14px; }
+.hochformat .ring { width: 118px; height: 118px; }
+.hochformat .ring-innen { width: 98px; height: 98px; }
+.hochformat .spule { width: 88px; height: 88px; }
+.hochformat .zahl { font-size: 62px; }
+.hochformat .zahl.vierstellig { font-size: 50px; }
+.hochformat .rechts270, .hochformat .reste, .hochformat .menue { width: auto; }
+.hochformat .liste, .hochformat .e-inhalt, .hochformat .menue { overflow: visible; max-height: none; flex: 0 0 auto; }
+.hochformat .menue { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hochformat .m-zeile .pfeil { display: none; }
+.hochformat .nav { position: sticky; bottom: 0; z-index: 20; height: auto; background: var(--bg);
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+.hochformat .nav-knopf { height: 48px; }
+.hochformat .toast { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); max-width: 90vw; }
+.hochformat .tastatur { position: fixed; z-index: 30; }
+.hochformat .qr { position: fixed; padding: 12px; }
+.hochformat .qr-box, .hochformat .etikett-box { width: auto; max-width: 100%; flex-direction: column; max-height: 90vh; overflow: auto; }
+.hochformat .etikett-box > .spalte { max-height: none; }
+.hochformat #seite-lager > section > .reihe:first-child { flex-wrap: wrap; }
+.hochformat .suche { flex: 1 1 100%; }
+.hochformat .nav-knopf { font-size: 14px; gap: 6px; }
