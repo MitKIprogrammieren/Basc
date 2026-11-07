@@ -222,8 +222,11 @@ function wiegen() {
   }
   $("zahl").textContent = da ? netto : 0;
   $("zahl").classList.toggle("vierstellig", da && netto >= 1000);
+  // fast leer (≤ 30 g): Leerspulen weichen je nach Papphülse um bis ~10 g ab → Hinweis in Orange
+  const fastLeer = z.sensor_ok && da && netto <= 30;
   $("proz").textContent = !z.sensor_ok ? "Sensor antwortet nicht"
-    : !da ? "Spule auflegen" : `${proz} % von ${gramm(soll)}${z.stabil ? "" : " · misst …"}`;
+    : !da ? "Spule auflegen" : fastLeer ? "Achtung: ±10 g möglich" : `${proz} % von ${gramm(soll)}${z.stabil ? "" : " · misst …"}`;
+  $("proz").style.color = fastLeer ? "var(--orange-t)" : "";
   $("chip-brutto").textContent = `Brutto ${gramm(brutto)}`;
   $("chip-leer").textContent = `Leerspule ${gramm(leer)}`;
 
