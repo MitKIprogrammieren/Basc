@@ -1,0 +1,58 @@
+# Gemeinsamer Installer: eine HTML-Datei mit Auswahl, welches Gerät geflasht wird
+# (Waage mit SC01 Plus ohne Sensorplatine, Displays mit Sensorplatine, Sensorplatinen DevKitC N16R8 und S3-Zero).
+# Baut aus den fertigen Teilen der Branches webflasher-display und webflasher-bin, sobald einer davon neu gebaut ist.
+# Ergebnis: Branch "installer" → FilamentLager-Installer.html (läuft offline, Chrome oder Edge).
+name: Installer
+
+on:
+  workflow_run:
+    workflows: ["Firmware Display", "Firmware Sensorplatine"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: installer
+  cancel-in-progress: false
+
+jobs:
+  bauen:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fertige Teile holen
+        run: |
+          R="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          git clone -q --depth 1 -b webflasher-bin "$R" /tmp/sensor
+          git clone -q --depth 1 -b webflasher-display "$R" /tmp/display
+          cat /tmp/sensor/version.json /tmp/display/version.json
+
+      - name: Installer bauen
+        run: |
+          python3 tools/webflasher/installer_varianten.py /tmp/sensor /tmp/display > /tmp/varianten.json
+          mkdir -p /tmp/aus
+          python3 tools/webflasher/bauen.py --varianten /tmp/varianten.json --esptool /tmp/display/esptool-js.mjs \
+            --aus /tmp/aus/FilamentLager-Installer.html
+          python3 - <<'PY'
+          import json
+          v = json.load(open("/tmp/varianten.json"))
+          json.dump({x["id"]: x["version"] for x in v}, open("/tmp/aus/version.json", "w"))
+          PY
+          cp /tmp/sensor/esptool-js.LICENSE.txt /tmp/aus/ 2>/dev/null || true
+
+      - name: In den Branch installer legen
+        run: |
+          cd /tmp/aus
+          git init -q -b installer
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Installer $(cat version.json)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" installer
