@@ -88,7 +88,7 @@ lv_obj_t* g_seiten[4];
 lv_obj_t* g_nav[3];
 
 // Kopfzeile
-lv_obj_t *h_sub, *h_nfc_l, *h_nfc_r, *h_wlan, *h_ha, *h_zeit;
+lv_obj_t *h_sub, *h_nfc_l, *h_nfc_r, *h_wlan, *h_ha, *h_ha_t, *h_zeit;
 
 // Wiegen
 lv_obj_t *w_arc, *w_spule, *w_zahl, *w_einheit, *w_proz, *w_brutto, *w_leer, *w_kopf;
@@ -409,7 +409,7 @@ void baue_kopf(lv_obj_t* scr) {
     h_wlan_i = ikon(h_wlan, "wlan", K(16, 13), C_SUB);
     h_wlan_t = text(h_wlan, T12, C_SUB, "WLAN");
     if (UI_KOMPAKT) lv_obj_add_flag(h_wlan_t, LV_OBJ_FLAG_HIDDEN);
-    status(KT("Home Assistant", "HA"), &h_ha);
+    h_ha_t = lv_obj_get_child(status(KT("SchichtLohn", "SL"), &h_ha), 1);
     h_zeit = text(rechts, KT(&fl_14, &fl_13), C_TEXT, "--:--");
 }
 
@@ -1893,7 +1893,7 @@ void baue_einst(lv_obj_t* seite_) {
 
 void einst_aktualisieren() {
     std::string s = std::string("WLAN: ") + (g_st.wlan_ok ? g_st.ip : "getrennt") + "\n";
-    s += std::string("Home Assistant: ") + (g_st.ha_ok ? "verbunden" : "keine Verbindung") + "\n";
+    s += std::string(g_st.schichtlohn ? "SchichtLohn: " : "Home Assistant: ") + (g_st.ha_ok ? "verbunden" : "keine Verbindung") + "\n";
     s += std::string("Sensor: ") + (g_st.sensor_ok ? "verbunden" : "antwortet nicht") + "\n";
     s += "Sorten im Lager: " + std::to_string(g_lager ? g_lager->sorten.size() : 0) + "\n";
     s += "Leerspule Standard: " + gramm(g_st.leer_standard_g) + "\n";
@@ -2260,6 +2260,7 @@ void ui_status(const WaagenStatus& s) {
     lv_obj_set_style_text_color(h_wlan_t, farbe(s.wlan_ok ? C_SUB : C_ROT), 0);
     ikon_farbe(h_wlan_i, s.wlan_ok ? C_GRUEN : C_ROT);
     lv_obj_set_style_bg_color(h_ha, farbe(s.ha_ok ? C_GRUEN : C_ROT), 0);
+    setze(h_ha_t, s.schichtlohn ? KT("SchichtLohn", "SL") : KT("Home Assistant", "HA"));
     setze(h_zeit, s.uhrzeit.empty() ? "--:--" : s.uhrzeit);
     if (g_seite == WIEGEN) wiegen_aktualisieren();
     else if (g_seite == EINST) einst_aktualisieren();

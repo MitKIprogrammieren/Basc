@@ -1169,6 +1169,7 @@ void loop() {
 #endif
         s.wlan_ok = wlan;
         s.ha_ok = g_ha_ok;
+        s.schichtlohn = g_einst.ha_url.indexOf(":8093") >= 0 || g_einst.ha_url.indexOf("schichtlohn") >= 0;
         s.uhrzeit = uhrzeit();
         s.ip = wlan ? WiFi.localIP().toString().c_str() : "";
         s.version = FW_VERSION;

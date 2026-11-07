@@ -30,6 +30,7 @@ struct WaagenStatus {
     bool wlan_ok = false;
     int drucker = -1;        // Etikettendrucker: -1 keiner bekannt, 0 grau, 1 bereit, 2 Fehler
     bool ha_ok = false;
+    bool schichtlohn = false;  // Adresse ist ein SchichtLohn-Server (Port 8093) statt Home Assistant
     std::string uhrzeit;     // "21:27"
     std::string ip;
     std::string version;

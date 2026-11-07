@@ -126,6 +126,7 @@ int main(int argc, char** argv) {
 
     WaagenStatus st;
     st.sensor_ok = st.wlan_ok = st.ha_ok = true;
+    st.schichtlohn = true;
     st.uhrzeit = "21:27";
     st.ip = "192.168.178.57";
     st.version = "1.0.0";
