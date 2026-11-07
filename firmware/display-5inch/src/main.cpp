@@ -434,7 +434,25 @@ void netz_ams(Ergebnis& e) {
 void netz_drucker(Ergebnis& e) {
     e.hat_et = true;
     e.et.geladen = true;
-    e.et.lager_url = std::string(g_einst.ha_url.c_str()) + "/todo?entity_id=" + g_einst.ha_todo.c_str();
+    // QR-Code wie in SchichtLohn: Adresse des SchichtLohn-Servers + /app/?rolle=… (bei Home Assistant: die To-do-Liste)
+    bool sl = g_einst.ha_url.indexOf(":8093") >= 0 || g_einst.ha_url.indexOf("schichtlohn") >= 0;
+    if (sl) {
+        e.et.qr_basis = g_einst.ha_url.c_str();
+        e.et.lager_url = std::string(g_einst.ha_url.c_str()) + "/app/";
+        // in SchichtLohn eigens eingetragene QR-Adresse (Einstellungen → Etiketten) hat Vorrang
+        std::string cfg;
+        if (http_anfrage(std::string(g_einst.ha_url.c_str()) + "/api/daten/cfg", "GET", "", cfg, 6000, true) == 200) {
+            JsonDocument filter;
+            filter["wert"]["etQrBasis"] = true;
+            JsonDocument d;
+            if (!deserializeJson(d, cfg, DeserializationOption::Filter(filter))) {
+                std::string q = d["wert"]["etQrBasis"] | "";
+                if (!q.empty()) e.et.qr_basis = q;
+            }
+        }
+    } else {
+        e.et.lager_url = std::string(g_einst.ha_url.c_str()) + "/todo?entity_id=" + g_einst.ha_todo.c_str();
+    }
     std::string antwort;
     int code = http_anfrage(bruecke() + "/drucker", "GET", "", antwort, 6000, true);
     if (code == 404) e.et.fehler = "Integration m20_druckbruecke fehlt in Home Assistant";
