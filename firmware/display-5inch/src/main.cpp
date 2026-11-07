@@ -821,6 +821,119 @@ BambuInfo bambu_info(int seite) {
     return b;
 }
 
+// ---------------------------------------------------------------- Meldungen an SchichtLohn (ohne Web-Oberfläche)
+// Wie die Sensorplatine (oberflaeche.cpp): sensor.<name>_laufzeit, _gewicht und _nfc an die eingetragene Adresse
+// (SchichtLohn-Server oder Home Assistant). Daran erkennt SchichtLohn die Waage, zeigt das Gewicht im Lager und die
+// „Spule erkannt“-Karte. Eigene Task auf Kern 0, damit langsame Antworten den Bildschirm nicht bremsen.
+String melde_entity(const char* teil) {
+    String n = waage_name();
+    n.replace('-', '_');
+    return "sensor." + n + "_" + teil;
+}
+
+String melde_anzeige(const char* teil) {
+    String n = waage_name();  // „filamentwaage-2“ → „Filamentwaage 2“
+    n.replace('-', ' ');
+    if (n.length()) n.setCharAt(0, toupper((unsigned char)n[0]));
+    return n + " " + teil;
+}
+
+void melden_task(void*) {
+    HaClient ha;
+    String url, token;
+    float gewicht_gemeldet = -1000;
+    uint32_t gewicht_um = 0, laufzeit_um = 0, nfc_um = 0;
+    std::string nfc_alt;
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(250));
+        if (WiFi.status() != WL_CONNECTED || g_einst.ha_url.isEmpty()) continue;
+        if (url != g_einst.ha_url || token != g_einst.ha_token) {
+            url = g_einst.ha_url;
+            token = g_einst.ha_token;
+            ha.begin(url.c_str(), token.length() ? token.c_str() : "schichtlohn", g_einst.ha_todo.c_str());
+        }
+        uint32_t jetzt = millis();
+        std::string fehler;
+        SensorDaten d = g_sensor.daten();
+
+        // Gewicht (brutto): ruhig und ≥ 1 g anders höchstens 1×/s, große Sprünge sofort, sonst alle 30 s
+        if (d.verbunden && d.kalibriert) {
+            float g = d.gramm < 0 ? 0.0f : d.gramm;
+            float diff = fabsf(g - gewicht_gemeldet);
+            uint32_t seit = jetzt - gewicht_um;
+            if ((d.stabil && diff >= 1.0f && seit >= 1000) || (diff >= 50.0f && seit >= 1000) || seit >= 30000) {
+                JsonDocument j;
+                j["state"] = roundf(g * 10) / 10;
+                j["attributes"]["friendly_name"] = melde_anzeige("Gewicht");
+                j["attributes"]["unit_of_measurement"] = "g";
+                j["attributes"]["state_class"] = "measurement";
+                j["attributes"]["device_class"] = "weight";
+                j["attributes"]["icon"] = "mdi:scale";
+                std::string body;
+                serializeJson(j, body);
+                if (ha.zustand_setzen(melde_entity("gewicht").c_str(), body, fehler)) gewicht_gemeldet = g;
+                gewicht_um = jetzt;
+            }
+        }
+
+        // NFC: sofort bei jeder Änderung (Tag oder Bambu-Daten), sonst alle 60 s
+        String bl = g_sensor.bambu(0), br = g_sensor.bambu(1);
+        std::string nfc_neu = d.tag_l + "|" + d.tag_r + "|" + bl.c_str() + "|" + br.c_str();
+        if (nfc_neu != nfc_alt || jetzt - nfc_um >= 60000) {
+            JsonDocument j;
+            j["state"] = !d.tag_r.empty() ? d.tag_r : d.tag_l;
+            JsonObject a = j["attributes"].to<JsonObject>();
+            a["friendly_name"] = melde_anzeige("NFC");
+            a["icon"] = "mdi:nfc-variant";
+            a["tag_l"] = d.tag_l;
+            a["tag_r"] = d.tag_r;
+            const String* bambu[2] = {&bl, &br};
+            const char* namen[2] = {"bambu_l", "bambu_r"};
+            for (int i = 0; i < 2; i++) {
+                JsonDocument b;
+                if (bambu[i]->length() && !deserializeJson(b, *bambu[i])) {
+                    b.remove("uid");
+                    a[namen[i]] = b;
+                } else {
+                    a[namen[i]] = nullptr;
+                }
+            }
+            a["leer_bambu_g"] = 250;  // Bambu-Mehrwegspule
+            a["leer_standard_g"] = 250;
+            std::string body;
+            serializeJson(j, body);
+            if (ha.zustand_setzen(melde_entity("nfc").c_str(), body, fehler)) nfc_alt = nfc_neu;
+            nfc_um = jetzt;
+        }
+
+        // Laufzeit mit Version, IP und Name – daran erkennt SchichtLohn die Waage; dazu WLAN-Signal
+        if (!laufzeit_um || jetzt - laufzeit_um >= 60000) {
+            laufzeit_um = jetzt;
+            JsonDocument j;
+            j["state"] = (long)(jetzt / 3600000UL);
+            j["attributes"]["friendly_name"] = melde_anzeige("läuft seit");
+            j["attributes"]["unit_of_measurement"] = "h";
+            j["attributes"]["icon"] = "mdi:timer-outline";
+            j["attributes"]["version"] = FW_VERSION;
+            j["attributes"]["ip"] = WiFi.localIP().toString();
+            j["attributes"]["waage"] = waage_name();
+            std::string body;
+            serializeJson(j, body);
+            if (!ha.zustand_setzen(melde_entity("laufzeit").c_str(), body, fehler))
+                Serial.printf("[melden] %s nicht erreichbar: %s\n", url.c_str(), fehler.c_str());
+            JsonDocument w;
+            w["state"] = WiFi.RSSI();
+            w["attributes"]["friendly_name"] = melde_anzeige("WLAN");
+            w["attributes"]["unit_of_measurement"] = "dBm";
+            w["attributes"]["state_class"] = "measurement";
+            w["attributes"]["device_class"] = "signal_strength";
+            body.clear();
+            serializeJson(w, body);
+            ha.zustand_setzen(melde_entity("wlan").c_str(), body, fehler);
+        }
+    }
+}
+
 // Wächter auf Kern 0: meldet, wenn die Bildschirm-Schleife (Kern 1) hängt, und an welcher Stelle
 volatile const char* g_schritt = "Start";
 void waechter(void*) {
@@ -923,6 +1036,7 @@ void setup() {
     else if (g_einst.ha_url.isEmpty() || g_einst.ha_token.isEmpty()) ui_meldung("Home Assistant fehlt – Webflasher benutzen", true);
 #if SENSOR_DIREKT
     xTaskCreatePinnedToCore(waechter, "waechter", 3072, nullptr, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(melden_task, "melden", 8192, nullptr, 1, nullptr, 0);
 #endif
 }
 
