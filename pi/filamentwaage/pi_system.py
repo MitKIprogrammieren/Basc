@@ -14,7 +14,7 @@ import threading
 log = logging.getLogger("system")
 
 ERLAUBT = ("akzent", "helligkeit", "display_aus_min", "kompakt", "leerspule_g", "nfc_stufe", "drucker", "ams_suche",
-           "textgroesse_kiosk")
+           "textgroesse_kiosk", "ring")
 
 
 # ------------------------------------------------------------ Einstellungen der Oberfläche
@@ -36,6 +36,8 @@ class Einstellungen:
         w.setdefault("helligkeit", 100)
         w.setdefault("display_aus_min", 0)
         w.setdefault("kompakt", False)
+        if w.get("ring") not in ("klassisch", "segmente", "tacho", "wasser"):
+            w["ring"] = "wasser"  # Füllstandsanzeige um die Spule
         w.setdefault("leerspule_g", int(leerspule_g))
         w.setdefault("nfc_stufe", 3)
         if not isinstance(w.get("drucker"), list):

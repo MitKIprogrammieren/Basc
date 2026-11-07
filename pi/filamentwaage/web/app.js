@@ -86,6 +86,45 @@ function skalieren() {
 addEventListener("resize", skalieren);
 addEventListener("mousemove", () => document.body.classList.add("maus"), { once: true });
 
+// ------------------------------------------------------------ Füllstand um die Spule (Einstellungen → Design → Füllstand)
+// viewBox 120: die innere Fläche (.ring-innen) deckt den Kreis bis r = 50 ab, der Ring liegt zwischen 50 und 60.
+const RINGE = [["wasser", "Wasserstand"], ["segmente", "Segmente"], ["tacho", "Tacho"], ["klassisch", "Klassisch"]];
+let ringAlt = "";
+function ringZeichnen(proz, farbe) {
+  const art = (S.e && S.e.ring) || "wasser";
+  const ring = $("ring");
+  const sig = `${art}|${proz}|${farbe}`;
+  if (sig === ringAlt) return;
+  ringAlt = sig;
+  ring.dataset.art = art;
+  if (art === "klassisch") {
+    ring.style.background = `conic-gradient(${farbe} 0 ${proz}%, var(--rand2) ${proz}% 100%)`;
+    $("ring-svg").innerHTML = "";
+    return;
+  }
+  ring.style.background = "none";
+  let s = "";
+  if (art === "segmente") {
+    const n = 36, an = Math.round((proz / 100) * n);
+    for (let i = 0; i < n; i++) {
+      const w = ((i + 0.5) / n) * 2 * Math.PI - Math.PI / 2, c = Math.cos(w), si = Math.sin(w);
+      s += `<line x1="${(60 + 52.5 * c).toFixed(2)}" y1="${(60 + 52.5 * si).toFixed(2)}" x2="${(60 + 58 * c).toFixed(2)}" y2="${(60 + 58 * si).toFixed(2)}" style="stroke:${i < an ? farbe : "var(--rand2)"}" stroke-width="3.6" stroke-linecap="round"/>`;
+    }
+  } else if (art === "tacho") {
+    const U = 2 * Math.PI * 55, T = U * 0.75, L = (T * proz) / 100;
+    s = `<circle cx="60" cy="60" r="55" fill="none" style="stroke:var(--rand2)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${T.toFixed(1)} ${U.toFixed(1)}" transform="rotate(135 60 60)"/>`
+      + (proz > 0 ? `<circle cx="60" cy="60" r="55" fill="none" style="stroke:${farbe}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)} ${U.toFixed(1)}" transform="rotate(135 60 60)"/>` : "")
+      + `<text x="60" y="117" text-anchor="middle" font-size="10" font-weight="700" style="fill:${proz > 0 ? farbe : "var(--sub)"}">${proz} %</text>`;
+  } else {  // wasser: die Fläche hinter der Spule füllt sich von unten
+    const top = 119 - 118 * (proz / 100);
+    s = `<defs><clipPath id="ring-clip"><circle cx="60" cy="60" r="59"/></clipPath></defs>
+      <circle cx="60" cy="60" r="59" style="fill:var(--panel)"/>
+      <g clip-path="url(#ring-clip)"><path d="M-100 ${top.toFixed(1)} q15 -4 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 V130 H-100Z" style="fill:${farbe}" opacity=".32" class="welle"/></g>
+      <circle cx="60" cy="60" r="58.5" fill="none" style="stroke:${proz > 0 ? farbe : "var(--rand2)"}" stroke-width="1.5" opacity=".8"/>`;
+  }
+  $("ring-svg").innerHTML = s;
+}
+
 // ------------------------------------------------------------ Meldung
 let toastTimer = 0;
 function meldung(text, fehler = false) {
@@ -229,7 +268,7 @@ function wiegen() {
   S.aktiv = { sorte, tag, netto, da, bambu };
 
   const farbe = proz < 15 && da ? "var(--rot)" : "var(--gruen)";
-  $("ring").style.background = `conic-gradient(${farbe} 0 ${proz}%, var(--rand2) ${proz}% 100%)`;
+  ringZeichnen(proz, farbe);
   const rk = sorte ? sorte.uid : bambu ? "bambu" + bambu.farbe : "";
   if ($("spule").dataset.k !== rk || !$("spule").firstChild) {  // nur neu zeichnen, wenn sich die Sorte ändert
     $("spule").dataset.k = rk;
@@ -1106,6 +1145,8 @@ function einst() {
         <div class="farben">${AKZENTE.map((f) => `<button class="farbe${f === e.akzent ? " an" : ""}" data-akzent="${f}" style="background:${f}" aria-label="Farbe ${f}"></button>`).join("")}</div></div>
       <div class="e-block"><span class="ueber">Helligkeit</span>
         <div class="e-zeile"><input type="range" class="regler" id="e-hell" min="10" max="100" step="5" value="${e.helligkeit}" aria-label="Helligkeit"><span class="e-wert" id="e-hell-w">${e.helligkeit} %</span></div></div>
+      <div class="e-block"><span class="ueber">Füllstand</span><div class="seg">${RINGE.map(([k, t]) =>
+        `<button class="${k === (e.ring || "wasser") ? "an" : ""}" data-ring="${k}">${t}</button>`).join("")}</div></div>
       <div class="e-block"><span class="ueber">Display ausschalten</span>${seg("display_aus_min", e.display_aus_min, [[0, "Nie"], [5, "5 min"], [15, "15 min"], [30, "30 min"]])}</div>
       <div class="e-block"><span class="ueber gross-ss">TEXTGRÖẞE</span><div class="seg">${TEXTGROESSEN.map(([k, t]) =>
         `<button class="${k === textGroesse() ? "an" : ""}" data-text="${k}">${t}</button>`).join("")}</div>
@@ -1233,6 +1274,7 @@ $("e-inhalt").onclick = async (e) => {
   if (d.et) return etEinstKlick(d);
   if (d.br) return brAktion(d.br, b);
   if (d.akzent) return einstSetzen({ akzent: d.akzent });
+  if (d.ring) { ringAlt = ""; return einstSetzen({ ring: d.ring }); }
   if (d.logos) { S.lager.logos = d.logos === "true"; lagerOptSpeichern(); return einst(); }
   if (d.lagerstil) { S.lager.stil = d.lagerstil; lagerOptSpeichern(); return einst(); }
   if (d.text) {

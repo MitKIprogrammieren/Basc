@@ -98,6 +98,10 @@ void einst_standard(JsonDocument& e) {
     if (!e["drucker"].is<JsonArray>()) e["drucker"].to<JsonArray>();
     if (!e["ams_suche"].is<bool>()) e["ams_suche"] = false;
     if (!e["nullpunkt_auto"].is<bool>()) e["nullpunkt_auto"] = true;
+    {  // Füllstandsanzeige um die Spule: klassisch, segmente, tacho, wasser
+        String r = e["ring"] | "";
+        if (r != "klassisch" && r != "segmente" && r != "tacho" && r != "wasser") e["ring"] = "wasser";
+    }
     g_null_auto = e["nullpunkt_auto"].as<bool>();
     e["abbuchung_aktiv"] = false;
 }
@@ -1224,7 +1228,7 @@ void routen() {
             std::lock_guard<std::mutex> l(g_mx);
             static const char* const ERLAUBT[] = {"akzent", "helligkeit", "display_aus_min", "kompakt",
                                                    "leerspule_g", "leer_bambu_g", "leer_bambu_ht_g", "nfc_stufe", "drucker",
-                                                   "ams_suche", "nullpunkt_auto"};
+                                                   "ams_suche", "nullpunkt_auto", "ring"};
             for (const char* k : ERLAUBT)
                 if (!o[k].isNull()) g_einst[k] = o[k];
             einst_standard(g_einst);

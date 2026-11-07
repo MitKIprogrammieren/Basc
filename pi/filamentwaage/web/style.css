@@ -421,3 +421,12 @@ html.hochformat, html.hochformat body { height: auto; min-height: 100%; overflow
 .hochformat #seite-lager > section > .reihe:first-child { flex-wrap: wrap; }
 .hochformat .suche { flex: 1 1 100%; }
 .hochformat .nav-knopf { font-size: 14px; gap: 6px; }
+
+/* Füllstand um die Spule: SVG hinter der inneren Fläche (app.js → ringZeichnen) */
+.ring { position: relative; }
+.ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ring-innen { position: relative; }
+.ring[data-art="wasser"] .ring-innen { background: transparent; }
+.ring-svg .welle { animation: welle 6s linear infinite; }
+@keyframes welle { from { transform: translateX(0); } to { transform: translateX(60px); } }
+@media (prefers-reduced-motion: reduce) { .ring-svg .welle { animation: none; } }
