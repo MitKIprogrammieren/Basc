@@ -921,15 +921,27 @@ void melden_task(void*) {
             serializeJson(j, body);
             if (!ha.zustand_setzen(melde_entity("laufzeit").c_str(), body, fehler))
                 Serial.printf("[melden] %s nicht erreichbar: %s\n", url.c_str(), fehler.c_str());
-            JsonDocument w;
-            w["state"] = WiFi.RSSI();
-            w["attributes"]["friendly_name"] = melde_anzeige("WLAN");
-            w["attributes"]["unit_of_measurement"] = "dBm";
-            w["attributes"]["state_class"] = "measurement";
-            w["attributes"]["device_class"] = "signal_strength";
-            body.clear();
-            serializeJson(w, body);
-            ha.zustand_setzen(melde_entity("wlan").c_str(), body, fehler);
+            // Systemwerte wie bei der Sensorplatine: WLAN, Temperatur des Chips, Arbeitsspeicher und PSRAM belegt
+            auto wert = [&](const char* teil, const char* name, float v, const char* einheit, const char* klasse,
+                            const char* icon) {
+                JsonDocument w;
+                w["state"] = roundf(v * 10) / 10;
+                w["attributes"]["friendly_name"] = melde_anzeige(name);
+                w["attributes"]["unit_of_measurement"] = einheit;
+                w["attributes"]["state_class"] = "measurement";
+                if (klasse) w["attributes"]["device_class"] = klasse;
+                if (icon) w["attributes"]["icon"] = icon;
+                std::string b;
+                serializeJson(w, b);
+                ha.zustand_setzen(melde_entity(teil).c_str(), b, fehler);
+            };
+            wert("wlan", "WLAN", WiFi.RSSI(), "dBm", "signal_strength", nullptr);
+            wert("temperatur", "Temperatur", temperatureRead(), "°C", "temperature", nullptr);
+            uint32_t ig = heap_caps_get_total_size(MALLOC_CAP_INTERNAL), ifr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+            if (ig) wert("arbeitsspeicher", "Arbeitsspeicher belegt", 100.0f - ifr * 100.0f / ig, "%", nullptr, "mdi:memory");
+            if (ESP.getPsramSize())
+                wert("psram", "PSRAM belegt", 100.0f - ESP.getFreePsram() * 100.0f / ESP.getPsramSize(), "%", nullptr,
+                     "mdi:memory");
         }
     }
 }
