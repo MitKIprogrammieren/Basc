@@ -100,6 +100,7 @@ enum class Haupt { NICHTS, SPEICHERN, ZUORDNEN, WAEHLEN, VORSCHLAG } g_haupt = H
 int g_vorschlag = -1;  // Sorte, die das AMS für einen neuen Tag vorschlägt
 std::string g_aktiver_tag;
 int g_aktive_sorte = -1;
+int g_druck_sorte = -1;  // Sorte für den Etikett-Knopf beim Wiegen
 int g_netto = 0;
 
 // Lager
@@ -513,9 +514,9 @@ void andere_cb(lv_event_t*) {
 }
 
 void etikett_wiegen_cb(lv_event_t*) {
-    if (g_aktive_sorte < 0) return;
+    if (g_druck_sorte < 0) return;
     bool da = g_st.brutto_g >= SPULE_DA_G;
-    et_oeffnen(g_aktive_sorte, da && g_st.stabil ? g_netto : 0);
+    et_oeffnen(g_druck_sorte, da && g_st.stabil ? g_netto : 0);
 }
 
 lv_obj_t* w_etikett_i;
@@ -743,9 +744,6 @@ void wiegen_aktualisieren() {
     std::string schluessel = std::to_string(sorte) + "|" + tag + "|" + (da ? "1" : "0") + "|" + std::to_string(g_ams_stand);
     if (sorte >= 0) schluessel += "|" + g_lager->sorten[sorte].description;
     if (bambu) schluessel += "|bambu|" + bambu->material_id + "|" + std::to_string(bambu->rgb) + "|" + std::to_string(bambu->gewicht);
-    if (sorte >= 0) lv_obj_clear_state(w_etikett, LV_STATE_DISABLED);
-    else lv_obj_add_state(w_etikett, LV_STATE_DISABLED);
-    lv_obj_set_style_opa(w_etikett, sorte >= 0 ? LV_OPA_COVER : LV_OPA_40, 0);
     if (schluessel == g_karte_schluessel) return;
     g_karte_schluessel = schluessel;
     AmsTreffer ams = g_ams ? ams_slot_fuer_tag(*g_ams, tag) : AmsTreffer{};
@@ -828,6 +826,11 @@ void wiegen_aktualisieren() {
         setze(w_wahl_lbl, "Sorte wählen");
     }
     if (!UI_KOMPAKT) lv_obj_set_style_min_width(w_wahl, text_breite(lv_label_get_text(w_wahl_lbl), T15) + 24, 0);
+    // Etikett: für die zugeordnete Sorte – sonst für die zum Tag passende Sorte im Lager (z. B. Bambu-Rolle „Im Lager: …“)
+    g_druck_sorte = sorte >= 0 ? sorte : (!tag.empty() ? g_vorschlag : -1);
+    if (g_druck_sorte >= 0) lv_obj_clear_state(w_etikett, LV_STATE_DISABLED);
+    else lv_obj_add_state(w_etikett, LV_STATE_DISABLED);
+    lv_obj_set_style_opa(w_etikett, g_druck_sorte >= 0 ? LV_OPA_COVER : LV_OPA_40, 0);
     lv_label_set_long_mode(w_haupt_lbl, LV_LABEL_LONG_DOT);
     lv_obj_set_width(w_haupt_lbl, LV_SIZE_CONTENT);
     if (lv_obj_get_width(w_haupt) > 0 && text_breite(lv_label_get_text(w_haupt_lbl), T17) > lv_obj_get_width(w_haupt) - 24)
