@@ -1781,9 +1781,10 @@ async function updateEinspielen(datei) {
   try {
     updateStand(0, "Lese Datei …");
     const text = await datei.text();
-    const i = text.indexOf("const TEILE = [");
-    if (i < 0) throw new Error("Das ist keine FilamentLager-Webflasher.html");
-    const start = i + "const TEILE = ".length, ende = text.indexOf("];", start) + 1;
+    // ältere Webflasher: „const TEILE = [“, neuere (seit dem Installer mit Geräteauswahl): „let TEILE = [“
+    const m = /(?:const|let) TEILE = \[/.exec(text);
+    if (!m) throw new Error("Das ist keine FilamentLager-Webflasher.html");
+    const start = m.index + m[0].length - 1, ende = text.indexOf("];", start) + 1;
     const teile = JSON.parse(text.slice(start, ende));
     const version = (text.match(/FW ([0-9][0-9.]*)/) || [])[1] || "?";
     const fw = teile.find((t) => t.name === "firmware.bin"), fs = teile.find((t) => t.name.startsWith("littlefs"));
