@@ -399,7 +399,7 @@ void baue_kopf(lv_obj_t* scr) {
     auto status = [&](const char* name, lv_obj_t** dot) {
         lv_obj_t* z = zeile(rechts, K(6, 4));
         *dot = punkt(z);
-        text(z, T12, C_SUB, name);
+        text(z, KT(T12, &fl_12f), C_SUB, name);
         return z;
     };
     status(KT("NFC L", "L"), &h_nfc_l);
@@ -409,10 +409,10 @@ void baue_kopf(lv_obj_t* scr) {
     lv_obj_add_flag(h_drucker_z, LV_OBJ_FLAG_HIDDEN);
     h_wlan = zeile(rechts, K(6, 4));
     h_wlan_i = ikon(h_wlan, "wlan", K(16, 13), C_SUB);
-    h_wlan_t = text(h_wlan, T12, C_SUB, "WLAN");
+    h_wlan_t = text(h_wlan, KT(T12, &fl_12f), C_SUB, "WLAN");
     if (UI_KOMPAKT) lv_obj_add_flag(h_wlan_t, LV_OBJ_FLAG_HIDDEN);
     h_ha_t = lv_obj_get_child(status(KT("SchichtLohn", "SL"), &h_ha), 1);
-    h_zeit = text(rechts, KT(&fl_14, &fl_13), C_TEXT, "--:--");
+    h_zeit = text(rechts, KT(&fl_14, &fl_13f), C_TEXT, "--:--");
 }
 
 // ---------------------------------------------------------------- Navigation
@@ -448,7 +448,7 @@ void baue_nav(lv_obj_t* scr) {
         lv_obj_set_flex_align(b, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_column(b, K(8, 5), 0);
         g_nav_ikon[i] = ikon(b, ikone[i], K(20, 14), C_NAV);
-        text(b, KT(&fl_15, &fl_13), C_NAV, namen[i]);  // .nav-knopf { font-size: 14px; font-weight: 600 }
+        text(b, KT(&fl_15, &fl_13f), C_NAV, namen[i]);  // .nav-knopf { font-size: 14px; font-weight: 600 }
         lv_obj_add_event_cb(b, nav_cb, LV_EVENT_CLICKED, (void*)(intptr_t)i);
     }
 }

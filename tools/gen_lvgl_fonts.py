@@ -28,6 +28,9 @@ FONTS = [
     ("fl_20", "Montserrat-Bold.ttf", 20, LATIN, "lv_font_montserrat_20"),
     ("fl_28", "Montserrat-ExtraBold.ttf", 28, LATIN, "lv_font_montserrat_20"),
     ("fl_30", "Montserrat-SemiBold.ttf", 30, LATIN, "lv_font_montserrat_20"),
+    # fett für Kopfzeile und Navigation auf dem 3,5"-Display (besser lesbar)
+    ("fl_12f", "Montserrat-Bold.ttf", 12, LATIN, "lv_font_montserrat_12"),
+    ("fl_13f", "Montserrat-Bold.ttf", 13, LATIN, "lv_font_montserrat_12"),
     ("fl_52", "Montserrat-ExtraBold.ttf", 52, DIGITS, "NULL"),  # 3,5" (SC01 Plus)
     ("fl_92", "Montserrat-ExtraBold.ttf", 92, DIGITS, "NULL"),
 ]
