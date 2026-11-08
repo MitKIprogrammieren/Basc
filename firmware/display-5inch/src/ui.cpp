@@ -1967,8 +1967,119 @@ void ams_fach(lv_obj_t* p, const AmsEinheit& a, const AmsSlot& sl, int b) {
     lv_obj_set_style_text_align(rl, LV_TEXT_ALIGN_CENTER, 0);
 }
 
+// 3,5": ein Fach als Farbbalken mit Fachnummer, darunter Material und Rest – vier Fächer nebeneinander
+void ams_fach_kompakt(lv_obj_t* p, const AmsEinheit& a, const AmsSlot& sl) {
+    lv_obj_t* f = spalte(p, 2);
+    lv_obj_set_flex_grow(f, 1);
+    lv_obj_set_width(f, 1);  // gleich breit, egal wie lang der Name ist
+    lv_obj_set_flex_align(f, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_t* balken = box(f);
+    lv_obj_set_size(balken, lv_pct(100), 24);
+    lv_obj_set_style_radius(balken, 7, 0);
+    lv_obj_set_style_border_width(balken, sl.aktiv ? 3 : 1, 0);
+    lv_obj_set_style_border_color(balken, farbe(sl.aktiv ? C_GRUEN : 0x4a5058), 0);
+    bool hell = (sl.rgb & 0xFF) + ((sl.rgb >> 8) & 0xFF) + ((sl.rgb >> 16) & 0xFF) > 450;
+    if (!sl.leer) {
+        lv_obj_set_style_bg_color(balken, farbe(sl.rgb), 0);
+        lv_obj_set_style_bg_opa(balken, LV_OPA_COVER, 0);
+    }
+    std::string nr = ams_slot_kurz(a, sl);
+    lv_obj_t* l = text(balken, &fl_13f, !sl.leer && hell ? C_BG : C_TEXT, nr.c_str());
+    lv_obj_center(l);
+    lv_obj_t* n = text(f, &fl_12f, sl.leer ? C_SUB : C_TEXT, sl.leer ? "leer" : (sl.name.empty() ? "?" : sl.name.c_str()));
+    lv_obj_set_width(n, lv_pct(100));
+    lv_label_set_long_mode(n, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(n, LV_TEXT_ALIGN_CENTER, 0);
+    if (!sl.leer && sl.rest >= 0) {
+        lv_obj_t* r = text(f, F_K, sl.rest <= 15 ? C_ORANGE : C_SUB, (std::to_string(sl.rest) + " %").c_str());
+        lv_obj_set_style_text_align(r, LV_TEXT_ALIGN_CENTER, 0);
+    }
+}
+
+void drucker_bauen_kompakt() {
+    // Eine volle Fläche: oben die Etikettendrucker in einer Zeile, darunter je Drucker die AMS-Einheiten als Reihen
+    lv_obj_t* a = box(e_drucker);
+    panel_stil(a, C_GRUEN);
+    lv_obj_set_height(a, lv_pct(100));
+    lv_obj_set_flex_grow(a, 1);
+    lv_obj_set_style_pad_all(a, 8, 0);
+    lv_obj_set_flex_flow(a, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(a, 6, 0);
+    lv_obj_set_flex_align(a, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_add_flag(a, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(a, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(a, LV_SCROLLBAR_MODE_ACTIVE);
+
+    // Etikettendrucker
+    lv_obj_t* ez = zeile(a, 6);
+    lv_obj_set_width(ez, lv_pct(100));
+    text(ez, F_K, C_SUB, "Etiketten:");
+    if (!g_et.fehler.empty()) einzeilig(text(ez, F_K, C_ROT, g_et.fehler.c_str()), 280);
+    else if (!g_et.geladen) text(ez, F_K, C_SUB, "wird abgefragt …");
+    else if (g_et.drucker.empty()) text(ez, F_K, C_SUB, "keine Drucker");
+    for (const auto& d : g_et.drucker) {
+        lv_obj_t* p = box(ez);
+        lv_obj_set_size(p, 7, 7);
+        lv_obj_set_style_radius(p, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(p, farbe(d.erreichbar ? C_GRUEN : C_ROT), 0);
+        text(ez, &fl_12f, C_TEXT, d.name.c_str());
+    }
+    lv_obj_t* fl = box(ez);
+    lv_obj_set_height(fl, 1);
+    lv_obj_set_flex_grow(fl, 1);
+    lv_obj_t* k = knopf(ez, LV_SYMBOL_REFRESH, Art::RAHMEN, drucker_neu_cb);
+    lv_obj_set_size(k, 34, 26);
+
+    if (!g_ams || !g_ams->geladen) text(a, F_K, C_SUB, "AMS wird geladen …");
+    else if (g_ams->drucker.empty()) text(a, F_K, C_SUB, "Keine Bambu-Lab-Drucker gefunden");
+    std::vector<const AmsDrucker*> liste;
+    if (g_ams)
+        for (const auto& d : g_ams->drucker) liste.push_back(&d);
+    std::stable_sort(liste.begin(), liste.end(), [](const AmsDrucker* x, const AmsDrucker* y) { return x->online && !y->online; });
+    for (const AmsDrucker* dp : liste) {
+        const AmsDrucker& d = *dp;
+        lv_obj_t* trenn = box(a);
+        lv_obj_set_size(trenn, lv_pct(100), 1);
+        lv_obj_set_style_bg_opa(trenn, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(trenn, farbe(C_LINIE), 0);
+        lv_obj_t* kz = zeile(a, 6);
+        lv_obj_t* p = box(kz);
+        lv_obj_set_size(p, 8, 8);
+        lv_obj_set_style_radius(p, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(p, farbe(d.online ? C_GRUEN : C_ROT), 0);
+        text(kz, F_N, C_TEXT, d.name.c_str());
+        if (!d.online) text(kz, F_K, C_SUB, "offline");
+        for (const auto& e : d.ams) {
+            lv_obj_t* r = zeile(a, 6);
+            lv_obj_set_width(r, lv_pct(100));
+            lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+            // links: AMS-Kürzel groß, Feuchte darunter (orange ab 40 %)
+            lv_obj_t* li = spalte(r, 0);
+            lv_obj_set_width(li, 42);
+            lv_obj_set_flex_align(li, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+            text(li, F_G, C_TEXT, e.kurz.empty() ? e.name.c_str() : e.kurz.c_str());
+            if (e.feuchte >= 0) {
+                std::string fz = e.feuchte <= 5 ? "Stufe " + std::to_string(e.feuchte) : std::to_string(e.feuchte) + " %";
+                text(li, F_K, e.feuchte > 5 && e.feuchte >= 40 ? C_ORANGE : C_SUB, fz.c_str());
+            }
+            for (const auto& sl : e.slots) ams_fach_kompakt(r, e, sl);
+            for (size_t i = e.slots.size(); i < 4; i++) {  // AMS HT/externe Spule: Platz frei lassen
+                lv_obj_t* frei = box(r);
+                lv_obj_set_flex_grow(frei, 1);
+                lv_obj_set_size(frei, 1, 1);
+            }
+        }
+    }
+}
+
 void drucker_bauen() {
     lv_obj_clean(e_drucker);
+    if (UI_KOMPAKT) {
+        drucker_bauen_kompakt();
+        return;
+    }
     // links: AMS-Belegung je Drucker
     lv_obj_t* a = box(e_drucker);
     panel_stil(a, C_GRUEN);
