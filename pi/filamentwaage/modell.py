@@ -8,6 +8,7 @@ alle anderen Felder bleiben unverändert.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 
 LEER_GRENZE_G = 10
@@ -99,7 +100,15 @@ class Sorte:
 
     @property
     def kurzname(self):
-        s = " ".join(x for x in (self.material, self.farbe) if x)
+        # Faser-Zusatz aus den Besonderheiten gehört zum Material: „ABS“ + „GF“ → „ABS-GF“
+        mat = self.material
+        if mat:
+            for b in self.besonderheiten:
+                if re.fullmatch(r"[GC]F\d*", b.strip(), re.I):
+                    if b.strip()[:2].upper() not in mat.upper():
+                        mat += "-" + b.strip().upper()
+                    break
+        s = " ".join(x for x in (mat, self.farbe) if x)
         return s or self.summary
 
     @property

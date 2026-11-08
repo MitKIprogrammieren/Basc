@@ -64,6 +64,17 @@ int main() {
     PRUEFE(lager.sorten.size() == 2);  // Einstellungen ist keine Sorte
     const Filament& bg = lager.sorten[0];
     PRUEFE(bg.kurzname() == "PLA Blue Gray");
+    {  // Faser aus den Besonderheiten gehört zum Material
+        Filament f;
+        f.material = "ABS"; f.farbe = "Green"; f.besonderheiten = {"GF"};
+        PRUEFE(f.kurzname() == "ABS-GF Green");
+        f.material = "PA6"; f.farbe = "Black"; f.besonderheiten = {"Matt", "cf25"};
+        PRUEFE(f.kurzname() == "PA6-CF25 Black");
+        f.material = "ABS-GF"; f.farbe = "Green"; f.besonderheiten = {"GF"};
+        PRUEFE(f.kurzname() == "ABS-GF Green");
+        f.material = "PLA"; f.farbe = "Ash Gray"; f.besonderheiten = {"Matt"};
+        PRUEFE(f.kurzname() == "PLA Ash Gray");
+    }
     PRUEFE(bg.rgb == 0x5b6579);
     PRUEFE(bg.spulen == 5 && bg.reste.size() == 1 && bg.reste[0] == 560);
     PRUEFE(bg.bestand_g() == 4 * 1000 + 560);

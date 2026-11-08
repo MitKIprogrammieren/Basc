@@ -33,6 +33,16 @@ class ModellTest(unittest.TestCase):
         self.assertEqual(bg.kurzname, "PLA Blue Gray")
         self.assertEqual(bg.bestand_g, 4560)
 
+    def test_kurzname_faser(self):
+        s = m.Sorte("u", "s", "", material="ABS", farbe="Green", besonderheiten=["GF"])
+        self.assertEqual(s.kurzname, "ABS-GF Green")
+        s = m.Sorte("u", "s", "", material="PA6", farbe="Black", besonderheiten=["Matt", "cf25"])
+        self.assertEqual(s.kurzname, "PA6-CF25 Black")
+        s = m.Sorte("u", "s", "", material="ABS-GF", farbe="Green", besonderheiten=["GF"])
+        self.assertEqual(s.kurzname, "ABS-GF Green")
+        s = m.Sorte("u", "s", "", material="PLA", farbe="Ash Gray", besonderheiten=["Matt"])
+        self.assertEqual(s.kurzname, "PLA Ash Gray")
+
     def test_rest_ohne_tag(self):
         a = m.rest_speichern(BLUE_GRAY, 540, "")
         d = json.loads(a.beschreibung)

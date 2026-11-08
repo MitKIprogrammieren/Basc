@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 
 namespace {
@@ -72,8 +73,29 @@ uint32_t hex_zu_rgb(const std::string& hex, uint32_t standard) {
     return (uint32_t)v;
 }
 
+// Faser-Zusatz aus den Besonderheiten („GF“, „CF“, auch „GF25“) – gehört zum Material:
+// Material „ABS“ + Besonderheit „GF“ → „ABS-GF“, damit Knopf und Vorschlag die Sorte eindeutig nennen.
+static std::string faser_zusatz(const std::string& material, const std::vector<std::string>& bes) {
+    for (const auto& b : bes) {
+        if (b.size() < 2) continue;
+        char a = toupper((unsigned char)b[0]), z = toupper((unsigned char)b[1]);
+        if (!((a == 'G' || a == 'C') && z == 'F')) continue;
+        bool nur_ziffern = true;
+        for (size_t i = 2; i < b.size(); i++)
+            if (!isdigit((unsigned char)b[i])) nur_ziffern = false;
+        if (!nur_ziffern) continue;
+        std::string gross = b;
+        for (auto& c : gross) c = toupper((unsigned char)c);
+        std::string m = material;
+        for (auto& c : m) c = toupper((unsigned char)c);
+        if (m.find(gross.substr(0, 2)) != std::string::npos) return "";  // steht schon drin („ABS-GF“)
+        return "-" + gross;
+    }
+    return "";
+}
+
 std::string Filament::kurzname() const {
-    std::string s = material;
+    std::string s = material.empty() ? material : material + faser_zusatz(material, besonderheiten);
     if (!farbe.empty()) s += (s.empty() ? "" : " ") + farbe;
     if (s.empty()) s = summary;
     return s;
