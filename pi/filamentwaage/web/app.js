@@ -1106,28 +1106,30 @@ function sysInfoHtml() {
   const k = [];
   if (d.temperatur_c != null) {
     const t = d.temperatur_c, txt = t >= 80 ? "sehr heiß" : t >= 65 ? "warm" : "normal";
-    k.push(`<div class="sys-k"><span class="ueber">Temperatur</span><b>${komma(t, 0)} °C</b><small>Chip · ${txt}</small>${sysBalken(t, 65, 80)}</div>`);
+    k.push(`<div class="sys-k"><span class="ueber">Temp.</span><b>${komma(t, 0)} °C</b><small>${txt}</small>${sysBalken(t, 65, 80)}</div>`);
   }
   if (d.cpu_mhz) {
-    const unter = d.last != null ? `Auslastung ${d.last} %` : d.schleife_pro_s != null ? `Hauptschleife ${d.schleife_pro_s}/s` : `${d.kerne} Kerne`;
-    k.push(`<div class="sys-k"><span class="ueber">Leistung</span><b>${d.cpu_mhz} MHz</b><small>${d.kerne || 1} Kerne · ${unter}</small>${d.last != null ? sysBalken(d.last) : ""}</div>`);
+    const unter = d.last != null ? `Last ${d.last} %` : d.schleife_pro_s != null ? `${d.schleife_pro_s}/s` : `${d.kerne || 1} Kerne`;
+    k.push(`<div class="sys-k"><span class="ueber">Leistung</span><b>${d.cpu_mhz} MHz</b><small>${unter}</small>${d.last != null ? sysBalken(d.last) : ""}</div>`);
   }
   if (d.wlan_rssi != null) {
     const r = d.wlan_rssi, q = r >= -55 ? "sehr gut" : r >= -67 ? "gut" : r >= -75 ? "mäßig" : "schwach";
-    k.push(`<div class="sys-k"><span class="ueber">WLAN</span><b>${r} dBm</b><small>${q}${d.sendeleistung_dbm != null ? ` · ${komma(d.sendeleistung_dbm, 1)} dBm Sendeleistung` : ""}</small>${sysBalken(Math.max(0, Math.min(100, (r + 90) * 2.5)), 101, 101)}</div>`);
+    k.push(`<div class="sys-k"><span class="ueber">WLAN</span><b>${r} dBm</b><small>${q}</small>${sysBalken(Math.max(0, Math.min(100, (r + 90) * 2.5)), 101, 101)}</div>`);
   }
+  // Speicher als kompakte Liste: Name links, frei rechts, darunter Balken und eine kleine Zeile
+  const kurz = (n) => (/PSRAM/i.test(n) ? "PSRAM" : String(n).replace(/\s*\([^)]*\)\s*$/, ""));
   const sp = (d.speicher || []).map((x) => {
     const p = x.gesamt ? Math.round(x.belegt * 100 / x.gesamt) : 0;
-    return `<div class="sys-k"><span class="ueber">${esc(x.name)}</span><b>${groesse(x.gesamt - x.belegt)} frei</b>
-      <small>von ${groesse(x.gesamt)} · ${p} % belegt${x.text ? ` · ${esc(x.text)}` : ""}</small>${sysBalken(p)}</div>`;
+    return `<div class="sys-z"><div class="sys-zk"><span>${esc(kurz(x.name))}</span><b>${groesse(x.gesamt - x.belegt)} frei</b></div>${/^Oberfläche/.test(x.name) ? sysBalken(p, 101, 101) : sysBalken(p)}
+      <small>von ${groesse(x.gesamt)} · ${p} %${x.text ? ` · ${esc(x.text)}` : ""}</small></div>`;
   }).join("");
   const zeilen = [d.laufzeit_s != null ? ["Läuft seit", dauer(d.laufzeit_s)] : null, d.neustart_grund ? ["Letzter Neustart", d.neustart_grund] : null,
     d.board ? ["Board", d.board] : null].filter(Boolean)
-    .map(([n, w]) => `<div class="info-zeile"><span>${n}</span><span>${esc(w)}</span></div>`).join("");
-  return `<div id="sys-info" class="spalte gap10">
+    .map(([n, w]) => `<div class="sys-z"><div class="sys-zk"><span>${n}</span><b>${esc(w)}</b></div></div>`).join("");
+  return `<div id="sys-info" class="spalte gap6">
     <span class="ueber">${esc(d.geraet || "Gerät")}</span><div class="sys-kacheln">${k.join("")}</div>
-    <span class="ueber">Speicher</span><div class="sys-kacheln zwei">${sp}</div>
-    ${zeilen ? `<div class="info-liste" style="flex:0 0 auto">${zeilen}</div>` : ""}</div>`;
+    ${sp ? `<span class="ueber">Speicher</span><div class="sys-liste">${sp}</div>` : ""}
+    ${zeilen ? `<div class="sys-liste">${zeilen}</div>` : ""}</div>`;
 }
 
 function einst() {
