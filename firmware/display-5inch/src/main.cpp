@@ -1006,6 +1006,88 @@ void melden_task(void*) {
     }
 }
 
+#if SENSOR_DIREKT && !DIREKT_WEB
+// Live-Gewicht für SchichtLohn: schlanker Ereignis-Strom unter http://<ip>/api/ereignisse (Server-Sent Events) im
+// selben Format wie die Sensorplatine (event: zustand, data: {"brutto_g":…}). Keine Web-Oberfläche, nur ein WiFiServer –
+// braucht kaum Speicher. Höchstens zwei Zuhörer (normalerweise nur der SchichtLohn-Server, der es an die App weiterreicht).
+// Bis zu 10 Werte pro Sekunde, nur bei Änderung, sonst jede Sekunde ein Lebenszeichen.
+void live_task(void*) {
+    constexpr int MAX_ZUHOERER = 2;
+    WiFiServer server(WEB_PORT);
+    bool laeuft = false;
+    WiFiClient zu[MAX_ZUHOERER];
+    float alt_g[MAX_ZUHOERER];
+    int alt_st[MAX_ZUHOERER];
+    uint32_t ping[MAX_ZUHOERER] = {};
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        if (WiFi.status() != WL_CONNECTED) {
+            if (laeuft) {
+                for (auto& c : zu) c.stop();
+                server.end();
+                laeuft = false;
+            }
+            continue;
+        }
+        if (!laeuft) {
+            server.begin();
+            laeuft = true;
+        }
+        WiFiClient neu = server.available();
+        if (neu) {
+            neu.setTimeout(500);
+            String zeile = neu.readStringUntil('\n');
+            while (neu.connected()) {  // restliche Kopfzeilen überspringen
+                String k = neu.readStringUntil('\n');
+                if (k.length() <= 1) break;
+            }
+            if (zeile.startsWith("GET /api/ereignisse")) {
+                int frei = 0;
+                for (int i = 0; i < MAX_ZUHOERER; i++)
+                    if (!zu[i].connected()) { frei = i; break; }
+                zu[frei].stop();  // alle belegt: den ersten ersetzen
+                zu[frei] = neu;
+                zu[frei].setNoDelay(true);
+                zu[frei].print("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n"
+                               "Access-Control-Allow-Origin: *\r\nConnection: keep-alive\r\n\r\nretry: 2000\n\n");
+                alt_g[frei] = -1000;
+                alt_st[frei] = -1;
+                ping[frei] = millis();
+            } else {
+                neu.print("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n"
+                          "Nur /api/ereignisse – die Waage hat keine Web-Oberfläche\n");
+                neu.stop();
+            }
+        }
+        SensorDaten d = g_sensor.daten();
+        bool ok = d.verbunden && d.kalibriert;
+        float g = ok ? roundf((d.gramm < 0 ? 0.0f : d.gramm) * 10) / 10 : 0;
+        int st = ok && d.stabil;
+        uint32_t jetzt = millis();
+        for (int i = 0; i < MAX_ZUHOERER; i++) {
+            WiFiClient& c = zu[i];
+            if (!c.connected()) continue;
+            size_t n;
+            if (g != alt_g[i] || st != alt_st[i]) {
+                char puf[112];
+                snprintf(puf, sizeof(puf), "event: zustand\ndata: {\"brutto_g\":%.1f,\"stabil\":%s,\"kalibriert\":%s}\n\n", g,
+                         st ? "true" : "false", ok ? "true" : "false");
+                n = c.print(puf);
+                alt_g[i] = g;
+                alt_st[i] = st;
+                ping[i] = jetzt;
+            } else if (jetzt - ping[i] >= 1000) {
+                n = c.print(": ping\n\n");
+                ping[i] = jetzt;
+            } else {
+                continue;
+            }
+            if (!n) c.stop();  // Zuhörer weg
+        }
+    }
+}
+#endif
+
 // Wächter auf Kern 0: meldet, wenn die Bildschirm-Schleife (Kern 1) hängt, und an welcher Stelle
 volatile const char* g_schritt = "Start";
 void waechter(void*) {
@@ -1109,6 +1191,9 @@ void setup() {
 #if SENSOR_DIREKT
     xTaskCreatePinnedToCore(waechter, "waechter", 3072, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(melden_task, "melden", 8192, nullptr, 1, nullptr, 0);
+#if !DIREKT_WEB
+    xTaskCreatePinnedToCore(live_task, "live", 4096, nullptr, 1, nullptr, 0);
+#endif
 #endif
 }
 
