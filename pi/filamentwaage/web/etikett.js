@@ -15,7 +15,8 @@ const Etikett=(()=>{
     slicer:{name:"Für Slicer",b:40,h:30,art:"slicer",werte:4},
     vertikal:{name:"Vertikal",b:30,h:40,art:"hoch",werte:4},
     vertikal_fett:{name:"Vertikal fett",b:30,h:40,art:"hochfett",werte:2},
-    vertikal_kompakt:{name:"Vertikal kompakt",b:25,h:40,art:"hochkompakt",werte:2}};
+    vertikal_kompakt:{name:"Vertikal kompakt",b:25,h:40,art:"hochkompakt",werte:2},
+    rund25:{name:"Rund Ø25",b:40,h:30,art:"rund",werte:1,d:25}};
   const KOPF_MM=48;
   function formatVon(k){if(FORMATE[k])return FORMATE[k];const m=/^eigen-(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/.exec(k||"");
     if(m){const b=Number(m[1]),h=Number(m[2]);if(b>=15&&b<=KOPF_MM&&h>=10&&h<=100)return {name:"Eigene",b,h,eigen:true,art:h>b?"hoch":"quer",werte:4}}return null}
@@ -126,7 +127,7 @@ const Etikett=(()=>{
     const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);
     const B=W,Hh=H;const hex=o.rgb==="aus"?"":(s.hex||"").toUpperCase();
     const art=drehen?"hoch":(f.art||"quer");let weg=[];
-    const zeichner={quer,kompakt,slim,slicer,hoch,hochfett,hochkompakt}[art]||quer;
+    const zeichner={quer,kompakt,slim,slicer,hoch,hochfett,hochkompakt,rund}[art]||quer;
     weg=zeichner(ctx,s,o,img,B,Hh,hex,f)||[];
     schwarzWeiss(ctx,W,H);return {breite:W,hoehe:H,weg}}
 
@@ -191,6 +192,26 @@ const Etikett=(()=>{
       const gw=Math.min(gw0,...liste.map(([nm,w])=>passend(ctx,w,innen-(nm?sp:0),gw0,800,8).g));
       liste.forEach(([nm,w],i)=>{const zy=y+(i+1)*zh-Math.round(zh*0.28);if(nm)text(ctx,nm,m,zy,gn,500);
         const p=passend(ctx,w,innen-(nm?sp:0),gw,800,8);text(ctx,p.text,m+(nm?sp:0),zy,p.g,800)})}
+    return liste.weg}
+  /* Rund (Ø 25 auf 40×30): gestrichelte Schnittlinie zum Ausschneiden, Inhalt mit 2 mm Abstand – für den Tag-Clip */
+  function rund(ctx,s,o,img,W,H,hex,f){const mm=W/f.b;const cx=W/2,cy=H/2;const r=(f.d||25)/2*mm;const ri=r-2*mm;
+    ctx.save();ctx.strokeStyle="#000";ctx.lineWidth=Math.max(K,Math.round(0.3*mm));ctx.setLineDash([Math.round(1.2*mm),Math.round(0.9*mm)]);
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();ctx.restore();
+    const sehne=dy=>2*Math.sqrt(Math.max(0,ri*ri-dy*dy));
+    // Logo (oder Herstellername) oben mittig
+    const lo=-9*mm,lh=3*mm,lb=Math.min(sehne(lo),11*mm);
+    if(img){const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;const k=Math.min(lb/iw,lh/ih);const w=Math.round(iw*k),hh=Math.round(ih*k);
+      ctx.imageSmoothingEnabled=true;ctx.drawImage(img,Math.round(cx-w/2),Math.round(cy+lo+(lh-hh)/2),w,hh)}
+    else{const p=passend(ctx,s.hersteller||"Filament",lb,Math.round(lh*0.9),800,8);text(ctx,p.text,cx,cy+lo+Math.round(lh*0.85),p.g,800,"#000","center")}
+    // Material groß, Farbe darunter
+    const mp=passend(ctx,materialVon(s),sehne(-4.2*mm),Math.round(3.8*mm),800,9);text(ctx,mp.text,cx,cy-1.4*mm,mp.g,800,"#000","center");
+    const fp=passend(ctx,farbeVon(s),sehne(1.8*mm),Math.round(2.3*mm),700,8);text(ctx,fp.text,cx,cy+1.8*mm,fp.g,700,"#000","center");
+    // eine Zeile: Gewicht · erster Slot
+    const liste=zeilen(s,o,f.werte);const teile=[];if(s.gewicht>0)teile.push(s.gewicht>=1000?`${komma(s.gewicht/1000)} kg`:`${s.gewicht} g`);
+    liste.forEach(([,w])=>teile.push(w));
+    if(teile.length){const zp=passend(ctx,teile.join(" · "),sehne(4.6*mm),Math.round(2*mm),600,8);text(ctx,zp.text,cx,cy+4.6*mm,zp.g,600,"#000","center")}
+    // Spulen-ID unten
+    if(o.id){const ip=passend(ctx,"#"+String(o.id).replace(/^#/,""),sehne(8.2*mm),Math.round(2.6*mm),800,8);text(ctx,ip.text,cx,cy+8*mm,ip.g,800,"#000","center")}
     return liste.weg}
   function hochfett(ctx,s,o,img,W,H,hex,f){return hoch(ctx,s,o,img,W,H,hex,f,true,2)}
   function hochkompakt(ctx,s,o,img,W,H,hex,f){return hoch(ctx,s,o,img,W,H,hex,f,false,2)}

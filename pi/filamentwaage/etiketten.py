@@ -19,7 +19,7 @@ from . import phomemo
 
 log = logging.getLogger("etikett")
 
-FORMATE = ("classic", "expanded", "compact", "slim", "slicer", "vertikal", "vertikal_fett", "vertikal_kompakt")
+FORMATE = ("classic", "expanded", "compact", "slim", "slicer", "vertikal", "vertikal_fett", "vertikal_kompakt", "rund25")
 BILD_MAX = 4 * 1024 * 1024
 BILD_ARTEN = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}
 
